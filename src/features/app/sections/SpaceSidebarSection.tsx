@@ -1,11 +1,10 @@
-import { ChevronRight, User } from "lucide-react";
+import { User } from "lucide-react";
 
 type SpaceSidebarSectionProps = {
   isOwnSpace: boolean;
   displayName?: string;
   capsuleCount: number;
   squareCount: number;
-  onBack: () => void;
 };
 
 export function SpaceSidebarSection({
@@ -13,19 +12,9 @@ export function SpaceSidebarSection({
   displayName,
   capsuleCount,
   squareCount,
-  onBack,
 }: SpaceSidebarSectionProps) {
   return (
-    <div className="flex flex-col gap-4 p-4">
-      <button
-        type="button"
-        onClick={onBack}
-        className="cd-btn-ghost flex w-full items-center gap-2 py-2 text-left text-[14px] font-bold"
-      >
-        <ChevronRight className="h-4 w-4 rotate-180" strokeWidth={3} />
-        返回我的
-      </button>
-
+    <div className="flex flex-col gap-4 px-2 pb-4 pt-0">
       <div className="cd-card-raised rounded-2xl p-4">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/12 bg-gradient-to-br from-[#F06292]/30 to-violet-600/20">

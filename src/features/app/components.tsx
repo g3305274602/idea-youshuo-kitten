@@ -176,7 +176,7 @@ export function MailboxGroupedList({
   const { sealed, opened } = partitionByDue(messages);
 
   return (
-    <div className="space-y-0.5">
+    <div className="space-y-0.5 px-0.5 pb-3">
       {sealed.length > 0 ? (
         <div className="mb-0.5">
           <MailboxSectionHeader
@@ -939,10 +939,8 @@ export function NavTab({
       aria-selected={active}
       onClick={onClick}
       className={cn(
-        "rounded-full px-2.5 py-1.5 text-[12px] font-medium tracking-tight transition-all duration-200 shrink-0",
-        active
-          ? "text-white bg-gradient-to-b from-white/[0.22] to-white/[0.06] shadow-[0_1px_10px_rgba(0,0,0,0.35)] ring-1 ring-white/15"
-          : "text-white/55 hover:text-white/95 hover:bg-white/[0.07]",
+        "ys-topnav-navtab",
+        active ? "ys-topnav-navtab--active" : "ys-topnav-navtab--inactive",
       )}
     >
       {label}
@@ -1015,7 +1013,7 @@ function MessageTile({
           ? "border-l-[3px] border-l-[#fbbf24] bg-amber-500/10 hover:bg-amber-500/15"
           : "border-l-[3px] border-l-sky-400/90 bg-sky-500/10 hover:bg-sky-500/15",
         active
-          ? "ring-1 ring-white/20"
+          ? "ring-1 ring-inset ring-white/25"
           : null,
       )}
     >

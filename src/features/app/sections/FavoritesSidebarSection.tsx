@@ -29,90 +29,94 @@ export function FavoritesSidebarSection({
     );
   }
 
-  return items.map((item) => {
-    const unlocked = item.peerIdentityUnlocked;
+  return (
+    <div className="space-y-1.5 px-0.5 pb-3">
+      {items.map((item) => {
+        const unlocked = item.peerIdentityUnlocked;
 
-    if (item.kind === "capsule") {
-      const f = item.row;
-      return (
-        <button
-          key={item.key}
-          type="button"
-          onClick={() => onSelect(item.key)}
-          className={cn(
-            "ys-tap-list-row w-full text-left rounded-xl border px-3 py-2.5 transition-all",
-            "border-white/10 bg-[#1A1B22]/95 shadow-sm",
-            selectedId === item.key
-              ? "ring-2 ring-amber-400/35 border-amber-300/20"
-              : "hover:border-white/16",
-          )}
-        >
-          <p className="line-clamp-2 text-[13px] font-medium leading-snug text-white/95">
-            {f.snapshotContent.length > 120
-              ? `${f.snapshotContent.slice(0, 120)}…`
-              : f.snapshotContent}
-          </p>
-          <div className="mt-1.5 flex flex-wrap items-center gap-2">
-            <span
+        if (item.kind === "capsule") {
+          const f = item.row;
+          return (
+            <button
+              key={item.key}
+              type="button"
+              onClick={() => onSelect(item.key)}
               className={cn(
-                "inline-flex rounded-full border px-2 py-0.5 text-[9px] font-bold",
-                capsuleTypeMeta(f.snapshotCapsuleType).chipClass,
+                "ys-tap-list-row w-full text-left rounded-xl border px-3 py-2.5 transition-all",
+                "border-white/10 bg-[#1A1B22]/95 shadow-sm",
+                selectedId === item.key
+                  ? "ring-2 ring-inset ring-amber-400/45 border-amber-300/25"
+                  : "hover:border-white/16",
               )}
             >
-              #{capsuleTypeMeta(f.snapshotCapsuleType).label}
-            </span>
-            <span className="min-w-0 text-[10px] font-semibold text-[#8E8E93]">
-              {unlocked ? f.snapshotAuthorEmail : anonPaperNoteLabel(f.snapshotPublisherGender)}
-            </span>
-            <GenderIcon gender={f.snapshotPublisherGender} />
-          </div>
-        </button>
-      );
-    }
+              <p className="line-clamp-2 text-[13px] font-medium leading-snug text-white/95">
+                {f.snapshotContent.length > 120
+                  ? `${f.snapshotContent.slice(0, 120)}…`
+                  : f.snapshotContent}
+              </p>
+              <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                <span
+                  className={cn(
+                    "inline-flex rounded-full border px-2 py-0.5 text-[9px] font-bold",
+                    capsuleTypeMeta(f.snapshotCapsuleType).chipClass,
+                  )}
+                >
+                  #{capsuleTypeMeta(f.snapshotCapsuleType).label}
+                </span>
+                <span className="min-w-0 text-[10px] font-semibold text-[#8E8E93]">
+                  {unlocked ? f.snapshotAuthorEmail : anonPaperNoteLabel(f.snapshotPublisherGender)}
+                </span>
+                <GenderIcon gender={f.snapshotPublisherGender} />
+              </div>
+            </button>
+          );
+        }
 
-    const f = item.row;
-    const line = squareAddressSubtitle(
-      f.snapshotShowSender,
-      f.snapshotShowRecipient,
-      f.snapshotSenderEmail,
-      f.snapshotRecipientEmail,
-    );
-    return (
-      <button
-        key={item.key}
-        type="button"
-        onClick={() => onSelect(item.key)}
-        className={cn(
-          "ys-tap-list-row w-full text-left rounded-xl border px-3 py-2.5 transition-all",
-          "border-white/10 bg-[#1A1B22]/95 shadow-sm",
-          selectedId === item.key
-            ? "ring-2 ring-amber-400/35 border-amber-300/20"
-            : "hover:border-white/16",
-        )}
-      >
-        <p className="line-clamp-2 text-[13px] font-medium leading-snug text-white/95">
-          {f.snapshotContent.length > 120
-            ? `${f.snapshotContent.slice(0, 120)}…`
-            : f.snapshotContent}
-        </p>
-        {unlocked && line ? (
-          <div className="mt-1.5 flex items-center gap-1.5">
-            <p className="min-w-0 break-words text-[11px] font-bold text-white/80">
-              {line}
+        const f = item.row;
+        const line = squareAddressSubtitle(
+          f.snapshotShowSender,
+          f.snapshotShowRecipient,
+          f.snapshotSenderEmail,
+          f.snapshotRecipientEmail,
+        );
+        return (
+          <button
+            key={item.key}
+            type="button"
+            onClick={() => onSelect(item.key)}
+            className={cn(
+              "ys-tap-list-row w-full text-left rounded-xl border px-3 py-2.5 transition-all",
+              "border-white/10 bg-[#1A1B22]/95 shadow-sm",
+              selectedId === item.key
+                ? "ring-2 ring-inset ring-amber-400/45 border-amber-300/25"
+                : "hover:border-white/16",
+            )}
+          >
+            <p className="line-clamp-2 text-[13px] font-medium leading-snug text-white/95">
+              {f.snapshotContent.length > 120
+                ? `${f.snapshotContent.slice(0, 120)}…`
+                : f.snapshotContent}
             </p>
-            <GenderIcon gender={f.snapshotPublisherGender} />
-          </div>
-        ) : (
-          <div className="mt-1.5 flex items-center gap-2 text-[10px] font-semibold text-[#8E8E93]">
-            <span>來自廣場</span>
-            <span className="text-white/50">·</span>
-            <span className="min-w-0 text-white/75">
-              {anonPaperNoteLabel(f.snapshotPublisherGender)}
-            </span>
-            <GenderIcon gender={f.snapshotPublisherGender} />
-          </div>
-        )}
-      </button>
-    );
-  });
+            {unlocked && line ? (
+              <div className="mt-1.5 flex items-center gap-1.5">
+                <p className="min-w-0 break-words text-[11px] font-bold text-white/80">
+                  {line}
+                </p>
+                <GenderIcon gender={f.snapshotPublisherGender} />
+              </div>
+            ) : (
+              <div className="mt-1.5 flex items-center gap-2 text-[10px] font-semibold text-[#8E8E93]">
+                <span>來自廣場</span>
+                <span className="text-white/50">·</span>
+                <span className="min-w-0 text-white/75">
+                  {anonPaperNoteLabel(f.snapshotPublisherGender)}
+                </span>
+                <GenderIcon gender={f.snapshotPublisherGender} />
+              </div>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
 }

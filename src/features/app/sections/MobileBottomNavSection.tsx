@@ -1,4 +1,4 @@
-import { PenTool, User } from "lucide-react";
+import { CircleUser, SquarePen } from "lucide-react";
 
 import { cn } from "../../../lib/utils";
 import capsuleDrawFabTab from "../../../assets/images/app/secret/capsule-draw-fab2.png";
@@ -45,16 +45,23 @@ export function MobileBottomNavSection({
               type="button"
               aria-label="撰寫"
               onClick={onGoCompose}
-              className={`ys-mobile-tab ${isComposeActive ? "is-active" : ""}`}
+              className={cn(
+                "ys-mobile-tab",
+                isComposeActive && "is-active",
+              )}
             >
-              <PenTool
-                className={
-                  isComposeActive ? "h-6 w-6 text-[#FFD54F]" : "h-6 w-6"
-                }
-                strokeWidth={isComposeActive ? 2.75 : 2.35}
-                aria-hidden
-              />
-              <span className="ys-mobile-tab-label">撰寫</span>
+              <span
+                className={cn(
+                  "ys-rail-squ ys-rail-squ--write",
+                  isComposeActive ? "ys-rail-squ--on" : "ys-rail-squ--off",
+                )}
+              >
+                <SquarePen
+                  className="h-[1.45rem] w-[1.45rem] shrink-0"
+                  strokeWidth={isComposeActive ? 2.5 : 2.15}
+                  aria-hidden
+                />
+              </span>
             </button>
 
             <div className="ys-mobile-bottom-nav-fabSlot">
@@ -85,23 +92,29 @@ export function MobileBottomNavSection({
               type="button"
               aria-label="我的"
               onClick={onGoMine}
-              className={`ys-mobile-tab relative ${isMineActive ? "is-active" : ""}`}
+              className={cn("ys-mobile-tab relative", isMineActive && "is-active")}
             >
-              <span className="relative inline-flex">
-                <User
-                  className={isMineActive ? "h-6 w-6 text-[#FFD54F]" : "h-6 w-6"}
-                  strokeWidth={isMineActive ? 2.75 : 2.35}
-                  aria-hidden
-                />
+              <span className="relative inline-flex h-11 w-11">
+                <span
+                  className={cn(
+                    "ys-rail-squ ys-rail-squ--me",
+                    isMineActive ? "ys-rail-squ--on" : "ys-rail-squ--off",
+                  )}
+                >
+                  <CircleUser
+                    className="h-[1.45rem] w-[1.45rem] shrink-0"
+                    strokeWidth={isMineActive ? 2.5 : 2.15}
+                    aria-hidden
+                  />
+                </span>
                 {showMineChatUnread ? (
                   <span
-                    className="ys-unread-dot absolute -right-0.5 -top-0.5"
+                    className="ys-unread-dot pointer-events-none absolute -right-0.5 -top-0.5 z-10"
                     title="有未讀新訊息"
                     aria-hidden
                   />
                 ) : null}
               </span>
-              <span className="ys-mobile-tab-label">我的</span>
             </button>
           </div>
         </div>

@@ -90,13 +90,13 @@ export function TopNavSection({
               有說
             </span>
             <span className="block text-[9px] font-semibold tracking-[0.14em] text-white/55 md:text-white/45">
-              悄悄話・膠囊・小紙條
+              悄悄話・慢慢説・屬於我們的秘密
             </span>
           </div>
         ) : null}
 
         <div
-          className="hidden h-10 max-w-[min(100%,36rem)] shrink-0 items-center gap-1 overflow-x-auto rounded-full bg-black/35 p-1 shadow-inner shadow-black/20 ring-1 ring-inset ring-white/[0.12] scrollbar-none md:flex"
+          className="ys-topnav-tablist hidden max-w-[min(100%,22rem)] min-w-0 shrink-0 items-center justify-center overflow-hidden md:flex"
           role="tablist"
           aria-label="主要分頁"
         >
@@ -104,7 +104,7 @@ export function TopNavSection({
           <NavTab
             active={activeTab === "new" || activeTab === "direct"}
             onClick={onComposeTab}
-            label="撰写"
+            label="撰寫"
           />
           <NavTab
             active={
@@ -133,7 +133,7 @@ export function TopNavSection({
           有說
         </span>
         <span className="text-[9px] font-semibold tracking-[0.14em] text-white/55 md:text-white/45">
-          悄悄話・膠囊・小紙條
+          悄悄話・慢慢説・屬於我們的秘密
         </span>
       </div>
 
@@ -141,7 +141,7 @@ export function TopNavSection({
         <button
           type="button"
           onClick={onOpenProfileActionMenu}
-          className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/12 px-2.5 py-1.5 text-[11px] font-semibold text-white/95 transition-colors hover:bg-white/20 md:hidden"
+          className="ys-topnav-user-pill px-2.5 py-1.5 text-[11px] font-semibold md:hidden"
         >
           <span className="max-w-[4.75rem] truncate">{userDisplayName}</span>
           <ChevronDown className="h-3.5 w-3.5 shrink-0 text-white/70" />
@@ -150,9 +150,9 @@ export function TopNavSection({
         <div className="group relative hidden md:block">
           <button
             type="button"
-            className="inline-flex max-w-[min(100%,11rem)] items-center gap-2 rounded-full border border-white/20 bg-white/10 px-2.5 py-1.5 text-left text-white/95 transition-colors hover:bg-white/20"
+            className="ys-topnav-user-pill max-w-[min(100%,11rem)] items-center gap-1.5 px-2.5 py-1.5 text-left text-[11px]"
           >
-            <span className="inline-flex max-w-[6rem] truncate rounded-full border border-white/25 bg-white/10 px-2.5 py-0.5 text-[11px] font-semibold">
+            <span className="inline-flex min-w-0 max-w-[6rem] truncate rounded-full border border-white/12 bg-white/[0.07] px-2 py-0.5 font-semibold text-white/95">
               {userDisplayName}
             </span>
             <ChevronDown className="h-4 w-4 shrink-0 text-white/70" />
@@ -173,7 +173,7 @@ export function TopNavSection({
                   type="button"
                   onClick={() => void onBootstrapAdminSelf()}
                   disabled={adminActionLoading}
-                  className="w-full rounded-[16px] border border-white/10 bg-rose-500/20 px-4 py-3 text-left text-[14px] font-black text-rose-100 backdrop-blur-sm transition-all active:scale-[0.98] disabled:opacity-50"
+                  className="w-full rounded-[16px] my-1 border border-white/10 bg-rose-500/20 px-4 py-3 text-left text-[14px] font-black text-rose-100 backdrop-blur-sm transition-all active:scale-[0.98] disabled:opacity-50"
                 >
                   {adminActionLoading ? "建立中..." : "🔑 建立首位超級管理員"}
                 </button>
@@ -182,7 +182,7 @@ export function TopNavSection({
                 <button
                   type="button"
                   onClick={onEnterAdmin}
-                  className="ys-gold-glow w-full rounded-[16px] border border-white/20 bg-[#F4DC3A] px-3 py-2 text-left text-[13px] font-black text-stone-900 transition-all active:scale-[0.98]"
+                  className="ys-gold-glow w-full rounded-[16px] my-1 border border-white/20 bg-[#F4DC3A] px-3 py-2 text-left text-[13px] font-black text-stone-900 transition-all active:scale-[0.98]"
                 >
                   進入管理中心
                 </button>

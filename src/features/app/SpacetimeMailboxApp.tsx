@@ -16,7 +16,7 @@ import {
   Loader2,
   X,
   Bell,
-  MessageCircle,
+  Sparkles,
   Plus,
   Activity,
   Mars, // 男
@@ -59,9 +59,11 @@ import { SpaceSidebarSection } from "./sections/SpaceSidebarSection";
 import { MyReportsSidebarSection } from "./sections/MyReportsSidebarSection";
 import { ChatThreadsSidebarSection } from "./sections/ChatThreadsSidebarSection";
 import { FavoritesSidebarSection } from "./sections/FavoritesSidebarSection";
+import { MineHubMenuNav, showMineHubDesktopSubNav } from "./sections/MineHubMenuNav";
 import { MineSidebarSection } from "./sections/MineSidebarSection";
 import { ChatMainSection } from "./sections/ChatMainSection";
 import { SecretMainSection } from "./sections/SecretMainSection";
+import { SecretTabFooterBar } from "./sections/SecretTabFooterBar";
 import { FavoritesMainSection } from "./sections/FavoritesMainSection";
 import { ComposeMessageMainSection } from "./sections/ComposeMessageMainSection";
 import { CapsuleOverlaySection } from "./sections/CapsuleOverlaySection";
@@ -209,8 +211,6 @@ export default function SpacetimeMailboxApp({
     setCapsuleOpen,
     capsulePostId,
     setCapsulePostId,
-    secretWallExpanded,
-    setSecretWallExpanded,
     publishIncludeThread,
     setPublishIncludeThread,
     publishIncludeCapsulePrivate,
@@ -1915,26 +1915,6 @@ export default function SpacetimeMailboxApp({
     }
   }, [favoriteSelectedId, unifiedFavoriteItems]);
 
-  const onMineOpenSquareWall = useCallback(() => {
-    setActiveTab("mine_square");
-    setSelectedMessageId(null);
-    setSquareSelectedPostId(null);
-    setFavoriteSelectedId(null);
-    setSelectedChatThreadKey(null);
-    setSelectedAdminReportId(null);
-    setChatBackTab(null);
-    setSquareActionError("");
-  }, [
-    setActiveTab,
-    setSelectedMessageId,
-    setSquareSelectedPostId,
-    setFavoriteSelectedId,
-    setSelectedChatThreadKey,
-    setSelectedAdminReportId,
-    setChatBackTab,
-    setSquareActionError,
-  ]);
-
   const onSecretSidebarOpenChat = useCallback(() => {
     setChatBackTab("secret");
     setActiveTab("chat");
@@ -2201,7 +2181,6 @@ export default function SpacetimeMailboxApp({
     openBroadcastMessage,
     onBroadcastKeyDown,
     dismissBroadcastItem,
-    onSpacePanelBack,
   } = useAsideActions({
     activeTab,
     spaceBackTab,
@@ -2477,11 +2456,6 @@ export default function SpacetimeMailboxApp({
   const secretMainProps = {
     selectedSquarePost: selectedSquarePost ?? null,
     squareActionError,
-    secretWallExpanded,
-    onSetSecretWallExpanded: setSecretWallExpanded,
-    squarePostsVisible,
-    squarePostsSortedLength: squarePostsSorted.length,
-    squareSelectedPostId,
     onSetSquareSelectedPostId: setSquareSelectedPostId,
     squareReactionCountsByPost,
     squareCommentsByPost,
@@ -2561,6 +2535,19 @@ export default function SpacetimeMailboxApp({
     onSetPublishShowRecipient: setPublishShowRecipient,
   };
 
+  const mineSquareSecretWallCommon = {
+    expanded: true,
+    onToggleExpanded: () => {},
+    postsVisible: squarePostsVisible,
+    postsSortedLength: squarePostsSorted.length,
+    selectedSquarePostId: squareSelectedPostId,
+    onSelectPost: setSquareSelectedPostId,
+    reactionCountsByPost: squareReactionCountsByPost,
+    commentsByPost: squareCommentsByPost,
+    maxListItems: 12,
+    onOpenSpace: openSpace,
+  };
+
   return (
     <>
     <div
@@ -2590,46 +2577,19 @@ export default function SpacetimeMailboxApp({
         sanctionTickerText={sanctionTickerText}
       />
 
-      <div className="relative flex min-h-0 flex-1 overflow-hidden pb-[5.5rem] md:pb-0">
+      <div className="relative flex min-h-0 flex-1 overflow-hidden pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] md:pb-0">
         {/* Column 1: Message List (Product Grid Style) */}
         <aside
           className={cn(
             "w-full shrink-0 flex flex-col overflow-hidden transition-all duration-300",
-            (activeTab === "secret" && squareSelectedPostId === null) ||
-            (activeTab === "mine_square" && squareSelectedPostId === null)
-              ? "md:w-full border-r-0"
-              : "md:w-[min(100%,18rem)] border-r",
+            /** 與多數分頁同寬；秘密已改「左介紹、右牆＋揀膠囊」，勿再 `md:w-full` 否則主欄變 0 寬 */
+            "md:w-[min(100%,18rem)] border-r",
             activeTab === "secret" || activeTab === "mine_square"
               ? "border-white/10 bg-transparent"
               : "border-white/10 bg-transparent/80 backdrop-blur-sm md:border-white/10",
             isMobileDetailView ? "hidden md:flex" : "flex",
           )}
         >
-          {!auth.isAdmin &&
-            (activeTab === "inbox" ||
-              activeTab === "outbox" ||
-              activeTab === "favorites" ||
-              activeTab === "space" ||
-              activeTab === "my_reports" ||
-              activeTab === "mine_square" ||
-              activeTab === "chat") && (
-              <button
-                type="button"
-                onClick={onAsideBackToMine}
-                className="hidden md:flex w-full items-center gap-1 rounded-2xl border border-white/15 bg-white/5 px-2.5 py-1.5 text-left text-[12px] font-semibold text-white/95 backdrop-blur-md transition-colors hover:bg-white/10"
-              >
-                <ChevronRight
-                  className="h-4 w-4 shrink-0 rotate-180 opacity-70"
-                  aria-hidden
-                />
-                {activeTab === "space" && spaceBackTab === "secret"
-                  ? "回到秘密"
-                  : activeTab === "chat" && chatBackTab === "secret"
-                    ? "回到秘密"
-                    : "回到我的"}
-              </button>
-            )}
-
           {activeTab !== "new" &&
           (activeTab === "inbox" || activeTab === "outbox")
             ? (() => {
@@ -2725,14 +2685,64 @@ export default function SpacetimeMailboxApp({
 
           <div
             className={cn(
-              "flex-1 px-2 py-2",
+              "flex min-h-0 flex-1 flex-col px-2 py-2",
               activeTab === "secret" || activeTab === "mine_square"
-                ? "flex min-h-0 flex-1 flex-col overflow-y-auto apple-scroll"
-                : "space-y-1.5 overflow-y-auto apple-scroll",
+                ? "overflow-hidden"
+                : "",
             )}
           >
+            {showMineHubDesktopSubNav(activeTab) ? (
+              <div className="mb-2 hidden shrink-0 md:block">
+                <MineHubMenuNav
+                  layout="desktop"
+                  activeTab={activeTab}
+                  onNavigate={onMineHubNavigate}
+                  squarePostsCount={squarePostsSorted.length}
+                  inboxUnreadCount={inboxUnreadCount}
+                  outboxUnreadCount={outboxUnreadCount}
+                  chatUnreadCount={chatUnreadThreadCount}
+                />
+              </div>
+            ) : null}
+            <div
+              className={cn(
+                "min-h-0 flex-1",
+                activeTab === "secret" || activeTab === "mine_square"
+                  ? "flex flex-col overflow-y-auto apple-scroll"
+                  : "space-y-1.5 overflow-y-auto apple-scroll",
+              )}
+            >
+            {(activeTab === "inbox" ||
+              activeTab === "outbox" ||
+              activeTab === "favorites" ||
+              activeTab === "space" ||
+              activeTab === "my_reports" ||
+              activeTab === "mine_square" ||
+              activeTab === "chat") && (
+              <div className="hidden shrink-0 md:block">
+                <div className="ys-mine-back-pill">
+                  <button
+                    type="button"
+                    onClick={onAsideBackToMine}
+                    className="ys-mine-back-pill__btn"
+                  >
+                    <ChevronRight
+                      className="rotate-180"
+                      strokeWidth={2.5}
+                      aria-hidden
+                    />
+                    {activeTab === "space" && spaceBackTab === "secret"
+                      ? "回到秘密"
+                      : activeTab === "chat" && chatBackTab === "secret"
+                        ? "回到秘密"
+                        : "返回我的"}
+                  </button>
+                </div>
+              </div>
+            )}
             {activeTab === "mine" ? (
               <MineSidebarSection
+                activeTab={activeTab}
                 user={user}
                 inboxUnreadCount={inboxUnreadCount}
                 outboxUnreadCount={outboxUnreadCount}
@@ -2747,25 +2757,23 @@ export default function SpacetimeMailboxApp({
                 onLogout={() => void handleLogout()}
                 onNavigate={onMineHubNavigate}
                 squarePostsCount={squarePostsSorted.length}
-                onOpenSquareWall={onMineOpenSquareWall}
               />
             ) : activeTab === "mine_square" ? (
-              <div className="mx-auto flex min-h-0 w-full max-w-md flex-1 flex-col gap-2 px-1 pb-4 pt-1">
-                
-                <SecretWallSection
-                  expanded
-                  onToggleExpanded={() => {}}
-                  postsVisible={squarePostsVisible}
-                  postsSortedLength={squarePostsSorted.length}
-                  selectedSquarePostId={squareSelectedPostId}
-                  onSelectPost={setSquareSelectedPostId}
-                  reactionCountsByPost={squareReactionCountsByPost}
-                  commentsByPost={squareCommentsByPost}
-                  maxListItems={12}
-                  expandedBodyMaxClass="max-h-[min(56vh,26rem)] md:max-h-[min(50vh,22rem)]"
-                  onOpenSpace={openSpace}
-                />
-              </div>
+              squareSelectedPostId ? (
+                <div className="mx-auto flex min-h-0 w-full max-w-md flex-1 flex-col gap-2 px-1 pb-4 pt-1">
+                  <SecretWallSection
+                    {...mineSquareSecretWallCommon}
+                    expandedBodyMaxClass="max-h-[min(56vh,26rem)] md:max-h-[min(50vh,22rem)]"
+                  />
+                </div>
+              ) : (
+                <div className="mx-auto flex min-h-0 w-full max-w-md flex-1 flex-col gap-2 px-1 pb-4 pt-1 md:hidden">
+                  <SecretWallSection
+                    {...mineSquareSecretWallCommon}
+                    expandedBodyMaxClass="max-h-[min(56vh,26rem)] md:max-h-[min(50vh,22rem)]"
+                  />
+                </div>
+              )
             ) : activeTab === "space" ? (
               <SpaceSidebarSection
                 isOwnSpace={isOwnSpace}
@@ -2774,7 +2782,6 @@ export default function SpacetimeMailboxApp({
                 }
                 capsuleCount={spaceCapsules.length}
                 squareCount={spaceSquares.length}
-                onBack={onSpacePanelBack}
               />
             ) : activeTab === "admin" || activeTab === "admin_ops" ? (
               <AdminWorkbench viewProps={adminViewProps} slot="sidebar" />
@@ -2806,59 +2813,46 @@ export default function SpacetimeMailboxApp({
                 </p>
               </div>
             ) : activeTab === "secret" ? (
-              <div className="mx-auto flex min-h-0 w-full max-w-md flex-1 flex-col items-center gap-3 pb-8 pt-2">
-                <div className="flex min-h-0 w-full flex-1 flex-col items-center justify-center gap-3 px-1">
-                  <div className="flex w-full justify-center">
-                    <SecretCapsuleDrawButton
-                      variant="treasure"
-                      onClick={() => void openCapsuleDrawer()}
+              <>
+                {/* 手機：原左欄（抽膠囊 + 底列廣場／聊聊） */}
+                <div className="mx-auto flex min-h-0 w-full max-w-md flex-1 flex-col items-center gap-3 pb-8 pt-2 md:hidden">
+                  <div className="flex min-h-0 w-full flex-1 flex-col items-center justify-center gap-3 px-1">
+                    <div className="flex w-full justify-center">
+                      <SecretCapsuleDrawButton
+                        variant="treasure"
+                        onClick={() => void openCapsuleDrawer()}
+                      />
+                    </div>
+                    <p className="text-center text-[11px] font-black uppercase tracking-wider text-white/55">
+                      抽一則秘密膠囊
+                    </p>
+                  </div>
+                  <div className="w-full shrink-0 px-2">
+                    <SecretTabFooterBar
+                      chatUnreadCount={chatUnreadThreadCount}
+                      onGotoSquare={() => onMineHubNavigate("mine_square")}
+                      onGotoChat={onSecretSidebarOpenChat}
                     />
                   </div>
-                  <p className="text-center text-[11px] font-black uppercase tracking-wider text-white/55">
-                    抽一則秘密膠囊
-                  </p>
                 </div>
-                <div className="w-full shrink-0 px-2 md:px-0">
-                  <button
-                    type="button"
-                    onClick={onSecretSidebarOpenChat}
-                    className="glass-effect flex w-full items-center gap-2 rounded-[24px] border border-white/10 p-3 text-left transition-colors hover:bg-white/[0.07] active:scale-[0.99]"
-                  >
-                    <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-white/15 bg-gradient-to-br from-emerald-400/25 to-white/5 text-white">
-                      <MessageCircle
-                        className="h-4 w-4"
-                        strokeWidth={2.25}
-                        aria-hidden
-                      />
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-[12px] font-black text-white">聊聊</p>
-                      <p className="text-[10px] font-bold text-white/50">
-                        {chatUnreadThreadCount > 0
-                          ? `有 ${chatUnreadThreadCount} 條聊聊線有新訊息未讀`
-                          : "尚無未讀新訊息，點此開啟聊聊"}
-                      </p>
-                    </div>
-                    <div className="flex shrink-0 items-center gap-1.5">
-                      {chatUnreadThreadCount > 0 ? (
-                        <span
-                          className="ys-unread-pill"
-                          aria-label={`${chatUnreadThreadCount} 條有未讀新訊息`}
-                        >
-                          {chatUnreadThreadCount > 99
-                            ? "99+"
-                            : chatUnreadThreadCount}
-                        </span>
-                      ) : null}
-                      <ChevronRight
-                        className="h-4 w-4 text-white/45"
-                        strokeWidth={2.4}
+                {/* 桌機：與「撰寫」左欄同系的介紹卡（內容在右欄） */}
+                <div className="mt-2 hidden text-center md:block">
+                  <div className="glass-effect rounded-[24px] p-5 text-center">
+                    <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/5">
+                      <Sparkles
+                        className="h-5 w-5 text-[#FFD54F]"
                         aria-hidden
                       />
                     </div>
-                  </button>
+                    <p className="text-[15px] font-semibold tracking-tight text-white/95">
+                      秘密
+                    </p>
+                    <p className="text-[12px] mt-2 leading-snug text-white/60">
+                      在右欄揀一顆旅人膠囊。小紙條在「廣場牆」、聊聊在底列，由此跳轉即可。
+                    </p>
+                  </div>
                 </div>
-              </div>
+              </>
             ) : activeTab === "favorites" ? (
               <FavoritesSidebarSection
                 items={unifiedFavoriteItems}
@@ -2886,6 +2880,7 @@ export default function SpacetimeMailboxApp({
                 onToggleOpened={() => toggleMailboxSection(activeTab, "opened")}
               />
             ) : null}
+            </div>
           </div>
         </aside>
 
@@ -2915,10 +2910,15 @@ export default function SpacetimeMailboxApp({
                 </p>
               </div>
             ) : activeTab === "mine_square" && !selectedSquarePost ? (
-              <div className="mx-auto hidden max-w-md flex-col items-center justify-center px-4 py-12 text-center md:flex md:flex-col">
-                <p className="text-[14px] leading-relaxed text-white/50">
-                  在左欄廣場牆點一則貼文；手機上點一則後以頂欄「返回」回列表。
-                </p>
+              <div className="hidden h-full w-full min-h-0 flex-1 flex-col overflow-hidden md:flex">
+                <div className="min-h-0 w-full flex-1 overflow-y-auto apple-scroll md:px-2 md:py-0 lg:px-4">
+                  <div className="mx-auto w-full max-w-5xl">
+                    <SecretWallSection
+                      {...mineSquareSecretWallCommon}
+                      expandedBodyMaxClass="max-h-[min(85vh,56rem)]"
+                    />
+                  </div>
+                </div>
               </div>
             ) : activeTab === "space" ? (
               <SpaceMainSection
@@ -2946,7 +2946,22 @@ export default function SpacetimeMailboxApp({
               <ChatMainSection {...chatMainProps} />
             ) : activeTab === "secret" ||
               (activeTab === "mine_square" && selectedSquarePost) ? (
-              <SecretMainSection {...secretMainProps} />
+              <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col gap-3">
+                {activeTab === "secret" && !selectedSquarePost ? (
+                  <>
+                    <SecretMainSection {...secretMainProps} />
+                    <div className="mt-4 w-full max-w-md shrink-0 self-center sm:max-w-lg">
+                      <SecretTabFooterBar
+                        chatUnreadCount={chatUnreadThreadCount}
+                        onGotoSquare={() => onMineHubNavigate("mine_square")}
+                        onGotoChat={onSecretSidebarOpenChat}
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <SecretMainSection {...secretMainProps} />
+                )}
+              </div>
             ) : activeTab === "favorites" ? (
               <FavoritesMainSection
                 selectedUnifiedFavorite={selectedUnifiedFavorite}

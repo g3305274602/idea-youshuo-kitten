@@ -2867,7 +2867,7 @@ function SpacetimeMailboxApp({ identity }: { identity: Identity }) {
             有說
           </span>
           <span className="text-[9px] font-medium tracking-wide text-white/55 md:text-white/45">
-            悄悄話・膠囊・小紙條
+            悄悄話・慢慢説・屬於我們的秘密
           </span>
         </div>
         <div className="relative z-10 hidden flex-1 items-center justify-end gap-2 md:flex md:gap-3">

@@ -9,7 +9,7 @@ import {
 import { cn } from "../../../lib/utils";
 import type { SquareComment, SquarePost } from "../../../module_bindings/types";
 import { squareAddressSubtitle } from "../helpers";
-import { SecretCapsuleDrawButton, SecretWallSection } from "../components";
+import { SecretCapsuleDrawButton } from "../components";
 
 type ReactionCount = { up: number; mid: number; down: number };
 type CapsuleAuthorInfo = {
@@ -22,11 +22,6 @@ type CapsuleAuthorInfo = {
 type SecretMainSectionProps = {
   selectedSquarePost: SquarePost | null;
   squareActionError: string;
-  secretWallExpanded: boolean;
-  onSetSecretWallExpanded: (updater: (prev: boolean) => boolean) => void;
-  squarePostsVisible: readonly SquarePost[];
-  squarePostsSortedLength: number;
-  squareSelectedPostId: string | null;
   onSetSquareSelectedPostId: (value: string | null) => void;
   squareReactionCountsByPost: ReadonlyMap<string, ReactionCount>;
   squareCommentsByPost: ReadonlyMap<string, readonly SquareComment[]>;
@@ -57,11 +52,6 @@ type SecretMainSectionProps = {
 export function SecretMainSection({
   selectedSquarePost,
   squareActionError,
-  secretWallExpanded,
-  onSetSecretWallExpanded,
-  squarePostsVisible,
-  squarePostsSortedLength,
-  squareSelectedPostId,
   onSetSquareSelectedPostId,
   squareReactionCountsByPost,
   squareCommentsByPost,
@@ -84,13 +74,8 @@ export function SecretMainSection({
 }: SecretMainSectionProps) {
   if (!selectedSquarePost) {
     return (
-      <div className="mx-auto flex min-h-0 w-full max-w-md flex-1 flex-col items-center gap-6 px-4 py-8 md:max-w-lg md:gap-8 md:py-14">
-        <div
-          className={cn(
-            "flex w-full max-w-sm flex-col items-center justify-center gap-3 rounded-3xl border border-white/10 bg-gradient-to-br from-[#1A1B22]/95 via-[#121319]/95 to-[#0c0c12]/95 px-4 py-5 shadow-[0_12px_30px_-16px_rgba(0,0,0,0.6)] backdrop-blur-md",
-            secretWallExpanded ? "shrink-0" : "min-h-0 flex-1",
-          )}
-        >
+      <div className="mx-auto flex w-full max-w-md flex-1 flex-col items-center justify-center gap-4 px-4 py-8 md:max-w-lg md:py-10">
+        <div className="flex w-full max-w-sm shrink-0 flex-col items-center justify-center gap-3 rounded-3xl border border-white/10 bg-gradient-to-br from-[#1A1B22]/95 via-[#121319]/95 to-[#0c0c12]/95 px-4 py-5 shadow-[0_12px_30px_-16px_rgba(0,0,0,0.6)] backdrop-blur-md">
           <p className="text-center text-[11px] font-black uppercase tracking-[0.18em] text-[#8E8E93]">
             抽一則秘密膠囊
           </p>
@@ -101,27 +86,9 @@ export function SecretMainSection({
             />
           </div>
         </div>
-        <div className="w-full min-w-0 max-w-md shrink-0">
-          <SecretWallSection
-            expanded={secretWallExpanded}
-            onToggleExpanded={() => onSetSecretWallExpanded((v) => !v)}
-            postsVisible={[...squarePostsVisible]}
-            postsSortedLength={squarePostsSortedLength}
-            selectedSquarePostId={squareSelectedPostId}
-            onSelectPost={(id) => onSetSquareSelectedPostId(id)}
-            reactionCountsByPost={new Map(squareReactionCountsByPost)}
-            commentsByPost={
-              new Map(
-                [...squareCommentsByPost.entries()].map(([key, comments]) => [
-                  key,
-                  [...comments],
-                ]),
-              )
-            }
-            maxListItems={8}
-            onOpenSpace={onOpenSpace}
-          />
-        </div>
+        <p className="max-w-sm text-center text-[11px] font-bold leading-relaxed text-[#8E8E93]">
+          小紙條牆請從底列「廣場牆」跳轉；在秘密頁只揀旅人膠囊。
+        </p>
       </div>
     );
   }
