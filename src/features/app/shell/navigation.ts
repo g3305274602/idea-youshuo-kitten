@@ -17,6 +17,7 @@ const MOBILE_BACK_BUTTON_TABS: AppTab[] = [
   "chat",
   "space",
   "my_reports",
+  "mine_square",
 ];
 
 const MINE_SUB_TABS: AppTab[] = [
@@ -25,6 +26,7 @@ const MINE_SUB_TABS: AppTab[] = [
   "chat",
   "favorites",
   "my_reports",
+  "mine_square",
 ];
 
 export function isAdminTab(activeTab: AppTab): boolean {
@@ -59,6 +61,7 @@ export function computeIsMobileDetailView({
     activeTab === "space" ||
     // 3. 只有當「選中了具體內容」時，才是詳情視圖
     (activeTab === "secret" && squareSelectedPostId !== null) ||
+    (activeTab === "mine_square" && squareSelectedPostId !== null) ||
     (activeTab === "favorites" && favoriteSelectedId !== null) ||
     (activeTab === "chat" && selectedChatThreadKey !== null) ||
     (activeTab === "inbox" && selectedMessageId !== null) || // 只有選了信才是詳情

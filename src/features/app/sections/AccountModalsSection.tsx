@@ -67,12 +67,12 @@ export function AccountModalsSection({
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 12 }}
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-[min(100%,22rem)] rounded-2xl border-[3px] border-stone-900 bg-[#fffef7] p-5 shadow-[6px_6px_0_0_#0f2420]"
+              className="cd-modal-panel w-full max-w-[min(100%,22rem)] p-5"
             >
-              <h3 className="text-[18px] font-black tracking-tight text-stone-900">
+              <h3 className="text-[18px] font-bold tracking-tight text-white">
                 編輯自我介紹
               </h3>
-              <p className="mt-1 text-[12px] font-bold text-stone-500">
+              <p className="mt-1 text-[12px] font-medium text-[#8E8E93]">
                 可填 10–400 字，儲存後會回到上一頁。
               </p>
               <textarea
@@ -81,14 +81,14 @@ export function AccountModalsSection({
                 rows={6}
                 minLength={10}
                 maxLength={400}
-                className="mt-3 w-full resize-none rounded-xl border-2 border-stone-900 bg-white px-3 py-2 text-[14px] font-medium text-stone-900 outline-none focus:bg-[#fff9df] transition-colors placeholder:text-stone-400"
+                className="cd-field mt-3 min-h-[8rem] resize-none"
                 placeholder="寫下你想讓人知道的自己（10–400 字）"
               />
-              <p className="mt-1 text-right text-[11px] font-bold text-stone-400">
+              <p className="mt-1 text-right text-[11px] font-bold text-[#8E8E93]">
                 {introEditDraft.trim().length}/400
               </p>
               {introEditError ? (
-                <p className="mt-2 text-[13px] font-bold text-red-600" role="alert">
+                <p className="mt-2 text-[13px] font-bold text-red-300" role="alert">
                   {introEditError}
                 </p>
               ) : null}
@@ -97,7 +97,7 @@ export function AccountModalsSection({
                   type="button"
                   onClick={onCloseIntroEdit}
                   disabled={introEditSaving}
-                  className="flex-1 rounded-xl border-2 border-stone-900 bg-white px-4 py-2.5 text-[14px] font-black text-stone-900 active:translate-y-px"
+                  className="cd-btn-ghost flex-1"
                 >
                   取消
                 </button>
@@ -105,7 +105,7 @@ export function AccountModalsSection({
                   type="button"
                   onClick={() => void onSubmitIntroEdit()}
                   disabled={introEditSaving}
-                  className="flex-1 rounded-xl border-2 border-stone-900 bg-[#f4dc3a] px-4 py-2.5 text-[14px] font-black text-stone-900 active:translate-y-px disabled:opacity-50"
+                  className="cd-btn-primary flex-1 disabled:opacity-50"
                 >
                   {introEditSaving ? "儲存中…" : "儲存"}
                 </button>
@@ -136,36 +136,34 @@ export function AccountModalsSection({
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 12 }}
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-[min(100%,22rem)] rounded-2xl border-[3px] border-stone-900 bg-[#fffef7] p-5 shadow-[6px_6px_0_0_#0f2420]"
+              className="cd-modal-panel w-full max-w-[min(100%,22rem)] p-5"
             >
-              <h3 className="text-[18px] font-black tracking-tight text-stone-900">
-                修改秘密
-              </h3>
+              <h3 className="text-[18px] font-bold tracking-tight text-white">修改秘密</h3>
               <div className="mt-4 space-y-3">
                 <input
                   type="password"
                   value={passwordOld}
                   onChange={(e) => onSetPasswordOld(e.target.value)}
                   placeholder="舊密碼"
-                  className="w-full rounded-xl border-2 border-stone-900 bg-white px-3 py-2 text-[14px] font-medium text-stone-900 outline-none focus:bg-[#fff9df] transition-colors placeholder:text-stone-400"
+                  className="cd-field"
                 />
                 <input
                   type="password"
                   value={passwordNew}
                   onChange={(e) => onSetPasswordNew(e.target.value)}
                   placeholder="新密碼（6–128）"
-                  className="w-full rounded-xl border-2 border-stone-900 bg-white px-3 py-2 text-[14px] font-medium text-stone-900 outline-none focus:bg-[#fff9df] transition-colors placeholder:text-stone-400"
+                  className="cd-field"
                 />
                 <input
                   type="password"
                   value={passwordConfirm}
                   onChange={(e) => onSetPasswordConfirm(e.target.value)}
                   placeholder="再輸入一次新密碼"
-                  className="w-full rounded-xl border-2 border-stone-900 bg-white px-3 py-2 text-[14px] font-medium text-stone-900 outline-none focus:bg-[#fff9df] transition-colors placeholder:text-stone-400"
+                  className="cd-field"
                 />
               </div>
               {passwordError ? (
-                <p className="mt-2 text-[13px] font-bold text-red-600" role="alert">
+                <p className="mt-2 text-[13px] font-bold text-red-300" role="alert">
                   {passwordError}
                 </p>
               ) : null}
@@ -174,7 +172,7 @@ export function AccountModalsSection({
                   type="button"
                   onClick={onClosePasswordModal}
                   disabled={passwordSaving}
-                  className="flex-1 rounded-xl border-2 border-stone-900 bg-white px-4 py-2.5 text-[14px] font-black text-stone-900 active:translate-y-px disabled:opacity-50"
+                  className="cd-btn-ghost flex-1 disabled:opacity-50"
                 >
                   取消
                 </button>
@@ -182,7 +180,7 @@ export function AccountModalsSection({
                   type="button"
                   onClick={() => void onSubmitPasswordChange()}
                   disabled={passwordSaving}
-                  className="flex-1 rounded-xl border-2 border-stone-900 bg-[#f4dc3a] px-4 py-2.5 text-[14px] font-black text-stone-900 active:translate-y-px disabled:opacity-50"
+                  className="cd-btn-primary flex-1 disabled:opacity-50"
                 >
                   {passwordSaving ? "更新中…" : "更新密碼"}
                 </button>

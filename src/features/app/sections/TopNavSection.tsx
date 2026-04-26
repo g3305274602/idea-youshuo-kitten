@@ -46,22 +46,10 @@ export function TopNavSection({
   onOpenPasswordModal,
   onLogout,
 }: TopNavSectionProps) {
-  const isMineThemeTab =
-    activeTab === "mine" ||
-    activeTab === "inbox" ||
-    activeTab === "outbox" ||
-    activeTab === "favorites" ||
-    activeTab === "space" ||
-    activeTab === "chat" ||
-    activeTab === "my_reports";
-
   return (
     <nav
       className={cn(
-        "relative z-50 flex h-[56px] shrink-0 items-center px-3 md:h-[56px] md:px-6",
-        isMineThemeTab
-          ? "border-b border-[#3f798d]/55 bg-[#0a3f56]/95"
-          : "border-b border-stone-900/35 bg-gradient-to-r from-[#1d4643] via-[#1f4a47] to-[#24514d]",
+        "relative z-50 flex h-[56px] shrink-0 items-center border-b border-white/10 bg-black/35 px-3 backdrop-blur-xl md:h-[56px] md:px-6",
       )}
     >
       <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-white/25" />
@@ -71,7 +59,7 @@ export function TopNavSection({
             type="button"
             aria-label="離開管理模式"
             onClick={onAdminModeBack}
-            className="flex md:hidden h-10 w-10 shrink-0 items-center justify-center rounded-xl border-2 border-stone-900 bg-[#f4dc3a] text-stone-900 shadow-[3px_3px_0_0_#000] transition-transform active:translate-y-px active:shadow-none"
+            className="ys-gold-glow flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-white/15 bg-[#FFD54F] text-stone-900 transition-transform active:scale-95 md:hidden"
           >
             <ChevronRight
               className="h-5 w-5 -rotate-180"
@@ -171,12 +159,12 @@ export function TopNavSection({
           </button>
 
           <div className="pointer-events-none absolute right-0 top-full z-50 w-44 pt-2 opacity-0 transition-all duration-150 group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100">
-            <div className="rounded-2xl border-[2px] border-stone-900/90 bg-[#fffef7] p-2 shadow-[6px_6px_0_0_#0f2420]">
-              <div className="rounded-xl border border-stone-200 bg-stone-50/60 px-3 py-2 text-left">
-                <p className="truncate text-[12px] font-black text-stone-900">
+            <div className="glass-effect rounded-2xl p-2 shadow-lg shadow-black/30">
+              <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-left backdrop-blur-sm">
+                <p className="truncate text-[12px] font-black text-white">
                   {userDisplayName}
                 </p>
-                <p className="mt-0.5 truncate text-[11px] font-medium text-stone-500">
+                <p className="mt-0.5 truncate text-[11px] font-medium text-white/55">
                   {userEmail}
                 </p>
               </div>
@@ -185,7 +173,7 @@ export function TopNavSection({
                   type="button"
                   onClick={() => void onBootstrapAdminSelf()}
                   disabled={adminActionLoading}
-                  className="w-full rounded-xl border-2 border-stone-900 bg-rose-100 px-4 py-3 text-left text-[14px] font-black text-rose-700 shadow-[3px_3px_0_0_#000] transition-all active:translate-y-px active:shadow-none disabled:opacity-50"
+                  className="w-full rounded-[16px] border border-white/10 bg-rose-500/20 px-4 py-3 text-left text-[14px] font-black text-rose-100 backdrop-blur-sm transition-all active:scale-[0.98] disabled:opacity-50"
                 >
                   {adminActionLoading ? "建立中..." : "🔑 建立首位超級管理員"}
                 </button>
@@ -194,7 +182,7 @@ export function TopNavSection({
                 <button
                   type="button"
                   onClick={onEnterAdmin}
-                  className="w-full rounded-xl border-2 border-stone-900 bg-[#f4dc3a] px-3 py-2 text-left text-[13px] font-black text-stone-900 shadow-[3px_3px_0_0_#000] transition-all active:translate-y-px active:shadow-none"
+                  className="ys-gold-glow w-full rounded-[16px] border border-white/20 bg-[#F4DC3A] px-3 py-2 text-left text-[13px] font-black text-stone-900 transition-all active:scale-[0.98]"
                 >
                   進入管理中心
                 </button>
@@ -202,7 +190,7 @@ export function TopNavSection({
               <button
                 type="button"
                 onClick={onOpenAccountProfile}
-                className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-[13px] font-black text-stone-900 transition-colors hover:bg-stone-100"
+                className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-[13px] font-black text-white/90 transition-colors hover:bg-white/10"
               >
                 <span>基本資料</span>
                 <User className="h-4 w-4 shrink-0" aria-hidden />
@@ -210,7 +198,7 @@ export function TopNavSection({
               <button
                 type="button"
                 onClick={onOpenPasswordModal}
-                className="mt-1 flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-[13px] font-black text-stone-900 transition-colors hover:bg-stone-100"
+                className="mt-1 flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-[13px] font-black text-white/90 transition-colors hover:bg-white/10"
               >
                 <span>修改密碼</span>
                 <Lock className="h-4 w-4 shrink-0" aria-hidden />
@@ -218,7 +206,7 @@ export function TopNavSection({
               <button
                 type="button"
                 onClick={onLogout}
-                className="mt-1 flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-[13px] font-black text-red-700 transition-colors hover:bg-red-50"
+                className="mt-1 flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-[13px] font-black text-rose-300 transition-colors hover:bg-red-500/20"
               >
                 <span>登出</span>
                 <LogOut className="h-4 w-4 shrink-0" aria-hidden />

@@ -1,0 +1,29 @@
+---
+description: 「有說 Youshuo」夢幻星空毛玻璃設計規範（歷史參考；全專案以 cosmic-drift-design 為準）
+globs: src/**/*
+---
+
+> **註**：品牌與色票以 `.cursor/rules/cosmic-drift-design.mdc`（Cosmic Drift）為主；本文件保留毛玻璃/動效等實作提醒，與之衝突時跟隨 Cosmic Drift。
+
+# 夢幻星空毛玻璃 (Dreamy Cosmic Glassmorphism)
+
+## 目標
+深邃、溫暖、帶失重感的社交空間。背景深綠黑漸層、毛玻璃、微光邊框、主按鈕金色發光膠囊。
+
+## 色票（實作以 `src/index.css` 的 `--ys-*` 與 `glass-effect` 為準）
+- 頁面背景: `linear-gradient(to bottom, #0D2B28 0%, #050505 100%)`
+- 卡面: `rgba(255, 255, 255, 0.05)` 或 `rgba(20, 40, 40, 0.6)`
+- 主按鈕金: `#F4DC3A`（深字）
+- 次要/強調: 粉 `#FF85A2`、紫 `#A78BFA`
+- 狀態: 通過 `#10B981`、警告 `#FBBF24`、錯誤 `#EF4444`
+
+## 圓角
+- 大容器 32px、卡片 24px、按鈕 16px、標籤 pill
+
+## 禁止舊風
+- 避免大塊 `border-stone-900` + 硬陰影「郵票感」；改 `border-white/10` + `backdrop-blur-xl` 與 `glass-effect`。
+
+## 動效（Framer Motion）
+- 進入: `initial={{ opacity: 0, scale: 0.95 }}` → `animate={{ opacity: 1, scale: 1 }}`
+- 按鈕: `whileTap={{ scale: 0.95 }}`（按需）
+- `AnimatePresence` 子節點 `key` 必須唯一，避免層疊毛玻璃下 `insertBefore` 錯誤。

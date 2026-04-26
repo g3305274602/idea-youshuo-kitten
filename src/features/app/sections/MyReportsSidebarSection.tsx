@@ -59,7 +59,7 @@ export function MyReportsSidebarSection({
   return myReports.map((r) => (
     <div
       key={r.id}
-      className="w-full rounded-xl border border-black/[0.06] bg-white px-3 py-2.5 shadow-sm"
+      className="ys-tap-list-row w-full rounded-xl border border-black/[0.06] bg-white px-3 py-2.5 shadow-sm"
     >
       <div className="flex items-center justify-between gap-1">
         <span

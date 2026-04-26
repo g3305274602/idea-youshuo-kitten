@@ -19,23 +19,23 @@ export function FavoritesMainSection({
 }: FavoritesMainSectionProps) {
   if (!selectedUnifiedFavorite) {
     return (
-      <div className="max-w-sm mx-auto text-center py-24">
-        <Bookmark className="w-12 h-12 mx-auto text-black/10 mb-3" />
-        <p className="text-[15px] font-medium text-black/45">從左側選一則心底藏著的</p>
+      <div className="mx-auto max-w-sm py-24 text-center">
+        <Bookmark className="mx-auto mb-3 h-12 w-12 text-white/15" />
+        <p className="text-[15px] font-medium text-[#8E8E93]">從左側選一則心底藏著的</p>
       </div>
     );
   }
 
   return (
-    <div className="max-w-xl w-full mx-auto space-y-6 pb-20">
-      <div className="relative rounded-2xl border-[3px] border-stone-900 bg-[#fffef7] p-6 shadow-[8px_8px_0_0_#0f2420]">
-        <div className="flex items-center justify-between mb-4">
+    <div className="mx-auto w-full max-w-xl space-y-6 pb-20">
+      <div className="cd-card-raised relative rounded-2xl p-6">
+        <div className="mb-4 flex items-center justify-between">
           <span
             className={cn(
-              "px-2.5 py-0.5 rounded-full border-2 border-stone-900 text-[10px] font-black",
+              "rounded-full border border-white/12 px-2.5 py-0.5 text-[10px] font-bold",
               selectedUnifiedFavorite.kind === "square"
-                ? "bg-violet-100 text-violet-800"
-                : "bg-blue-100 text-blue-800",
+                ? "bg-[#F06292]/15 text-pink-200"
+                : "bg-sky-500/15 text-sky-200",
             )}
           >
             {selectedUnifiedFavorite.kind === "square" ? "#來自廣場" : "#秘密膠囊"}
@@ -43,12 +43,12 @@ export function FavoritesMainSection({
           <GenderIcon gender={selectedUnifiedFavorite.row.snapshotPublisherGender} />
         </div>
 
-        <p className="text-[18px] md:text-[20px] font-bold leading-relaxed text-stone-900 whitespace-pre-wrap">
+        <p className="whitespace-pre-wrap text-[18px] font-medium leading-relaxed text-white md:text-[20px]">
           {selectedUnifiedFavorite.row.snapshotContent}
         </p>
 
-        <div className="mt-6 pt-4 border-t border-dashed border-stone-200 flex justify-between items-center">
-          <p className="text-[11px] font-bold text-stone-400">
+        <div className="mt-6 flex items-center justify-between border-t border-dashed border-white/10 pt-4">
+          <p className="text-[11px] font-bold text-[#8E8E93]">
             存入日期：
             {new Date(
               Number(selectedUnifiedFavorite.createdAtMicros / 1000n),
@@ -64,7 +64,7 @@ export function FavoritesMainSection({
               ? onUnfavoriteSquare(selectedUnifiedFavorite.row.postSourceMessageId)
               : onUnfavoriteCapsuleById(selectedUnifiedFavorite.row.capsuleId))
           }
-          className="flex-1 min-w-[140px] flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-stone-900 bg-white font-black text-stone-900 shadow-[4px_4px_0_0_#000] active:translate-y-px"
+          className="cd-btn-ghost flex min-w-[140px] flex-1 items-center justify-center gap-2 py-3"
         >
           從心底拿出
         </button>
@@ -72,7 +72,7 @@ export function FavoritesMainSection({
         {selectedUnifiedFavorite.kind === "capsule" && (
           <button
             onClick={() => onJumpToChatFromCapsule(selectedUnifiedFavorite.row.capsuleId)}
-            className="flex-1 min-w-[140px] flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-stone-900 bg-[#f4dc3a] font-black text-stone-900 shadow-[4px_4px_0_0_#000] active:translate-y-px"
+            className="cd-btn-primary flex min-w-[140px] flex-1 items-center justify-center gap-2 py-3 font-bold"
           >
             發起聊聊
           </button>
@@ -81,7 +81,7 @@ export function FavoritesMainSection({
         {selectedUnifiedFavorite.kind === "square" && (
           <button
             onClick={() => onViewSquarePost(selectedUnifiedFavorite.row.postSourceMessageId)}
-            className="flex-1 min-w-[140px] flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-stone-900 bg-violet-100 font-black text-violet-800 shadow-[4px_4px_0_0_#000] active:translate-y-px"
+            className="flex min-w-[140px] flex-1 items-center justify-center gap-2 rounded-xl border border-violet-400/30 bg-violet-500/15 py-3 text-[14px] font-bold text-violet-200 transition-colors active:translate-y-px"
           >
             查看原貼互動
           </button>

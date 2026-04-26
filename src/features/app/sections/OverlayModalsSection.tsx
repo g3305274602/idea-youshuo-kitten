@@ -104,31 +104,29 @@ export function OverlayModalsSection({
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 12 }}
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-[min(100%,22rem)] rounded-2xl bg-white p-5 shadow-apple-card ring-1 ring-black/[0.06]"
+              className="cd-modal-panel w-full max-w-[min(100%,22rem)] p-5"
             >
-              <p className="text-[16px] font-black text-apple-near-black">
-                對方資訊
-              </p>
-              <p className="mt-3 text-[12px] text-black/45">暱稱</p>
-              <p className="text-[15px] font-semibold text-apple-near-black">
+              <p className="text-[16px] font-bold text-white">對方資訊</p>
+              <p className="mt-3 text-[12px] text-[#8E8E93]">暱稱</p>
+              <p className="text-[15px] font-semibold text-white">
                 {selectedChatPeerProfile.displayName || "未命名"}
               </p>
-              <p className="mt-2 text-[12px] text-black/45">性別 / 年齡</p>
-              <p className="text-[14px] text-apple-near-black">
+              <p className="mt-2 text-[12px] text-[#8E8E93]">性別 / 年齡</p>
+              <p className="text-[14px] text-white">
                 {selectedChatPeerProfile.gender || "未填"} /{" "}
                 {calculateAgeFromDate(
                   selectedChatPeerProfile.birthDate?.toDate() || null,
                 )}{" "}
                 歲
               </p>
-              <p className="mt-2 text-[12px] text-black/45">自我介紹</p>
-              <p className="text-[13px] leading-relaxed text-apple-near-black whitespace-pre-wrap">
+              <p className="mt-2 text-[12px] text-[#8E8E93]">自我介紹</p>
+              <p className="whitespace-pre-wrap text-[13px] leading-relaxed text-white/90">
                 {selectedChatPeerProfile.profileNote || "（未填）"}
               </p>
               <button
                 type="button"
                 onClick={onCloseChatPeerProfile}
-                className="mt-4 w-full rounded-xl border-2 border-stone-900 bg-[#f4dc3a] px-4 py-2.5 text-[14px] font-black text-stone-900"
+                className="cd-btn-primary mt-4 w-full py-2.5 text-[14px] font-bold"
               >
                 關閉
               </button>
@@ -164,23 +162,23 @@ export function OverlayModalsSection({
               exit={{ opacity: 0, y: 16 }}
               transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-[min(100%,22rem)] rounded-2xl border-[3px] border-stone-900 bg-[#fffef7] p-5 shadow-[6px_6px_0_0_#0f2420]"
+              className="cd-modal-panel w-full max-w-[min(100%,22rem)] p-5"
             >
               <h3
                 id="outbox-delete-dialog-title"
-                className="text-[18px] font-black tracking-tight text-stone-900"
+                className="text-[18px] font-bold tracking-tight text-white"
               >
                 確認刪除？
               </h3>
-              <p className="mt-2 text-[13px] font-bold leading-relaxed text-stone-600">
+              <p className="mt-2 text-[13px] font-medium leading-relaxed text-[#8E8E93]">
                 將永久刪除這封尚未到開啟時間的訊息，無法復原。
               </p>
-              <p className="mt-4 text-[14px] font-black text-stone-900 truncate">
+              <p className="mt-4 truncate text-[14px] font-bold text-white">
                 {emailsEqual(currentMessage.recipientEmail, userEmail)
                   ? "致未來的自己"
                   : `致 ${currentMessage.recipientEmail?.split("@")[0] ?? "收件人"}`}
               </p>
-              <p className="mt-1 text-[11px] font-bold text-stone-500 tabular-nums">
+              <p className="mt-1 text-[11px] font-bold tabular-nums text-[#8E8E93]">
                 預定開啟{" "}
                 {new Date(currentMessage.scheduledAt).toLocaleString("zh-TW", {
                   month: "numeric",
@@ -205,7 +203,7 @@ export function OverlayModalsSection({
                     onClearOutboxEditError();
                     onCancelOutboxDeleteConfirm();
                   }}
-                  className="flex-1 rounded-xl border-2 border-stone-900 bg-white px-4 py-2.5 text-[14px] font-black text-stone-900 active:translate-y-px disabled:opacity-50"
+                  className="cd-btn-ghost flex-1 disabled:opacity-50"
                 >
                   取消
                 </button>
@@ -213,7 +211,7 @@ export function OverlayModalsSection({
                   type="button"
                   disabled={outboxEditLoading}
                   onClick={() => void onConfirmDeleteOutboxMessage()}
-                  className="flex-1 rounded-xl border-2 border-stone-900 bg-red-500 px-4 py-2.5 text-[14px] font-black text-white active:translate-y-px disabled:opacity-50"
+                  className="flex-1 rounded-xl border border-red-500/40 bg-red-500/25 px-4 py-2.5 text-[14px] font-bold text-red-100 transition-all active:translate-y-px disabled:opacity-50"
                 >
                   {outboxEditLoading ? "刪除中…" : "確認刪除"}
                 </button>
@@ -239,26 +237,26 @@ export function OverlayModalsSection({
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="w-full max-w-sm rounded-2xl border-[3px] border-red-600 bg-white p-6 text-center shadow-2xl"
+              className="w-full max-w-sm rounded-2xl border border-red-500/40 bg-[#1A1B22] p-6 text-center text-white shadow-[0_32px_64px_rgba(0,0,0,0.55)]"
             >
-              <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-red-100">
-                <Lock className="h-8 w-8 text-red-600" />
+              <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-red-500/20">
+                <Lock className="h-8 w-8 text-red-400" />
               </div>
-              <p className="text-[20px] font-black text-red-700">帳號已被封禁</p>
-              <p className="mt-2 text-[13px] text-stone-700 leading-relaxed">
+              <p className="text-[20px] font-bold text-red-300">帳號已被封禁</p>
+              <p className="mt-2 text-[13px] leading-relaxed text-[#8E8E93]">
                 {banNoticeInfo.reason}
               </p>
-              <div className="mt-3 rounded-xl bg-red-50 px-4 py-2.5 text-[12px] font-semibold text-red-800">
+              <div className="mt-3 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-2.5 text-[12px] font-semibold text-red-200">
                 封禁至：
                 {banNoticeInfo.endAt === "永久" ? "永久封禁" : banNoticeInfo.endAt}
               </div>
-              <p className="mt-3 text-[11px] text-stone-500">
+              <p className="mt-3 text-[11px] text-[#8E8E93]">
                 如有異議，請透過其他方式聯絡站方申訴。
               </p>
               <button
                 type="button"
                 onClick={onCloseBanNotice}
-                className="mt-4 w-full rounded-xl border-2 border-stone-300 bg-white px-4 py-2.5 text-[13px] font-bold text-stone-700"
+                className="cd-btn-ghost mt-4 w-full py-2.5 text-[13px] font-bold"
               >
                 我知道了
               </button>
@@ -288,22 +286,22 @@ export function OverlayModalsSection({
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 10 }}
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-[min(100%,22rem)] rounded-2xl border-[3px] border-stone-900 bg-[#fffef7] p-5 shadow-[6px_6px_0_0_#0f2420]"
+              className="cd-modal-panel w-full max-w-[min(100%,22rem)] p-5"
             >
-              <p className="text-[18px] font-black text-stone-900">送出舉報</p>
-              <p className="mt-1 text-[12px] font-bold text-stone-500">
+              <p className="text-[18px] font-bold text-white">送出舉報</p>
+              <p className="mt-1 text-[12px] font-medium text-[#8E8E93]">
                 類型：{reportTargetType} · 目標：{reportTargetId.slice(0, 18)}
                 {reportTargetId.length > 18 ? "…" : ""}
               </p>
               <div className="mt-4 space-y-3">
                 <div className="space-y-1.5">
-                  <label className="text-[11px] font-black uppercase tracking-wider text-stone-600">
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-[#8E8E93]">
                     舉報原因
                   </label>
                   <select
                     value={reportReasonCode}
                     onChange={(e) => onSetReportReasonCode(e.target.value)}
-                    className="w-full rounded-xl border-2 border-stone-900 bg-white px-3 py-2 text-[14px] font-medium text-stone-900 outline-none focus:bg-[#fff9df] transition-colors"
+                    className="cd-field"
                   >
                     <option value="abuse">辱罵 / 騷擾</option>
                     <option value="spam">垃圾廣告 / 詐騙</option>
@@ -317,7 +315,7 @@ export function OverlayModalsSection({
                   </select>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[11px] font-black uppercase tracking-wider text-stone-600">
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-[#8E8E93]">
                     詳細說明
                   </label>
                   <textarea
@@ -327,13 +325,13 @@ export function OverlayModalsSection({
                     maxLength={2000}
                     rows={4}
                     placeholder="請補充具體情況（至少 10 字）…"
-                    className="w-full resize-none rounded-xl border-2 border-stone-900 bg-white px-3 py-2 text-[14px] font-medium text-stone-900 outline-none focus:bg-[#fff9df] transition-colors placeholder:text-stone-400"
+                    className="cd-field min-h-[6rem] resize-none"
                   />
                 </div>
               </div>
               {reportError ? (
                 <p
-                  className="mt-2 text-[13px] font-bold text-red-600"
+                  className="mt-2 text-[13px] font-bold text-red-300"
                   role="alert"
                 >
                   {reportError}
@@ -344,7 +342,7 @@ export function OverlayModalsSection({
                   type="button"
                   onClick={onCloseReportModal}
                   disabled={reportSaving}
-                  className="flex-1 rounded-xl border-2 border-stone-900 bg-white px-4 py-2.5 text-[14px] font-black text-stone-900 active:translate-y-px disabled:opacity-50"
+                  className="cd-btn-ghost flex-1 disabled:opacity-50"
                 >
                   取消
                 </button>
@@ -352,7 +350,7 @@ export function OverlayModalsSection({
                   type="button"
                   onClick={() => void onSubmitReport()}
                   disabled={reportSaving}
-                  className="flex-1 rounded-xl border-2 border-stone-900 bg-red-500 px-4 py-2.5 text-[14px] font-black text-white active:translate-y-px disabled:opacity-50"
+                  className="flex-1 rounded-xl border border-red-500/40 bg-red-500/30 px-4 py-2.5 text-[14px] font-bold text-red-100 transition-all active:translate-y-px disabled:opacity-50"
                 >
                   {reportSaving ? "送出中…" : "確認舉報"}
                 </button>

@@ -6,7 +6,7 @@
 |------|------|
 | `images/app/mine` | 我的頁切圖、背景 |
 | `images/app/chat` | 聊聊相關 |
-| `images/app/secret` | 秘密／廣場相關 |
+| `images/app/secret` | 秘密／廣場相關；底欄抽膠囊鈕 `capsule-draw-fab.png` |
 | `images/common` | 全站共用圖 |
 | `images/temp` | 臨時檔，定稿後移出或刪除 |
 | `icons/ui` | 通用 UI 圖示 |

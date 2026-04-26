@@ -4,7 +4,7 @@
  */
 
 import type React from "react";
-import { useEffect, useRef, useMemo } from "react";
+import { useCallback, useEffect, useRef, useMemo } from "react";
 import { motion } from "motion/react";
 import {
   User,
@@ -16,6 +16,7 @@ import {
   Loader2,
   X,
   Bell,
+  MessageCircle,
   Plus,
   Activity,
   Mars, // 男
@@ -24,6 +25,7 @@ import {
 } from "lucide-react";
 import { tables, reducers } from "../../module_bindings";
 import type {
+  AccountProfile,
   CapsulePrivateMessage,
   CapsuleMessage,
   SquareComment,
@@ -86,6 +88,12 @@ import {
 } from "./shell/navigation";
 import { useModalStack, type ModalType } from "./shell/modalStack";
 import { useAppUiStore } from "./appUiStore";
+import { useChatReadCursors } from "./hooks/useChatReadCursors";
+import { useMailboxReadState } from "./hooks/useMailboxReadState";
+import {
+  computeThreadUnread,
+  maxMessageMicros,
+} from "./chatReadCursors";
 import { useAccountFlowHandlers } from "./hooks/useAccountFlowHandlers";
 import { useMailboxInteractionHandlers } from "./hooks/useMailboxInteractionHandlers";
 import { useFavoriteHandlers } from "./hooks/useFavoriteHandlers";
@@ -533,6 +541,16 @@ export default function SpacetimeMailboxApp({
   const myEmail = myProfile?.email;
   const myAccountId = myProfile?.accountId;
 
+  /** 公開表 account_profile 全量：用於訪客暱稱等（僅訂閱自己時 profile 查不到線上對方） */
+  const [allAccountProfileRows] = useTable(tables.accountProfile);
+  const publicProfileByIdentityHex = useMemo(() => {
+    const m = new Map<string, AccountProfile>();
+    for (const p of allAccountProfileRows) {
+      m.set(p.ownerIdentity.toHexString(), p);
+    }
+    return m;
+  }, [allAccountProfileRows]);
+
   // 狀態判定
 
   const isFavoriteTab = activeTab === "favorites";
@@ -802,6 +820,13 @@ export default function SpacetimeMailboxApp({
       .sort(compareMessagesRecentFirst);
   }, [outboxRows, now, myEmail]);
 
+  const { inboxUnreadCount, outboxUnreadCount } = useMailboxReadState(
+    identity.toHexString(),
+    inbox,
+    outbox,
+    activeTab,
+  );
+
   // 廣場貼文處理
   // 廣場貼文處理
   const squarePostsSorted = useMemo(
@@ -866,7 +891,7 @@ export default function SpacetimeMailboxApp({
   const isCapsulePublicInSpace = (capsuleId: string) =>
     capsuleStateById.get(capsuleId)?.isProfilePublic ?? false;
   useEffect(() => {
-    if (activeTab !== "secret") return;
+    if (activeTab !== "secret" && activeTab !== "mine_square") return;
     if (squareSelectedPostId === null) return;
     const ok = squarePostsVisible.some(
       (p) => p.sourceMessageId === squareSelectedPostId,
@@ -992,29 +1017,26 @@ export default function SpacetimeMailboxApp({
   ]);
 
   const currentSpaceOwnerHex = spaceOwnerHex ?? identity.toHexString();
-  // 修改判定方式：優先看 accountId 是否匹配
   const isOwnSpace = useMemo(() => {
-    if (!spaceTargetInfo) return true; // 預設進去是自己
+    if (!spaceTargetInfo) return true;
     return spaceTargetInfo.accountId === myAccountId;
   }, [spaceTargetInfo, myAccountId]);
-  const spaceOwnerProfile = profileByIdentityHex.get(currentSpaceOwnerHex);
+  const spaceOwnerProfile =
+    publicProfileByIdentityHex.get(currentSpaceOwnerHex) ??
+    profileByIdentityHex.get(currentSpaceOwnerHex);
 
-  // 1. 過濾膠囊
   const spaceCapsules = useMemo(() => {
-    // --- 关键点：改用稳定的 AccountId 而不是会变的 Identity ---
     const targetAccountId = isOwnSpace
-      ? myAccountId // 自己的空间，用当前登录的账户 ID
-      : spaceTargetInfo?.accountId; // 别人的空间，从空间信息里拿
+      ? myAccountId
+      : spaceTargetInfo?.accountId;
 
     if (!targetAccountId) return [];
 
     return (
       [...capsuleMessageRows]
         .filter((m) => !isCapsuleDeleted(m.id))
-        // --- 关键修改：使用 authorAccountId 进行比对 ---
         .filter((m) => m.authorAccountId === targetAccountId)
         .filter((m) => {
-          // 自己的空间显示所有；别人的空间只显示公开且已到期的
           if (isOwnSpace) return true;
           return isCapsulePublicInSpace(m.id) && m.scheduledAt.toDate() <= now;
         })
@@ -1030,10 +1052,9 @@ export default function SpacetimeMailboxApp({
     isOwnSpace,
     now,
     capsuleStateById,
-    myAccountId, // 依赖稳定的账户 ID
+    myAccountId,
   ]);
 
-  // 2. 過濾廣場貼文
   const spaceSquares = useMemo(() => {
     const targetAccountId = isOwnSpace
       ? myAccountId
@@ -1448,7 +1469,9 @@ export default function SpacetimeMailboxApp({
   const capsuleUiPostId =
     capsuleOpen && capsulePostId !== null
       ? capsulePostId
-      : !capsuleOpen && activeTab === "secret" && squareSelectedPostId !== null
+      : !capsuleOpen &&
+          (activeTab === "secret" || activeTab === "mine_square") &&
+          squareSelectedPostId !== null
         ? squareSelectedPostId
         : null;
 
@@ -1488,18 +1511,6 @@ export default function SpacetimeMailboxApp({
     return [...s];
   }, [capsulePrivateForActiveUi]);
 
-  const capsulePrivateThreadMessages = useMemo(() => {
-    if (!capsuleThreadGuestHex) return [];
-    const gid = Identity.fromString(capsuleThreadGuestHex);
-    return capsulePrivateForActiveUi
-      .filter((m) => m.threadGuestIdentity.isEqual(gid))
-      .sort((a, b) =>
-        Number(
-          a.createdAt.microsSinceUnixEpoch - b.createdAt.microsSinceUnixEpoch,
-        ),
-      );
-  }, [capsulePrivateForActiveUi, capsuleThreadGuestHex]);
-
   const hasMyGuestThreadOnCurrentCapsule = useMemo(() => {
     if (!capsuleUiPostId) return false;
     const meHex = identity.toHexString();
@@ -1513,7 +1524,28 @@ export default function SpacetimeMailboxApp({
   const canShowCapsuleModalFirstMessageInput =
     !isCapsuleParticipantUi && !hasMyGuestThreadOnCurrentCapsule;
 
+  const capsuleModalPeerChatUnlocked = useMemo(() => {
+    if (!capsulePost || !identity) return false;
+    const meHex = identity.toHexString();
+    const n = capsulePrivateRows.filter(
+      (m) =>
+        m.sourceMessageId === capsulePost.id &&
+        m.threadGuestIdentity.toHexString() === meHex,
+    ).length;
+    return n >= 10;
+  }, [capsulePost, identity, capsulePrivateRows]);
+
+  const capsuleOverlayShowAuthorRealName =
+    isCapsuleParticipantUi || capsuleModalPeerChatUnlocked;
+
   const capsuleChatThreads = useMemo((): CapsuleChatThreadSummary[] => {
+    const countsByKey = new Map<string, number>();
+    for (const m of capsulePrivateRows) {
+      const gh = m.threadGuestIdentity.toHexString();
+      const k = `${m.sourceMessageId}::${gh}`;
+      countsByKey.set(k, (countsByKey.get(k) ?? 0) + 1);
+    }
+
     const summaries = new Map<string, CapsuleChatThreadSummary>();
 
     for (const m of capsulePrivateRows) {
@@ -1525,7 +1557,6 @@ export default function SpacetimeMailboxApp({
       const preview =
         content.length > 42 ? `${content.slice(0, 42)}…` : content;
 
-      // 找到來源物件 (優先從膠囊表找，再從廣場表找)
       const sourceCapsule = capsuleMessageRows.find(
         (c) => c.id === m.sourceMessageId,
       );
@@ -1543,17 +1574,14 @@ export default function SpacetimeMailboxApp({
           ? `${sourcePreviewRaw.slice(0, 24)}…`
           : sourcePreviewRaw || "（無主文）";
 
-      // 判斷我是誰：我是「抽膠囊的人(訪客)」還是「發膠囊的人(作者)」
       const isMeGuest = guestHex === identity.toHexString();
 
-      // --- 急速方案：對方的資料全部從快照拿 ---
       let counterpartLabel = "未知用戶";
       let counterpartGender = "unspecified";
       let counterpartBirthDate = undefined;
       let counterpartIdentityHex = "";
 
       if (isMeGuest) {
-        // 如果我是訪客，對方就是作者
         counterpartLabel =
           sourceCapsule?.authorDisplayName ||
           post?.snapshotPublisherName ||
@@ -1569,9 +1597,7 @@ export default function SpacetimeMailboxApp({
           post?.publisherIdentity.toHexString() ||
           "";
       } else {
-        // 如果我是作者，對方就是訪客
-        // 註：目前的後端私訊表尚未加上訪客快照，所以作者看訪客依然優先用 profileByIdentityHex 查，查不到則顯示縮寫
-        const gProfile = profileByIdentityHex.get(guestHex);
+        const gProfile = publicProfileByIdentityHex.get(guestHex);
         counterpartLabel =
           gProfile?.displayName || `訪客 ${guestHex.slice(0, 8)}…`;
         counterpartGender = gProfile?.gender || "unspecified";
@@ -1591,6 +1617,8 @@ export default function SpacetimeMailboxApp({
         sourceCapsuleType: sourceCapsule?.capsuleType ?? 4,
         lastBody: preview || "（尚無內容）",
         lastAtMicros: m.createdAt.microsSinceUnixEpoch,
+        threadPrivateMessageCount: countsByKey.get(key) ?? 0,
+        hasNewMessageFromPeer: false,
       };
 
       if (!existing || existing.lastAtMicros < row.lastAtMicros) {
@@ -1598,23 +1626,102 @@ export default function SpacetimeMailboxApp({
       }
     }
 
-    return [...summaries.values()].sort((a, b) =>
-      Number(b.lastAtMicros - a.lastAtMicros),
-    );
+    const list = [...summaries.values()];
+    return list
+      .map((row) => {
+        const guestId = Identity.fromString(row.threadGuestHex);
+        const msgs = capsulePrivateRows.filter(
+          (m) =>
+            m.sourceMessageId === row.sourceMessageId &&
+            m.threadGuestIdentity.isEqual(guestId),
+        );
+        if (msgs.length === 0) {
+          return { ...row, hasNewMessageFromPeer: false };
+        }
+        const sorted = [...msgs].sort(
+          (a, b) =>
+            Number(
+              a.createdAt.microsSinceUnixEpoch -
+                b.createdAt.microsSinceUnixEpoch,
+            ),
+        );
+        const last = sorted[sorted.length - 1]!;
+        return {
+          ...row,
+          hasNewMessageFromPeer: !last.authorIdentity.isEqual(identity),
+        };
+      })
+      .sort((a, b) => Number(b.lastAtMicros - a.lastAtMicros));
   }, [
     capsulePrivateRows,
     squarePostRows,
     capsuleMessageRows,
     identity,
-    profileByIdentityHex,
+    publicProfileByIdentityHex,
   ]);
 
-  const selectedChatThread = useMemo(() => {
+  const selectedChatThread = useMemo(():
+    | CapsuleChatThreadSummary
+    | null => {
     if (!selectedChatThreadKey) return null;
-    return (
-      capsuleChatThreads.find((t) => t.key === selectedChatThreadKey) ?? null
+    const found = capsuleChatThreads.find(
+      (t) => t.key === selectedChatThreadKey,
     );
-  }, [capsuleChatThreads, selectedChatThreadKey]);
+    if (found) return found;
+
+    const parts = selectedChatThreadKey.split("::");
+    if (parts.length !== 2) return null;
+    const [sourceId, guestHex] = parts;
+    if (guestHex !== identity.toHexString()) return null;
+
+    const sourceCapsule = capsuleMessageRows.find((c) => c.id === sourceId);
+    const post = squarePostRows.find(
+      (p) => p.sourceMessageId === sourceId,
+    );
+    if (!sourceCapsule && !post) return null;
+
+    const sourcePreviewRaw = (
+      sourceCapsule?.content ??
+      post?.snapshotContent ??
+      ""
+    ).trim();
+    const sourcePreview =
+      sourcePreviewRaw.length > 24
+        ? `${sourcePreviewRaw.slice(0, 24)}…`
+        : sourcePreviewRaw || "（無主文）";
+
+    return {
+      key: selectedChatThreadKey,
+      sourceMessageId: sourceId,
+      threadGuestHex: guestHex,
+      counterpartLabel:
+        sourceCapsule?.authorDisplayName ||
+        post?.snapshotPublisherName ||
+        "對方",
+      counterpartIdentityHex:
+        sourceCapsule?.authorIdentity.toHexString() ||
+        post?.publisherIdentity.toHexString() ||
+        "",
+      counterpartGender:
+        sourceCapsule?.authorGender ||
+        post?.snapshotPublisherGender ||
+        "unspecified",
+      counterpartBirthDate:
+        sourceCapsule?.authorBirthDate || post?.snapshotPublisherBirthDate,
+      sourcePreview,
+      sourceCapsuleType: sourceCapsule?.capsuleType ?? 4,
+      lastBody: "（尚無內容）",
+      lastAtMicros: 0n,
+      threadPrivateMessageCount: 0,
+      hasNewMessageFromPeer: false,
+    };
+  }, [
+    selectedChatThreadKey,
+    capsuleChatThreads,
+    identity,
+    capsuleMessageRows,
+    squarePostRows,
+  ]);
 
   const selectedChatMessages = useMemo(() => {
     if (!selectedChatThread) return [];
@@ -1633,21 +1740,83 @@ export default function SpacetimeMailboxApp({
   }, [capsulePrivateRows, selectedChatThread]);
   const selectedChatProgress = Math.min(10, selectedChatMessages.length);
   const chatPeerUnlocked = selectedChatProgress >= 10;
+
+  const { markThreadRead, cursorMap } = useChatReadCursors(
+    identity.toHexString(),
+  );
+
+  const capsuleChatThreadsWithUnread = useMemo((): CapsuleChatThreadSummary[] => {
+    return capsuleChatThreads.map((t) => {
+      const guestId = Identity.fromString(t.threadGuestHex);
+      const msgs = capsulePrivateRows.filter(
+        (m) =>
+          m.sourceMessageId === t.sourceMessageId &&
+          m.threadGuestIdentity.isEqual(guestId),
+      );
+      const readCursor = cursorMap.get(t.key) ?? 0n;
+      const hasUnread = computeThreadUnread(readCursor, msgs, identity);
+      return { ...t, hasUnread };
+    });
+  }, [capsuleChatThreads, capsulePrivateRows, identity, cursorMap]);
+
+  const chatUnreadThreadCount = useMemo(
+    () => capsuleChatThreadsWithUnread.filter((t) => t.hasUnread).length,
+    [capsuleChatThreadsWithUnread],
+  );
+
+  const selectedChatReadMarkMicros = useMemo(
+    () => maxMessageMicros(selectedChatMessages),
+    [selectedChatMessages],
+  );
+
+  useEffect(() => {
+    if (activeTab !== "chat" || !selectedChatThreadKey) return;
+    if (selectedChatMessages.length === 0) return;
+    markThreadRead(selectedChatThreadKey, selectedChatReadMarkMicros);
+  }, [
+    activeTab,
+    selectedChatThreadKey,
+    selectedChatReadMarkMicros,
+    markThreadRead,
+    selectedChatMessages.length,
+  ]);
+
   const selectedChatPeerProfile = selectedChatThread
-    ? profileByIdentityHex.get(selectedChatThread.counterpartIdentityHex)
+    ? publicProfileByIdentityHex.get(
+        selectedChatThread.counterpartIdentityHex,
+      ) ?? profileByIdentityHex.get(selectedChatThread.counterpartIdentityHex)
     : undefined;
+
+  const isSourceCapsuleMine =
+    !!selectedChatThread &&
+    selectedChatThread.threadGuestHex !== identity.toHexString();
 
   useEffect(() => {
     if (activeTab !== "chat") return;
     if (capsuleChatThreads.length === 0) {
-      setSelectedChatThreadKey(null);
       setSelectedAdminReportId(null);
       return;
     }
-    setSelectedChatThreadKey((prev) =>
-      prev && capsuleChatThreads.some((t) => t.key === prev) ? prev : null,
-    );
-  }, [activeTab, capsuleChatThreads]);
+    setSelectedChatThreadKey((prev) => {
+      if (!prev) return null;
+      if (capsuleChatThreads.some((t) => t.key === prev)) return prev;
+      const parts = prev.split("::");
+      if (parts.length === 2 && parts[1] === identity.toHexString()) {
+        const sourceId = parts[0]!;
+        const hasSource =
+          capsuleMessageRows.some((c) => c.id === sourceId) ||
+          squarePostRows.some((p) => p.sourceMessageId === sourceId);
+        if (hasSource) return prev;
+      }
+      return null;
+    });
+  }, [
+    activeTab,
+    capsuleChatThreads,
+    identity,
+    capsuleMessageRows,
+    squarePostRows,
+  ]);
 
   useEffect(() => {
     if (!capsuleUiPostId || !identity) {
@@ -1686,14 +1855,34 @@ export default function SpacetimeMailboxApp({
     capsuleMessageRows,
   ]);
 
-  /** 必須放在 login/register early return 之前，否則違反 Hooks 規則 */
+  /** Rules of Hooks: keep this before any login/boot early return. */
   const unifiedFavoriteItems = useMemo((): UnifiedFavoriteListItem[] => {
+    const peerUnlocked = (sourceMessageId: string, publisherAccountId: string) => {
+      if (!myAccountId) return false;
+      const me = identity.toHexString();
+      const iAmPublisher = publisherAccountId === myAccountId;
+      for (const t of capsuleChatThreads) {
+        if (t.sourceMessageId !== sourceMessageId) continue;
+        if (t.threadPrivateMessageCount < 10) continue;
+        if (iAmPublisher) {
+          if (t.threadGuestHex !== me) return true;
+        } else if (t.threadGuestHex === me) {
+          return true;
+        }
+      }
+      return false;
+    };
+
     const squareItems: UnifiedFavoriteListItem[] = squareFavoriteRows.map(
       (f) => ({
         kind: "square",
         key: `sq:${f.id}`,
         createdAtMicros: f.createdAt.microsSinceUnixEpoch,
         row: f,
+        peerIdentityUnlocked: peerUnlocked(
+          f.postSourceMessageId,
+          f.snapshotPublisherAccountId,
+        ),
       }),
     );
     const capsuleItems: UnifiedFavoriteListItem[] = capsuleFavoriteRows.map(
@@ -1702,12 +1891,22 @@ export default function SpacetimeMailboxApp({
         key: `cap:${f.id}`,
         createdAtMicros: f.createdAt.microsSinceUnixEpoch,
         row: f,
+        peerIdentityUnlocked: peerUnlocked(
+          f.capsuleId,
+          f.snapshotPublisherAccountId,
+        ),
       }),
     );
     return [...squareItems, ...capsuleItems].sort((a, b) =>
       Number(b.createdAtMicros - a.createdAtMicros),
     );
-  }, [squareFavoriteRows, capsuleFavoriteRows]);
+  }, [
+    squareFavoriteRows,
+    capsuleFavoriteRows,
+    capsuleChatThreads,
+    identity,
+    myAccountId,
+  ]);
 
   useEffect(() => {
     if (!favoriteSelectedId) return;
@@ -1715,13 +1914,54 @@ export default function SpacetimeMailboxApp({
       setFavoriteSelectedId(null);
     }
   }, [favoriteSelectedId, unifiedFavoriteItems]);
+
+  const onMineOpenSquareWall = useCallback(() => {
+    setActiveTab("mine_square");
+    setSelectedMessageId(null);
+    setSquareSelectedPostId(null);
+    setFavoriteSelectedId(null);
+    setSelectedChatThreadKey(null);
+    setSelectedAdminReportId(null);
+    setChatBackTab(null);
+    setSquareActionError("");
+  }, [
+    setActiveTab,
+    setSelectedMessageId,
+    setSquareSelectedPostId,
+    setFavoriteSelectedId,
+    setSelectedChatThreadKey,
+    setSelectedAdminReportId,
+    setChatBackTab,
+    setSquareActionError,
+  ]);
+
+  const onSecretSidebarOpenChat = useCallback(() => {
+    setChatBackTab("secret");
+    setActiveTab("chat");
+    setSelectedMessageId(null);
+    setSquareSelectedPostId(null);
+    setFavoriteSelectedId(null);
+    setSelectedChatThreadKey(null);
+    setSelectedAdminReportId(null);
+    setSquareActionError("");
+  }, [
+    setChatBackTab,
+    setActiveTab,
+    setSelectedMessageId,
+    setSquareSelectedPostId,
+    setFavoriteSelectedId,
+    setSelectedChatThreadKey,
+    setSelectedAdminReportId,
+    setSquareActionError,
+  ]);
+
   if (isBooting) {
     return (
       <div
         key="bootloader"
-        className="flex h-screen w-full flex-col items-center justify-center bg-[#2a5e59] text-white"
+        className="ys-dreamy-cosmic flex h-screen w-full flex-col items-center justify-center text-white"
       >
-        <Loader2 className="h-8 w-8 animate-spin text-[#f4dc3a] mb-4" />
+        <Loader2 className="h-8 w-8 animate-spin text-[#FFD54F] mb-4" />
         <p className="text-[14px] font-bold">正在連線至時空數據庫...</p>
       </div>
     );
@@ -2112,7 +2352,7 @@ export default function SpacetimeMailboxApp({
     capsulePost,
     capsuleEmptyReason: capsuleEmptyReason ?? "",
     openReportModal,
-    openSpace,
+    capsuleOverlayShowAuthorRealName,
     capsuleSquarePost,
     squareReactionCountsByPost,
     mySquareReactionByPost,
@@ -2130,7 +2370,6 @@ export default function SpacetimeMailboxApp({
     uniqueCapsuleGuestHexes,
     capsuleThreadGuestHex,
     onSetCapsuleThreadGuestHex: setCapsuleThreadGuestHex,
-    capsulePrivateThreadMessages,
     canShowCapsuleModalFirstMessageInput,
     capsuleModalPrivateTextareaRef,
     capsulePrivateDraft,
@@ -2171,11 +2410,17 @@ export default function SpacetimeMailboxApp({
 
   const mobileBottomNavProps = {
     activeTab,
+    showMineChatUnread:
+      chatUnreadThreadCount > 0 ||
+      inboxUnreadCount > 0 ||
+      outboxUnreadCount > 0,
     onGoSecret: () => {
       setActiveTab("secret");
       setSelectedMessageId(null);
       setSquareSelectedPostId(null);
       setFavoriteSelectedId(null);
+      setSelectedChatThreadKey(null);
+      setChatBackTab(null);
       setSquareActionError("");
     },
     onGoCompose: () => {
@@ -2201,6 +2446,18 @@ export default function SpacetimeMailboxApp({
   const chatMainProps = {
     selectedChatThread,
     selectedChatPeerProfile: selectedChatPeerProfile ?? null,
+    isSourceCapsuleMine,
+    onOpenChatPeerSpace: () => {
+      const p = selectedChatPeerProfile;
+      const t = selectedChatThread;
+      if (!p || !t || !chatPeerUnlocked) return;
+      openSpace(
+        p.accountId,
+        (p.displayName ?? "").trim() || t.counterpartLabel,
+        p.gender ?? "unspecified",
+        p.birthDate,
+      );
+    },
     chatPeerUnlocked,
     selectedChatProgress,
     selectedChatMessages,
@@ -2253,8 +2510,10 @@ export default function SpacetimeMailboxApp({
   };
 
   const overlayModalsProps = {
-    isChatPeerProfileVisible,
-    selectedChatPeerProfile: selectedChatPeerProfile ?? null,
+    isChatPeerProfileVisible: isChatPeerProfileVisible && chatPeerUnlocked,
+    selectedChatPeerProfile: chatPeerUnlocked
+      ? (selectedChatPeerProfile ?? null)
+      : null,
     onCloseChatPeerProfile: () => setChatPeerProfileOpenWithStack(false),
     calculateAgeFromDate,
     isOutboxDeleteConfirmVisible,
@@ -2302,31 +2561,20 @@ export default function SpacetimeMailboxApp({
     onSetPublishShowRecipient: setPublishShowRecipient,
   };
 
-  const isMineThemeTab =
-    activeTab === "mine" ||
-    activeTab === "inbox" ||
-    activeTab === "outbox" ||
-    activeTab === "favorites" ||
-    activeTab === "space" ||
-    activeTab === "chat" ||
-    activeTab === "my_reports";
-
   return (
+    <>
     <div
       className={cn(
-        "h-screen flex flex-col font-sans overflow-hidden",
-        isMineThemeTab
-          ? "ys-app-mine-theme text-white"
-          : "bg-[#2a5e59] text-white md:bg-[#F5F5F7] md:text-apple-near-black",
+        "h-screen flex flex-col font-sans overflow-hidden ys-dreamy-cosmic text-white",
       )}
       translate="no"
     >
       {!myProfile && view === "dashboard" ? (
         <div
           key="loader"
-          className="flex flex-1 items-center justify-center bg-[#2a5e59]"
+          className="flex flex-1 items-center justify-center ys-dreamy-cosmic"
         >
-          <Loader2 className="h-8 w-8 animate-spin text-[#f4dc3a] mb-4" />
+          <Loader2 className="h-8 w-8 animate-spin text-[#FFD54F] mb-4" />
           <p className="text-white">正在同步時光資料...</p>
         </div>
       ) : (
@@ -2342,19 +2590,18 @@ export default function SpacetimeMailboxApp({
         sanctionTickerText={sanctionTickerText}
       />
 
-      <div className="flex-1 flex overflow-hidden relative">
+      <div className="relative flex min-h-0 flex-1 overflow-hidden pb-[5.5rem] md:pb-0">
         {/* Column 1: Message List (Product Grid Style) */}
         <aside
           className={cn(
             "w-full shrink-0 flex flex-col overflow-hidden transition-all duration-300",
-            activeTab === "secret" && squareSelectedPostId === null
+            (activeTab === "secret" && squareSelectedPostId === null) ||
+            (activeTab === "mine_square" && squareSelectedPostId === null)
               ? "md:w-full border-r-0"
               : "md:w-[min(100%,18rem)] border-r",
-            activeTab === "secret"
-              ? "border-stone-900/50 bg-[#2a5e59]"
-              : "border-stone-900/30 bg-[#2a5e59]/90 md:border-black/[0.05]",
-            isMineThemeTab &&
-              "border-r-0 border-[#3f798d]/50 bg-transparent md:border-r-0 md:bg-transparent",
+            activeTab === "secret" || activeTab === "mine_square"
+              ? "border-white/10 bg-transparent"
+              : "border-white/10 bg-transparent/80 backdrop-blur-sm md:border-white/10",
             isMobileDetailView ? "hidden md:flex" : "flex",
           )}
         >
@@ -2364,11 +2611,12 @@ export default function SpacetimeMailboxApp({
               activeTab === "favorites" ||
               activeTab === "space" ||
               activeTab === "my_reports" ||
+              activeTab === "mine_square" ||
               activeTab === "chat") && (
               <button
                 type="button"
                 onClick={onAsideBackToMine}
-                className="hidden md:flex w-full items-center gap-1 rounded-xl border border-white/25 bg-white/10 px-2.5 py-1.5 text-left text-[12px] font-semibold text-white/95 transition-colors hover:bg-white/15 md:border-violet-200/60 md:bg-white/80 md:text-violet-800 md:hover:bg-violet-50/90"
+                className="hidden md:flex w-full items-center gap-1 rounded-2xl border border-white/15 bg-white/5 px-2.5 py-1.5 text-left text-[12px] font-semibold text-white/95 backdrop-blur-md transition-colors hover:bg-white/10"
               >
                 <ChevronRight
                   className="h-4 w-4 shrink-0 rotate-180 opacity-70"
@@ -2376,7 +2624,9 @@ export default function SpacetimeMailboxApp({
                 />
                 {activeTab === "space" && spaceBackTab === "secret"
                   ? "回到秘密"
-                  : "回到我的"}
+                  : activeTab === "chat" && chatBackTab === "secret"
+                    ? "回到秘密"
+                    : "回到我的"}
               </button>
             )}
 
@@ -2442,7 +2692,7 @@ export default function SpacetimeMailboxApp({
                       >
                         <div className="flex items-stretch gap-2">
                           <div className="flex-1 min-w-0">
-                            <p className="text-[13px] font-semibold tracking-tight text-apple-near-black truncate">
+                            <p className="text-[13px] font-semibold tracking-tight text-white/95 truncate">
                               {item.title}
                             </p>
                             <p className="text-[10px] text-sky-900/55 tabular-nums mt-0.5 truncate">
@@ -2459,7 +2709,7 @@ export default function SpacetimeMailboxApp({
                                 ev.stopPropagation();
                                 dismissBroadcastItem(item.id);
                               }}
-                              className="rounded p-0.5 text-black/35 hover:bg-black/[0.06] hover:text-black/55"
+                              className="rounded p-0.5 text-white/40 hover:bg-white/10 hover:text-white/70"
                               aria-label="收起此則播報"
                             >
                               <X className="w-3.5 h-3.5" />
@@ -2476,7 +2726,7 @@ export default function SpacetimeMailboxApp({
           <div
             className={cn(
               "flex-1 px-2 py-2",
-              activeTab === "secret"
+              activeTab === "secret" || activeTab === "mine_square"
                 ? "flex min-h-0 flex-1 flex-col overflow-y-auto apple-scroll"
                 : "space-y-1.5 overflow-y-auto apple-scroll",
             )}
@@ -2484,10 +2734,9 @@ export default function SpacetimeMailboxApp({
             {activeTab === "mine" ? (
               <MineSidebarSection
                 user={user}
-                inboxCount={inbox.length}
-                outboxCount={outbox.length}
-                favoriteCount={unifiedFavoriteCount}
-                chatCount={capsuleChatThreads.length}
+                inboxUnreadCount={inboxUnreadCount}
+                outboxUnreadCount={outboxUnreadCount}
+                chatUnreadCount={chatUnreadThreadCount}
                 myReportsCount={
                   reportTicketRows.filter((r) =>
                     r.reporterIdentity.isEqual(identity),
@@ -2497,9 +2746,27 @@ export default function SpacetimeMailboxApp({
                 onEditIntro={() => void openIntroEditor()}
                 onLogout={() => void handleLogout()}
                 onNavigate={onMineHubNavigate}
+                squarePostsCount={squarePostsSorted.length}
+                onOpenSquareWall={onMineOpenSquareWall}
               />
-            ) : // --- 這裡開始替換 Aside 裡的空間邏輯 ---
-            activeTab === "space" ? (
+            ) : activeTab === "mine_square" ? (
+              <div className="mx-auto flex min-h-0 w-full max-w-md flex-1 flex-col gap-2 px-1 pb-4 pt-1">
+                
+                <SecretWallSection
+                  expanded
+                  onToggleExpanded={() => {}}
+                  postsVisible={squarePostsVisible}
+                  postsSortedLength={squarePostsSorted.length}
+                  selectedSquarePostId={squareSelectedPostId}
+                  onSelectPost={setSquareSelectedPostId}
+                  reactionCountsByPost={squareReactionCountsByPost}
+                  commentsByPost={squareCommentsByPost}
+                  maxListItems={12}
+                  expandedBodyMaxClass="max-h-[min(56vh,26rem)] md:max-h-[min(50vh,22rem)]"
+                  onOpenSpace={openSpace}
+                />
+              </div>
+            ) : activeTab === "space" ? (
               <SpaceSidebarSection
                 isOwnSpace={isOwnSpace}
                 displayName={
@@ -2509,8 +2776,7 @@ export default function SpacetimeMailboxApp({
                 squareCount={spaceSquares.length}
                 onBack={onSpacePanelBack}
               />
-            ) : // --- 這裡結束替換 Aside 邏輯 ---
-            activeTab === "admin" || activeTab === "admin_ops" ? (
+            ) : activeTab === "admin" || activeTab === "admin_ops" ? (
               <AdminWorkbench viewProps={adminViewProps} slot="sidebar" />
             ) : activeTab === "my_reports" ? (
               <MyReportsSidebarSection
@@ -2520,36 +2786,28 @@ export default function SpacetimeMailboxApp({
               />
             ) : activeTab === "chat" ? (
               <ChatThreadsSidebarSection
-                threads={capsuleChatThreads}
+                threads={capsuleChatThreadsWithUnread}
                 selectedKey={selectedChatThreadKey}
-                capsuleTypeMeta={capsuleTypeMeta}
                 onSelect={(key) => {
                   setChatBackTab(null);
                   setSelectedChatThreadKey(key);
                 }}
               />
             ) : activeTab === "new" || activeTab === "direct" ? (
-              <div className="p-5 text-center mt-2 bg-white rounded-2xl border border-black/[0.04] shadow-sm">
-                <div className="w-10 h-10 bg-apple-blue/10 rounded-full flex items-center justify-center mx-auto mb-3">
-                  <PenTool className="w-5 h-5 text-apple-blue" />
+              <div className="glass-effect mt-2 rounded-[24px] p-5 text-center">
+                <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/5">
+                  <PenTool className="h-5 w-5 text-[#a78bfa]" />
                 </div>
-                <p className="text-[15px] font-semibold tracking-tight text-apple-near-black">
+                <p className="text-[15px] font-semibold tracking-tight text-white/95">
                   {activeTab === "direct" ? "定向發送" : "秘密膠囊"}
                 </p>
-                <p className="text-[12px] text-black/45 mt-2 leading-snug">
+                <p className="text-[12px] mt-2 leading-snug text-white/60">
                   定向可留空時間即時發送；秘密膠囊固定即時送出，若要貼廣場請到寄件匣詳情再公開。
                 </p>
               </div>
             ) : activeTab === "secret" ? (
               <div className="mx-auto flex min-h-0 w-full max-w-md flex-1 flex-col items-center gap-3 pb-8 pt-2">
-                <div
-                  className={cn(
-                    "flex flex-1 w-full flex-col items-center justify-center gap-3 px-1",
-                    secretWallExpanded
-                      ? "shrink-0 border-b border-stone-900/25 pb-3 pt-1"
-                      : "min-h-0 flex-1 justify-center",
-                  )}
-                >
+                <div className="flex min-h-0 w-full flex-1 flex-col items-center justify-center gap-3 px-1">
                   <div className="flex w-full justify-center">
                     <SecretCapsuleDrawButton
                       variant="treasure"
@@ -2561,19 +2819,44 @@ export default function SpacetimeMailboxApp({
                   </p>
                 </div>
                 <div className="w-full shrink-0 px-2 md:px-0">
-                  <SecretWallSection
-                    expanded={secretWallExpanded}
-                    onToggleExpanded={() => setSecretWallExpanded((v) => !v)}
-                    expandedBodyMaxClass="max-h-[min(35vh,18rem)] md:max-h-[min(28vh,12rem)]"
-                    postsVisible={squarePostsVisible}
-                    postsSortedLength={squarePostsSorted.length}
-                    selectedSquarePostId={squareSelectedPostId}
-                    onSelectPost={setSquareSelectedPostId}
-                    reactionCountsByPost={squareReactionCountsByPost}
-                    commentsByPost={squareCommentsByPost}
-                    maxListItems={12}
-                    onOpenSpace={openSpace}
-                  />
+                  <button
+                    type="button"
+                    onClick={onSecretSidebarOpenChat}
+                    className="glass-effect flex w-full items-center gap-2 rounded-[24px] border border-white/10 p-3 text-left transition-colors hover:bg-white/[0.07] active:scale-[0.99]"
+                  >
+                    <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-white/15 bg-gradient-to-br from-emerald-400/25 to-white/5 text-white">
+                      <MessageCircle
+                        className="h-4 w-4"
+                        strokeWidth={2.25}
+                        aria-hidden
+                      />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[12px] font-black text-white">聊聊</p>
+                      <p className="text-[10px] font-bold text-white/50">
+                        {chatUnreadThreadCount > 0
+                          ? `有 ${chatUnreadThreadCount} 條聊聊線有新訊息未讀`
+                          : "尚無未讀新訊息，點此開啟聊聊"}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      {chatUnreadThreadCount > 0 ? (
+                        <span
+                          className="ys-unread-pill"
+                          aria-label={`${chatUnreadThreadCount} 條有未讀新訊息`}
+                        >
+                          {chatUnreadThreadCount > 99
+                            ? "99+"
+                            : chatUnreadThreadCount}
+                        </span>
+                      ) : null}
+                      <ChevronRight
+                        className="h-4 w-4 text-white/45"
+                        strokeWidth={2.4}
+                        aria-hidden
+                      />
+                    </div>
+                  </button>
                 </div>
               </div>
             ) : activeTab === "favorites" ? (
@@ -2585,8 +2868,8 @@ export default function SpacetimeMailboxApp({
               />
             ) : currentList.length === 0 ? (
               <div className="py-8 px-4 text-center">
-                <History className="mx-auto mb-3 h-9 w-9 text-white/15 md:text-black/[0.08]" />
-                <p className="text-[13px] font-medium text-white/50 md:text-black/30">
+                <History className="mx-auto mb-3 h-9 w-9 text-white/20" />
+                <p className="text-[13px] font-medium text-white/45">
                   暫無信件
                 </p>
               </div>
@@ -2610,25 +2893,31 @@ export default function SpacetimeMailboxApp({
         <main
           className={cn(
             "flex flex-1 flex-col overflow-hidden transition-all duration-300",
-            "bg-[#2a5e59]",
-            // activeTab === "secret" ? "md:bg-[#2a5e59]" : "md:bg-[#2a5e59]",
+            "bg-transparent",
             !isMobileDetailView ? "hidden md:flex" : "flex",
           )}
         >
           <div
             className={cn(
-              "flex min-h-0 flex-1 flex-col overflow-y-auto apple-scroll px-4 py-6 md:px-8 md:py-8",
+              "flex min-h-0 flex-1 flex-col overflow-y-auto apple-scroll px-2 py-2 md:px-8 md:py-8",
               activeTab === "new" || activeTab === "direct"
                 ? "justify-start"
-                : activeTab === "secret" && !selectedSquarePost
+                : (activeTab === "secret" && !selectedSquarePost) ||
+                    (activeTab === "mine_square" && !selectedSquarePost)
                   ? "justify-start"
                   : "justify-start md:justify-center",
             )}
           >
             {activeTab === "mine" ? (
               <div className="mx-auto hidden max-w-md flex-col items-center justify-center px-4 py-12 text-center md:flex md:flex-col">
-                <p className="text-[14px] leading-relaxed text-black/45">
+                <p className="text-[14px] leading-relaxed text-white/50">
                   左側選一張卡片：飄向你的、你丟出的，或藏進心底的。
+                </p>
+              </div>
+            ) : activeTab === "mine_square" && !selectedSquarePost ? (
+              <div className="mx-auto hidden max-w-md flex-col items-center justify-center px-4 py-12 text-center md:flex md:flex-col">
+                <p className="text-[14px] leading-relaxed text-white/50">
+                  在左欄廣場牆點一則貼文；手機上點一則後以頂欄「返回」回列表。
                 </p>
               </div>
             ) : activeTab === "space" ? (
@@ -2649,13 +2938,14 @@ export default function SpacetimeMailboxApp({
               <AdminWorkbench viewProps={adminViewProps} slot="content" />
             ) : activeTab === "my_reports" ? (
               <div className="mx-auto max-w-md px-4 py-12 text-center md:flex md:flex-col md:items-center md:justify-center">
-                <p className="text-[14px] font-semibold text-black/45">
+                <p className="text-[14px] font-semibold text-white/50">
                   我的舉報紀錄在左側，每張顯示審核狀態與結果。
                 </p>
               </div>
             ) : activeTab === "chat" ? (
               <ChatMainSection {...chatMainProps} />
-            ) : activeTab === "secret" ? (
+            ) : activeTab === "secret" ||
+              (activeTab === "mine_square" && selectedSquarePost) ? (
               <SecretMainSection {...secretMainProps} />
             ) : activeTab === "favorites" ? (
               <FavoritesMainSection
@@ -2678,8 +2968,6 @@ export default function SpacetimeMailboxApp({
           </div>
         </main>
       </div>
-
-      <MobileBottomNavSection {...mobileBottomNavProps} />
 
       <OverlayModalsSection {...overlayModalsProps} />
 
@@ -2783,5 +3071,8 @@ export default function SpacetimeMailboxApp({
       <AdminWorkbench viewProps={adminViewProps} slot="modals" />
 
     </div>
+
+    <MobileBottomNavSection {...mobileBottomNavProps} />
+    </>
   );
 }

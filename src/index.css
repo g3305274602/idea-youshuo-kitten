@@ -1,10 +1,30 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap');
 @import 'tailwindcss';
 
 @theme {
+  /* Cosmic Drift + 舊 token 名沿用（--color-ys-*）以避免大量重構；數值已對齊新版 */
   --font-sans:
-    'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Helvetica Neue',
-    'Helvetica', Arial, sans-serif;
+    'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display',
+    'Helvetica Neue', 'Helvetica', Arial, sans-serif;
+
+  --color-cd-bg: #121319;
+  --color-cd-surface: #1a1b22;
+  --color-cd-primary: #ffd54f;
+  --color-cd-secondary: #f06292;
+  --color-cd-muted: #8e8e93;
+
+  --color-ys-bg-top: #121319;
+  --color-ys-bg-bottom: #0a0a10;
+  --color-ys-gold: #ffd54f;
+  --color-ys-pink: #f06292;
+  --color-ys-purple: #a78bfa;
+  --color-ys-ok: #10b981;
+  --color-ys-warn: #fbbf24;
+  --color-ys-danger: #ef4444;
+  --color-ys-card-tint: rgba(26, 27, 34, 0.92);
+  --radius-ys-container: 32px;
+  --radius-ys-card: 24px;
+  --radius-ys-button: 16px;
 
   --color-apple-black: #000000;
   --color-apple-gray: #f5f5f7;
@@ -15,22 +35,23 @@
   --color-apple-line: rgba(0, 0, 0, 0.12);
   --color-apple-line-dark: rgba(255, 255, 255, 0.12);
 
-  --color-dark-surface-1: #272729;
-  --color-dark-surface-2: #262628;
+  --color-dark-surface-1: #1a1b22;
+  --color-dark-surface-2: #121319;
 
   --shadow-apple-card: 0px 5px 30px 0px rgba(0, 0, 0, 0.22);
 }
 
 @layer base {
   body {
-    @apply antialiased bg-apple-gray text-apple-near-black selection:bg-apple-blue/20;
+    @apply antialiased text-white selection:bg-[#FFD54F]/25;
+    background-color: var(--color-cd-bg);
     font-family: var(--font-sans);
-    letter-spacing: -0.022em;
+    letter-spacing: -0.02em;
   }
 }
 
 .glass-nav {
-  background-color: rgba(0, 0, 0, 0.8);
+  background-color: rgba(10, 11, 15, 0.82);
   backdrop-filter: saturate(180%) blur(20px);
 }
 
@@ -41,16 +62,20 @@
   background: transparent;
 }
 .apple-scroll::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.1);
+  background: rgba(255, 255, 255, 0.12);
   border-radius: 980px;
 }
 .apple-scroll:hover::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.2);
+  background: rgba(255, 255, 255, 0.2);
 }
 
 @keyframes ticker {
-  0% { transform: translateX(0); }
-  100% { transform: translateX(-50%); }
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
 }
 @layer utilities {
   .apple-scroll-none::-webkit-scrollbar {
@@ -64,39 +89,81 @@
 
 /* 隱藏滾筒組件的滾動條，但保留滾動功能 */
 .apple-scroll-none {
-  -ms-overflow-style: none;  /* IE and Edge */
-  scrollbar-width: none;     /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
 }
 .apple-scroll-none::-webkit-scrollbar {
-  display: none;             /* Chrome, Safari and Opera */
+  display: none; /* Chrome, Safari and Opera */
 }
 
 @layer components {
-  .ys-app-mine-theme {
+  /** 全頁主背景：深空＋星雲微光 */
+  .ys-dreamy-cosmic {
     background:
-      radial-gradient(circle at 10% 12%, rgba(255, 222, 123, 0.16) 0, rgba(255, 222, 123, 0) 22%),
-      radial-gradient(circle at 84% 28%, rgba(120, 206, 236, 0.15) 0, rgba(120, 206, 236, 0) 20%),
-      linear-gradient(180deg, #0a3f56 0%, #08354b 46%, #063046 100%);
+      radial-gradient(ellipse 85% 55% at 50% -8%, rgba(240, 98, 146, 0.11) 0, transparent 52%),
+      radial-gradient(circle at 8% 22%, rgba(255, 213, 79, 0.07) 0, transparent 36%),
+      radial-gradient(circle at 92% 55%, rgba(167, 139, 250, 0.08) 0, transparent 42%),
+      linear-gradient(
+        to bottom,
+        var(--color-ys-bg-top) 0%,
+        var(--color-ys-bg-bottom) 100%
+      );
+  }
+
+  .ys-dreamy-cosmic {
+    min-height: 100%;
+  }
+
+  .glass-effect {
+    background: rgba(26, 27, 34, 0.72);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: inset 0 0 12px rgba(255, 255, 255, 0.02);
+  }
+
+  /** Cosmic Drift：補齊彈窗／表單（取代郵票粗邊＋米白底） */
+  .cd-modal-panel {
+    @apply rounded-[24px] border border-white/10 bg-[#1A1B22] text-white shadow-[0_24px_56px_rgba(0,0,0,0.5)];
+  }
+  .cd-field {
+    @apply w-full rounded-xl border border-white/12 bg-white/[0.06] px-3 py-2 text-[14px] font-medium text-white outline-none transition-colors placeholder:text-[#8E8E93] focus:border-[#FFD54F]/40;
+  }
+  .cd-btn-ghost {
+    @apply rounded-xl border border-white/12 bg-white/[0.06] px-4 py-2.5 text-[14px] font-bold text-white transition-all active:translate-y-px;
+  }
+  .cd-btn-primary {
+    @apply rounded-xl border border-[#FFD54F]/50 bg-[#FFD54F] px-4 py-2.5 text-[14px] font-bold text-stone-900 transition-all active:translate-y-px;
+  }
+  .cd-btn-danger {
+    @apply rounded-xl border border-red-500/30 bg-red-500/20 px-4 py-2.5 text-[14px] font-bold text-red-200;
+  }
+  .cd-card-raised {
+    @apply rounded-2xl border border-white/10 bg-[#1A1B22] shadow-[0_16px_40px_rgba(0,0,0,0.35)];
+  }
+
+  .ys-gold-glow {
+    filter: drop-shadow(0 0 14px rgba(255, 213, 79, 0.45));
   }
 
   .ys-night-surface {
-    @apply border border-cyan-200/25 bg-cyan-100/10 backdrop-blur-sm;
+    @apply border border-white/10 bg-[#1A1B22]/95 backdrop-blur-sm;
   }
 
   .ys-night-text {
-    @apply text-cyan-50;
+    @apply text-white;
   }
 
   .ys-night-text-dim {
-    @apply text-cyan-100/60;
+    @apply text-[#8E8E93];
   }
 
   .ys-night-input {
-    @apply border border-cyan-200/30 bg-cyan-100/10 text-cyan-50 placeholder:text-cyan-100/45 outline-none;
+    @apply border border-white/12 bg-[#1A1B22]/90 text-white placeholder:text-[#8E8E93]/80 outline-none;
   }
 
   .ys-btn-primary {
-    @apply border border-yellow-200/70 bg-[#f4dc3a] text-stone-900 font-black;
+    @apply border border-[#FFD54F]/70 bg-[#FFD54F] text-stone-900 font-black;
   }
 
   .ys-btn-danger {
@@ -108,35 +175,42 @@
   }
 
   .ys-chat-header {
-    @apply rounded-2xl border border-cyan-200/25 bg-cyan-100/10 px-3 py-2.5 backdrop-blur-sm;
+    @apply rounded-2xl border border-white/10 bg-gradient-to-br from-[#1A1B22]/95 via-[#1A1B22]/85 to-[#121319]/90 px-3.5 py-3 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)] backdrop-blur-sm;
   }
 
   .ys-chat-body {
-    @apply min-h-0 flex flex-1 flex-col rounded-2xl border border-cyan-200/25 bg-cyan-100/10 p-2.5 backdrop-blur-sm;
+    @apply min-h-0 flex flex-1 flex-col rounded-2xl border border-white/10 bg-[#1A1B22]/55 p-2.5 backdrop-blur-sm;
   }
 
   .ys-chat-bubble-self {
-    @apply ml-auto max-w-[84%] rounded-2xl border px-3 py-2 text-[13px] leading-snug border-yellow-200/70 bg-[#f4dc3a] text-stone-900;
+    @apply ml-auto w-fit max-w-[84%] rounded-2xl border px-3 py-1.5 text-[13px] leading-snug border-[#FFD54F]/55 bg-[#FFD54F] text-stone-900;
   }
 
   .ys-chat-bubble-peer {
-    @apply mr-auto max-w-[84%] rounded-2xl border border-cyan-200/25 bg-cyan-100/10 px-3 py-2 text-[13px] leading-snug text-cyan-50 backdrop-blur-sm;
+    @apply mr-auto w-fit max-w-[84%] rounded-2xl border border-white/10 bg-[#1A1B22]/90 px-3 py-1.5 text-[13px] leading-snug text-white backdrop-blur-sm;
   }
 
   .ys-capsule-backdrop {
-    @apply fixed inset-0 z-[240] flex items-center justify-center bg-[#071b2d]/78 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-sm;
+    @apply fixed inset-0 z-[240] flex items-center justify-center p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))];
+    background: rgba(5, 6, 10, 0.22);
+    backdrop-filter: blur(22px);
+    -webkit-backdrop-filter: blur(22px);
   }
 
   .ys-capsule-sheet {
-    @apply flex max-h-[min(88vh,44rem)] w-full max-w-lg flex-col overflow-hidden rounded-3xl border border-cyan-200/25 bg-gradient-to-br from-[#093552]/96 via-[#0a2d46]/95 to-[#081f35]/95 shadow-[0_18px_40px_-18px_rgba(2,10,24,0.95)];
+    @apply flex max-h-[min(88vh,44rem)] w-full max-w-lg flex-col overflow-hidden rounded-[32px] border border-white/10 bg-gradient-to-br from-[#1A1B22]/98 via-[#15161d]/98 to-[#0e0f14]/98 shadow-[0_24px_60px_rgba(0,0,0,0.55)] backdrop-blur-xl;
   }
 
   .ys-capsule-header {
-    @apply flex shrink-0 items-center justify-between gap-2 border-b border-cyan-200/20 bg-cyan-100/10 px-3 py-2.5;
+    @apply flex shrink-0 items-center justify-between gap-2  px-3 py-2.5;
+  }
+
+  .ys-capsule-drag {
+    @apply mx-auto mt-1.5 h-1.5 w-12 shrink-0 rounded-full bg-white/25;
   }
 
   .ys-capsule-card {
-    @apply relative rounded-2xl border border-cyan-200/25 bg-cyan-100/10 p-3.5 backdrop-blur-sm;
+    @apply relative rounded-2xl border border-white/10 bg-[#1A1B22]/90 p-3.5 backdrop-blur-sm;
   }
 
   .ys-mine-page {
@@ -144,8 +218,12 @@
   }
 
   .ys-mine-profile-card {
-    @apply relative z-[1] rounded-[1.35rem] border border-[#5bb7d1]/45 bg-gradient-to-br from-[#115a75]/96 to-[#0d4b66]/96 p-3.5;
-    box-shadow: inset 0 0 0 1px rgba(196, 239, 255, 0.16);
+    @apply relative z-[1] rounded-[24px] p-3.5;
+    background: rgba(26, 27, 34, 0.78);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: inset 0 0 10px rgba(255, 255, 255, 0.02);
   }
 
   .ys-mine-profile-hitbox {
@@ -153,7 +231,11 @@
   }
 
   .ys-mine-avatar-slot {
-    @apply h-14 w-14 shrink-0 rounded-2xl border border-[#8dc9dc]/70 bg-[#5e9bb0]/45;
+    @apply h-14 w-14 shrink-0 rounded-[24px] border border-white/15 bg-white/10;
+    box-shadow:
+      0 0 0 1px rgba(255, 255, 255, 0.06),
+      0 8px 28px rgba(240, 98, 146, 0.22),
+      0 4px 16px rgba(255, 213, 79, 0.12);
   }
 
   .ys-mine-profile-main {
@@ -165,19 +247,19 @@
   }
 
   .ys-mine-name {
-    @apply truncate text-[26px] font-black leading-tight text-white;
+    @apply truncate text-[24px] font-bold leading-tight text-white;
   }
 
   .ys-mine-level-chip {
-    @apply mt-1 inline-flex items-center gap-1 rounded-full border border-[#f7de86]/80 bg-[#0a3248] px-2 py-0.5 text-[11px] font-bold text-[#ffe26e];
+    @apply mt-1 inline-flex items-center gap-1 rounded-full border border-[#FFD54F]/55 bg-[#121319] px-2 py-0.5 text-[12px] font-bold text-[#FFD54F];
   }
 
   .ys-mine-email {
-    @apply mt-2 truncate text-[13px] font-semibold text-[#e6f5ff];
+    @apply mt-2 truncate text-[14px] font-semibold text-white/90;
   }
 
   .ys-mine-note {
-    @apply mt-2 text-[13px] font-medium text-[#d7edf9];
+    @apply mt-2 text-[13px] font-medium text-[#8E8E93];
   }
 
   .ys-mine-stats-row {
@@ -193,80 +275,215 @@
   }
 
   .ys-mine-stat-count {
-    @apply text-[28px] font-black leading-none text-[#f4fbff];
+    @apply text-[28px] font-bold leading-none text-white;
   }
 
   .ys-mine-stat-label {
-    @apply mt-1 text-[11px] font-semibold text-[#c6e6f7];
+    @apply mt-1 text-[12px] font-medium text-[#8E8E93];
   }
 
   .ys-mine-menu-shell {
-    @apply relative z-[1] mt-3 overflow-hidden rounded-[1.65rem] border border-[#d6dbe5] bg-[#eceef3];
+    @apply relative z-[1] mt-3 overflow-hidden rounded-[24px] border border-white/10;
+    background: rgba(26, 27, 34, 0.65);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    box-shadow: inset 0 0 10px rgba(255, 255, 255, 0.02);
   }
 
   .ys-mine-menu-row {
-    @apply relative flex w-full items-center gap-3 px-3 py-3.5 text-left transition-colors hover:bg-[#e8ebf2];
+    @apply relative flex w-full items-center gap-3 px-3 py-3.5 text-left text-white/90 transition-colors hover:bg-white/[0.04];
   }
 
   .ys-mine-menu-icon {
     @apply inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full;
   }
 
-  .ys-mine-menu-icon--blue { @apply bg-[#59b5f7]; }
-  .ys-mine-menu-icon--amber { @apply bg-[#f7b149]; }
-  .ys-mine-menu-icon--green { @apply bg-[#69c49b]; }
-  .ys-mine-menu-icon--violet { @apply bg-[#8e8af2]; }
-  .ys-mine-menu-icon--pink { @apply bg-[#f4899e]; }
+  .ys-mine-menu-icon--blue {
+    @apply bg-[#59b5f7];
+  }
+  .ys-mine-menu-icon--amber {
+    @apply bg-[#e8b44f];
+  }
+  .ys-mine-menu-icon--green {
+    @apply bg-[#69c49b];
+  }
+  .ys-mine-menu-icon--violet {
+    @apply bg-[#8e8af2];
+  }
+  .ys-mine-menu-icon--pink {
+    @apply bg-[#F06292];
+  }
 
   .ys-mine-menu-texts {
     @apply min-w-0 flex-1;
   }
 
   .ys-mine-menu-title {
-    @apply block text-[18px] font-bold leading-tight text-[#2b2f3a];
+    @apply block text-[18px] font-semibold leading-tight text-white;
   }
 
   .ys-mine-menu-subtitle {
-    @apply mt-0.5 block text-[12px] font-medium text-[#7d8393];
+    @apply mt-0.5 block text-[12px] font-normal text-[#8E8E93];
+  }
+
+  /** 與祕密側欄「聊聊」數字鈴、我的清單角標共用鮮艷漸層 */
+  .ys-mine-menu-count,
+  .ys-unread-pill {
+    @apply min-h-[1.4rem] min-w-[1.4rem] inline-flex items-center justify-center rounded-full border border-red-200/40 px-1.5 text-center text-[11px] font-black tabular-nums text-white;
+    background: linear-gradient(145deg, #ff2d6a 0%, #e11d48 45%, #fb923c 100%);
+    box-shadow:
+      0 0 12px 3px rgba(244, 63, 94, 0.55),
+      0 1px 0 rgba(0, 0, 0, 0.2) inset;
   }
 
   .ys-mine-menu-count {
-    @apply mr-1 rounded-full bg-[#eceef4] px-2 py-0.5 text-[12px] font-semibold text-[#8b90a1];
+    @apply mr-1 px-2 py-0.5 text-[12px];
+  }
+
+  .ys-unread-dot {
+    @apply h-2.5 w-2.5 shrink-0 rounded-full;
+    @apply border border-red-200/50;
+    background: linear-gradient(145deg, #fb7185, #e11d48, #f43f5e);
+    box-shadow: 0 0 8px 2px rgba(244, 63, 94, 0.7);
   }
 
   .ys-mine-menu-divider {
-    @apply pointer-events-none absolute bottom-0 left-[3.25rem] right-3 h-px bg-[#e8ebf2];
+    @apply pointer-events-none absolute bottom-0 left-[3.25rem] right-3 h-px bg-white/10;
+  }
+
+  /** 左欄／側欄可點列表列：觸控最小高度（約 56px） */
+  .ys-tap-list-row {
+    @apply min-h-14;
+  }
+
+  /**
+   * 廣場牆（SecretWallSection）— 與全站星空主題一致，列表與標題分區清楚
+   */
+  .ys-square-wall {
+    @apply relative w-full shrink-0 overflow-hidden rounded-[28px] border border-violet-400/20;
+    background: linear-gradient(
+      160deg,
+      rgba(30, 27, 40, 0.92) 0%,
+      rgba(18, 19, 25, 0.95) 45%,
+      rgba(10, 10, 16, 0.98) 100%
+    );
+    box-shadow:
+      0 0 0 1px rgba(167, 139, 250, 0.12),
+      0 18px 40px -24px rgba(0, 0, 0, 0.65);
+  }
+
+  .ys-square-wall__glow {
+    @apply pointer-events-none absolute -right-6 -top-8 h-32 w-32 rounded-full bg-fuchsia-500/15 blur-3xl;
+  }
+
+  .ys-square-wall__glow2 {
+    @apply pointer-events-none absolute -left-8 bottom-0 h-28 w-28 rounded-full bg-amber-400/10 blur-3xl;
+  }
+
+  .ys-square-wall__head {
+    @apply relative z-[1] flex w-full items-center justify-between gap-2 rounded-2xl px-3 py-2.5 text-left text-white transition-colors;
+    @apply border border-white/5 bg-gradient-to-r from-violet-500/10 via-white/[0.04] to-amber-400/5;
+  }
+
+  .ys-square-wall__list {
+    @apply min-h-0 overflow-y-auto pr-0.5;
+  }
+
+  /** 單則牆上卡片（可點滿列） */
+  .ys-square-wall-item {
+    @apply relative min-h-14 w-full cursor-pointer text-left;
+    @apply overflow-hidden rounded-2xl border border-white/10;
+    @apply bg-gradient-to-b from-white/[0.08] to-white/[0.02];
+    @apply shadow-[0_1px_0_0_rgba(255,255,255,0.06)_inset];
+    @apply pl-1 transition-[border-color,box-shadow,transform] duration-200;
+  }
+
+  .ys-square-wall-item::before {
+    content: "";
+    @apply pointer-events-none absolute left-0 top-0 bottom-0 w-[3px] rounded-l-lg;
+    background: linear-gradient(180deg, #c4b5fd 0%, #f0abfc 50%, #fbbf24 100%);
+    opacity: 0.7;
+  }
+
+  .ys-square-wall-item--selected {
+    @apply border-violet-400/35;
+    @apply ring-1 ring-amber-400/30 ring-offset-0 ring-offset-[#121319];
+    box-shadow: 0 0 0 1px rgba(167, 139, 250, 0.25);
+  }
+
+  .ys-square-wall-item--selected::before {
+    opacity: 1;
+    @apply w-1;
   }
 
   .ys-mobile-bottom-nav {
-    @apply relative z-50 -mt-px flex items-end justify-between border-t border-[#3f798d]/55 bg-gradient-to-b from-[#0b4258] to-[#09384e] px-7 pt-2 pb-[max(0.45rem,env(safe-area-inset-bottom))];
-    border-top-left-radius: 22px;
-    border-top-right-radius: 22px;
-    box-shadow: inset 0 1px 0 rgba(177, 226, 246, 0.34);
+    @apply pointer-events-none fixed bottom-0 left-0 right-0 z-50 flex justify-center md:hidden;
+  }
+
+  .ys-mobile-bottom-nav-shelf {
+    @apply pointer-events-auto relative z-0 w-[min(100%,28rem)] overflow-visible;
+  }
+
+  .ys-mobile-bottom-nav-rail {
+    @apply relative w-full;
+  }
+
+  .ys-mobile-bottom-nav-bar {
+    @apply flex w-full min-h-[3.5rem] items-end justify-between gap-1 rounded-t-[1.5rem] border-t border-white/8 bg-[#121319]/88 px-5 pt-2 pb-2.5 shadow-[0_10px_32px_rgba(0,0,0,0.5)] backdrop-blur-xl;
+  }
+
+  .ys-mobile-bottom-nav-fabSlot {
+    @apply pointer-events-auto relative z-20 flex w-18 shrink-0 self-stretch items-end justify-center overflow-visible;
+  }
+
+  .ys-mobile-bottom-nav-fabSlot .ys-mobile-capsule-button {
+    @apply absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2;
+    /* 按壓用 top 微移，勿改此元素的 transform，否則會蓋掉置中 */
+    @apply transition-[top,box-shadow] duration-150 ease-out;
+  }
+
+  .ys-mobile-bottom-nav-fabSlot .ys-mobile-capsule-button:active {
+    top: 0.2rem; /* 約 3px 下沉，可與內層圖片 scale 疊加 */
   }
 
   .ys-mobile-tab {
-    @apply flex min-w-[72px] flex-col items-center justify-end gap-0.5 pb-1 text-[#8ec2da] transition-colors;
+    @apply flex min-h-[2.5rem] min-w-0 flex-1 flex-col items-center justify-end gap-0.5 text-white/45 transition-colors;
   }
 
   .ys-mobile-tab.is-active {
-    @apply text-[#ffcf47];
+    @apply text-[#FFD54F];
+    text-shadow: 0 0 14px rgba(255, 213, 79, 0.35);
   }
 
   .ys-mobile-tab-label {
     @apply text-[12px] font-semibold tracking-wide;
   }
 
-  .ys-mobile-capsule-wrap {
-    @apply -mt-7 flex items-center justify-center;
+  .ys-mobile-capsule-button-img {
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.22));
   }
 
+  /**
+   * 勿對 fab 鈕使用會覆寫整段 transform 的 active:translate ——會破壞
+   * fabSlot 的 -translate-x-1/2 -translate-y-1/2 置中。下壓感請用
+   * `.ys-mobile-bottom-nav-fabSlot .ys-mobile-capsule-button:active { top: … }`
+   * ＋內層圖 `group-active:scale-95`。
+   */
   .ys-mobile-capsule-button {
-    @apply inline-flex h-[70px] w-[70px] items-center justify-center rounded-full border border-[#fff3ba] bg-gradient-to-b from-[#ffe88f] via-[#f3d14a] to-[#d39e1e] text-[#7a5a13] transition-transform active:translate-y-0.5;
+    @apply inline-flex h-16 w-16 shrink-0 items-center justify-center overflow-visible rounded-full border border-[#FFECB2]/60 bg-gradient-to-b from-[#fff3c2] via-[#FFD54F] to-[#d9a61a] p-1.5 text-stone-900/90;
     box-shadow:
-      0 10px 24px rgba(255, 201, 73, 0.36),
-      0 2px 6px rgba(102, 72, 7, 0.3),
-      inset 0 1px 0 rgba(255, 255, 255, 0.75),
-      inset 0 -1px 0 rgba(140, 91, 12, 0.22);
+      0 2px 10px rgba(0, 0, 0, 0.3),
+      0 0 0 1px rgba(255, 255, 255, 0.35) inset;
+  }
+
+  /** 當前分頁為「秘密」時由 TS 加上，外層黃／粉光暈 */
+  .ys-mobile-capsule-button.ys-mobile-capsule-button--on-secret {
+    @apply border-[#FFECB2]/90;
+    box-shadow:
+      0 3px 12px rgba(0, 0, 0, 0.35),
+      0 0 0 1px rgba(255, 255, 255, 0.4) inset,
+      0 0 12px rgba(255, 213, 79, 0.75),
+      0 0 24px rgba(255, 200, 80, 0.45),
+      0 0 38px rgba(240, 98, 146, 0.12);
   }
 }

@@ -1,14 +1,17 @@
 import type React from "react";
 
+import type { BackTab } from "../appUiStore";
 import type { AppTab, OpenedBroadcastItem } from "../types";
+
+type SetStateAction<T> = T | ((prev: T) => T);
 
 type UseAsideActionsParams = {
   activeTab: AppTab;
-  spaceBackTab: AppTab | null;
-  chatBackTab: AppTab | null;
+  spaceBackTab: BackTab;
+  chatBackTab: BackTab;
   setActiveTab: (value: AppTab) => void;
-  setSpaceBackTab: (value: AppTab | null) => void;
-  setChatBackTab: (value: AppTab | null) => void;
+  setSpaceBackTab: (value: SetStateAction<BackTab>) => void;
+  setChatBackTab: (value: SetStateAction<BackTab>) => void;
   setSelectedMessageId: (value: string | null) => void;
   setSquareSelectedPostId: (value: string | null) => void;
   setFavoriteSelectedId: (value: string | null) => void;

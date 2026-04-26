@@ -78,7 +78,7 @@ export function AdminSidebar({
             type="button"
             onClick={() => void onBootstrapAdminSelf()}
             disabled={adminActionLoading}
-            className="mt-3 rounded-xl border-2 border-stone-900 bg-[#f4dc3a] px-3 py-2 text-[12px] font-black text-stone-900 disabled:opacity-60"
+            className="cd-btn-primary mt-3 py-2 text-[12px] font-bold disabled:opacity-60"
           >
             {adminActionLoading ? "建立中…" : "建立首位超級管理員（自己）"}
           </button>
@@ -314,7 +314,7 @@ export function AdminContent(props: AdminContentProps) {
             type="button"
             onClick={() => void onBootstrapAdminSelf()}
             disabled={adminActionLoading}
-            className="mt-3 rounded-xl border-2 border-stone-900 bg-[#f4dc3a] px-3 py-2 text-[12px] font-black text-stone-900 disabled:opacity-60"
+            className="cd-btn-primary mt-3 py-2 text-[12px] font-bold disabled:opacity-60"
           >
             {adminActionLoading ? "建立中…" : "建立首位超級管理員（自己）"}
           </button>
@@ -341,7 +341,7 @@ export function AdminContent(props: AdminContentProps) {
         <button
           type="button"
           onClick={() => onSetActiveTab("admin")}
-          className="mt-4 rounded-xl border-2 border-stone-900 bg-[#f4dc3a] px-4 py-2 text-[13px] font-black text-stone-900"
+          className="mt-4 rounded-xl border-2 border-stone-900 bg-[#FFD54F] px-4 py-2 text-[13px] font-black text-stone-900"
         >
           前往管理後台
         </button>
@@ -358,7 +358,7 @@ export function AdminContent(props: AdminContentProps) {
             selectedAdminReportId !== null ? "hidden md:flex" : "flex",
           )}
         >
-          <div className="rounded-[99px] px-3 py-2 text-[12px] text-[#f4dc3a] mb-1">
+          <div className="rounded-[99px] px-3 py-2 text-[12px] text-[#FFD54F] mb-1">
             申訴：{appealTicketRows.length} · 處分：
             {userSanctionRows.length} · 待審核：{moderationQueueRows.length}
           </div>
@@ -406,7 +406,7 @@ export function AdminContent(props: AdminContentProps) {
                     type="button"
                     onClick={() => onSelectAdminReport(r)}
                     className={cn(
-                      "w-full text-left rounded-xl border px-3 py-2 transition-all",
+                      "ys-tap-list-row w-full text-left rounded-xl border px-3 py-2 transition-all",
                       isSelected
                         ? "border-rose-300/60 bg-rose-50 ring-2 ring-rose-300/40"
                         : "border-black/[0.06] bg-white hover:border-black/[0.12]",
@@ -826,7 +826,7 @@ export function AdminContent(props: AdminContentProps) {
   if (activeTab === "admin_ops") {
     return (
       <div className="w-full max-w-5xl mx-auto space-y-4 px-2 py-2 md:px-5 md:py-4 overflow-y-auto apple-scroll max-h-full">
-        <div className="rounded-2xl border-2 border-stone-900 bg-gradient-to-br from-slate-950 via-slate-900 to-emerald-950 p-4 text-white shadow-xl md:p-6">
+        <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-slate-950 via-slate-900 to-emerald-950 p-4 text-white shadow-xl md:p-6">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
             <div className="min-w-0">
               <p className="text-[10px] font-black uppercase tracking-[0.18em] text-emerald-300/90">
@@ -864,9 +864,9 @@ export function AdminContent(props: AdminContentProps) {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-black/[0.08] bg-white p-4 space-y-3 md:p-5">
+        <div className="cd-card-raised space-y-3 rounded-2xl p-4 text-white md:p-5">
           <div className="flex items-center justify-between gap-2">
-            <p className="text-[13px] font-black text-stone-900">
+            <p className="text-[13px] font-bold text-white">
               管理帳號（啟用 {activeAdminRows.length} / 已移除 {inactiveAdminRows.length}）
             </p>
             <button
@@ -878,9 +878,9 @@ export function AdminContent(props: AdminContentProps) {
             </button>
           </div>
           {activeAdminRows.length === 0 ? (
-            <p className="text-[12px] text-stone-500">目前還沒有管理帳號。</p>
+            <p className="text-[12px] text-[#8E8E93]">目前還沒有管理帳號。</p>
           ) : (
-            <ul className="max-h-36 space-y-1.5 overflow-y-auto rounded-lg border border-stone-200 bg-stone-50 p-2 md:max-h-48">
+            <ul className="max-h-36 space-y-1.5 overflow-y-auto rounded-lg border border-white/10 bg-white/[0.04] p-2 md:max-h-48">
               {activeAdminRows.map((r) => {
                 const hex = r.adminIdentity.toHexString();
                 const em = adminEmailByHex.get(hex);
@@ -889,13 +889,15 @@ export function AdminContent(props: AdminContentProps) {
                   <li
                     key={hex}
                     className={cn(
-                      "rounded-md border px-2 py-1.5 text-[11px] text-stone-700",
-                      isUnknown ? "border-amber-300 bg-amber-50" : "border-stone-200 bg-white",
+                      "rounded-md border px-2 py-1.5 text-[11px] text-white/90",
+                      isUnknown
+                        ? "border-amber-500/30 bg-amber-500/10"
+                        : "border-white/10 bg-white/[0.04]",
                     )}
                   >
                     <div className="flex items-center justify-between gap-2">
                       <p className="min-w-0 truncate text-[11px]">
-                        <span className="font-bold text-stone-900">
+                        <span className="font-bold text-white">
                           {adminRoleLabel[r.role] ?? r.role}
                         </span>
                         {isUnknown ? (
@@ -1251,11 +1253,11 @@ export function AdminModals({
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 10 }}
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-lg rounded-2xl border-[2px] border-stone-900 bg-white p-4 max-h-[90dvh] overflow-y-auto apple-scroll"
+              className="cd-modal-panel w-full max-w-lg max-h-[90dvh] overflow-y-auto p-4 apple-scroll"
             >
-              <div className="flex items-start justify-between gap-2 mb-3">
+              <div className="mb-3 flex items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <p className="text-[16px] font-black text-stone-900">處理舉報單</p>
+                  <p className="text-[16px] font-bold text-white">處理舉報單</p>
                   <p className="mt-0.5 text-[12px] font-bold text-rose-600 uppercase">
                     {selectedAdminReport.status} · 優先級{" "}
                     {Number(selectedAdminReport.priority)}
@@ -1269,35 +1271,35 @@ export function AdminModals({
                   <X className="h-4 w-4 text-stone-500" />
                 </button>
               </div>
-              <div className="rounded-xl border border-stone-200 bg-stone-50 p-3 space-y-1 text-[12px] mb-3">
+              <div className="mb-3 space-y-1 rounded-xl border border-white/10 bg-white/[0.04] p-3 text-[12px] text-white/90">
                 <p>
-                  <span className="font-bold text-stone-700">類型：</span>
+                  <span className="font-bold text-[#8E8E93]">類型：</span>
                   {selectedAdminReport.targetType} ·{" "}
                   {selectedAdminReport.reasonCode || "未填原因"}
                 </p>
                 <p className="break-all">
-                  <span className="font-bold text-stone-700">目標：</span>
+                  <span className="font-bold text-[#8E8E93]">目標：</span>
                   {selectedAdminReport.targetId}
                 </p>
                 {selectedAdminReport.detailText ? (
-                  <p className="whitespace-pre-wrap text-stone-600">
+                  <p className="whitespace-pre-wrap text-white/85">
                     {selectedAdminReport.detailText}
                   </p>
                 ) : null}
                 {selectedAdminSnapshot ? (
-                  <p className="whitespace-pre-wrap text-stone-500 text-[11px]">
+                  <p className="whitespace-pre-wrap text-[11px] text-[#8E8E93]">
                     快照：{selectedAdminSnapshot.snapshotText}
                   </p>
                 ) : null}
               </div>
               <div className="space-y-2 mb-3">
                 <div className="grid grid-cols-2 gap-2">
-                  <label className="text-[11px] font-bold text-stone-600">
+                  <label className="text-[11px] font-bold text-[#8E8E93]">
                     狀態
                     <select
                       value={adminReportStatus}
                       onChange={(e) => onSetAdminReportStatus(e.target.value)}
-                      className="mt-1 w-full rounded-lg border border-stone-300 bg-stone-50 px-2 py-1.5 text-[13px]"
+                      className="cd-field mt-1 text-[13px]"
                     >
                       <option value="open">待審核</option>
                       <option value="in_review">審核中</option>
@@ -1321,9 +1323,9 @@ export function AdminModals({
                     />
                   </label>
                 </div>
-                <label className="block text-[11px] font-bold text-stone-600">
+                <label className="block text-[11px] font-bold text-[#8E8E93]">
                   備註說明
-                  <span className="ml-1 text-[10px] font-normal text-stone-400">
+                  <span className="ml-1 text-[10px] font-normal text-white/50">
                     （顯示給舉報人，同步存入帳號處分）
                   </span>
                   <textarea
@@ -1334,7 +1336,7 @@ export function AdminModals({
                       onSetSanctionDetailDraft(e.target.value);
                     }}
                     placeholder="例：言論違規，已給予警告"
-                    className="mt-1 w-full rounded-lg border border-stone-300 bg-stone-50 px-2 py-1.5 text-[13px]"
+                    className="cd-field mt-1 min-h-[3.5rem] text-[13px]"
                   />
                 </label>
                 <button
@@ -1346,8 +1348,8 @@ export function AdminModals({
                   {adminActionLoading ? "提交中…" : "更新舉報單"}
                 </button>
               </div>
-              <div className="border-t border-stone-200 pt-3 space-y-2">
-                <p className="text-[12px] font-black text-stone-900">快速動作</p>
+              <div className="space-y-2 border-t border-white/10 pt-3">
+                <p className="text-[12px] font-bold text-white">快速動作</p>
                 <div className="flex flex-wrap gap-1.5">
                   <button
                     type="button"
@@ -1475,18 +1477,18 @@ export function AdminModals({
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 10 }}
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-md rounded-2xl border-[2px] border-stone-900 bg-white p-4"
+              className="cd-modal-panel w-full max-w-md p-4"
             >
-              <p className="text-[16px] font-black text-stone-900">新增管理員</p>
+              <p className="text-[16px] font-bold text-white">新增管理員</p>
               <div className="mt-3 space-y-3">
-                <label className="block text-[11px] font-bold text-stone-600">
+                <label className="block text-[11px] font-bold text-[#8E8E93]">
                   帳號 Email
                   <input
                     value={adminGrantEmail}
                     onChange={(e) => onSetAdminGrantEmail(e.target.value)}
                     placeholder="輸入帳號 email（例如 foo@bar.com）"
                     list="admin-email-candidates-add"
-                    className="mt-1 w-full rounded-lg border border-stone-300 bg-stone-50 px-2 py-1.5 text-[13px]"
+                    className="cd-field mt-1 text-[13px]"
                     autoFocus
                   />
                   <datalist id="admin-email-candidates-add">
@@ -1496,12 +1498,12 @@ export function AdminModals({
                   </datalist>
                 </label>
                 <div>
-                  <p className="text-[11px] font-bold text-stone-600 mb-1">權限</p>
+                  <p className="mb-1 text-[11px] font-bold text-[#8E8E93]">權限</p>
                   <div className="flex items-center gap-2">
                     <select
                       value={adminGrantRole}
                       onChange={(e) => onSetAdminGrantRole(e.target.value)}
-                      className="flex-1 rounded-lg border border-stone-300 bg-stone-50 px-2 py-1.5 text-[13px]"
+                      className="cd-field flex-1 text-[13px]"
                     >
                       <option value="moderator">管理員</option>
                       <option value="reviewer">審核員</option>
@@ -1542,7 +1544,7 @@ export function AdminModals({
                 </div>
               </div>
               {adminActionError ? (
-                <p className="mt-2 text-[12px] font-medium text-red-600">
+                <p className="mt-2 text-[12px] font-medium text-red-300">
                   {adminActionError}
                 </p>
               ) : null}
@@ -1554,7 +1556,7 @@ export function AdminModals({
                     onSetAdminActionError("");
                   }}
                   disabled={adminActionLoading}
-                  className="flex-1 rounded-xl border border-stone-300 bg-white px-3 py-2 text-[13px] font-semibold text-stone-700"
+                  className="cd-btn-ghost flex-1 py-2 text-[13px] font-semibold"
                 >
                   取消
                 </button>
@@ -1593,19 +1595,19 @@ export function AdminModals({
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 10 }}
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-md rounded-2xl border-[2px] border-stone-900 bg-white p-4"
+              className="cd-modal-panel w-full max-w-md p-4"
             >
-              <p className="text-[16px] font-black text-stone-900">編輯管理員</p>
-              <p className="mt-1 text-[12px] text-stone-600 truncate">
+              <p className="text-[16px] font-bold text-white">編輯管理員</p>
+              <p className="mt-1 truncate text-[12px] text-[#8E8E93]">
                 {adminEditEmail || "未知帳號"}
               </p>
               <div className="mt-3">
-                <p className="text-[11px] font-bold text-stone-600 mb-1">權限</p>
+                <p className="mb-1 text-[11px] font-bold text-[#8E8E93]">權限</p>
                 <div className="flex items-center gap-2">
                   <select
                     value={adminEditRole}
                     onChange={(e) => onSetAdminEditRole(e.target.value)}
-                    className="flex-1 rounded-lg border border-stone-300 bg-stone-50 px-2 py-1.5 text-[13px]"
+                    className="cd-field flex-1 text-[13px]"
                   >
                     <option value="moderator">管理員</option>
                     <option value="reviewer">審核員</option>
@@ -1667,7 +1669,7 @@ export function AdminModals({
                   type="button"
                   onClick={() => onSetAdminEditOpen(false)}
                   disabled={adminActionLoading}
-                  className="flex-1 rounded-xl border border-stone-300 bg-white px-3 py-2 text-[13px] font-semibold text-stone-700"
+                  className="cd-btn-ghost flex-1 py-2 text-[13px] font-semibold"
                 >
                   取消
                 </button>

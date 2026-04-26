@@ -20,6 +20,7 @@ export type BackTab =
   | "new"
   | "direct"
   | "mine"
+  | "mine_square"
   | "inbox"
   | "outbox"
   | "favorites"

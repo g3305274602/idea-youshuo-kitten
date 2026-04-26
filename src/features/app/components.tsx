@@ -7,9 +7,9 @@ import {
   History,
   Inbox,
   LayoutDashboard,
-  LayoutGrid,
   Lock,
   MessageCircle,
+  MessageSquare,
   MessagesSquare,
   Pencil,
   Sparkles,
@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { cn, emailsEqual } from "../../lib/utils";
 import type { SquareComment, SquarePost } from "../../module_bindings/types";
+import capsuleDrawFab from "../../assets/images/app/secret/capsule-draw-fab.png";
 import { squareAddressSubtitle } from "./helpers";
 import type { Message, User as AppUser } from "./types";
 function GenderIcon({ gender }: { gender?: string }) {
@@ -70,7 +71,7 @@ export function MobileNavItem({
         "flex min-w-[3.25rem] flex-col items-center justify-center pb-0.5 transition-colors",
         onDark
           ? active
-            ? "text-[#f4dc3a]"
+            ? "text-[#FFD54F]"
             : "text-white/42"
           : active
             ? "text-sky-600"
@@ -122,14 +123,14 @@ function MailboxSectionHeader({
       type="button"
       onClick={onToggle}
       className={cn(
-        "w-full flex items-center gap-2 px-1 py-1.5 rounded-lg text-left transition-colors",
-        "hover:bg-black/[0.04] active:bg-black/[0.06]",
-        tone === "sealed" ? "text-amber-900/75" : "text-sky-900/75",
+        "flex w-full items-center gap-2 rounded-xl px-1 py-1.5 text-left transition-colors",
+        "hover:bg-white/[0.06] active:bg-white/[0.08]",
+        tone === "sealed" ? "text-[#fde68a]/90" : "text-sky-200/90",
       )}
     >
       <ChevronRight
         className={cn(
-          "w-3.5 h-3.5 shrink-0 text-black/35 transition-transform duration-200",
+          "h-3.5 w-3.5 shrink-0 text-white/40 transition-transform duration-200",
           expanded && "rotate-90",
         )}
         aria-hidden
@@ -144,7 +145,7 @@ function MailboxSectionHeader({
       <span className="text-[10px] font-bold uppercase tracking-wider">
         {title}
       </span>
-      <span className="text-[10px] font-medium tabular-nums text-black/38">
+      <span className="text-[10px] font-medium tabular-nums text-white/45">
         ({count})
       </span>
     </button>
@@ -277,40 +278,27 @@ export function SecretCapsuleDrawButton({
         title="抽秘密膠囊"
         onClick={triggerTreasureOpen}
         className={cn(
-          "relative mx-auto shrink-0 select-none rounded-full border-[3px] border-stone-900 text-stone-900 shadow-[5px_6px_0_0_#0f2420] transition-transform",
-          "w-[26vw] min-w-[5.5rem] max-w-[8.25rem] origin-center -rotate-[9deg]",
-          "h-[min(calc(26vw*1.68),15.5rem)] min-h-[9.25rem]",
-          "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/90",
-          "active:scale-[0.97] disabled:pointer-events-none",
+          "ys-gold-glow group relative mx-auto max-w-[min(88vw,20rem)] shrink-0 select-none",
+          "transition-transform",
+          "origin-center  focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/90",
+          "active:scale-[0.98] disabled:pointer-events-none",
           capPulled && "scale-[1.02]",
         )}
       >
-        <span
-          className="pointer-events-none absolute inset-[2px] rounded-full bg-gradient-to-b from-[#ffe566] via-[#f4dc3a] to-[#c99812]"
-          aria-hidden
-        />
-        <span
-          className="pointer-events-none absolute left-[14%] right-[14%] top-[40%] z-[1] h-px bg-stone-900/30"
-          aria-hidden
-        />
-        <span
+        <img
+          src={capsuleDrawFab}
+          alt=""
+          width={512}
+          height={512}
+          draggable={false}
+          loading="eager"
+          decoding="async"
           className={cn(
-            "pointer-events-none absolute left-[2px] right-[2px] top-[2px] z-[3] h-[36%] rounded-t-full border-b-2 border-stone-900/25",
-            "bg-gradient-to-b from-[#fffef5] to-[#f2d24a]",
-            "shadow-[inset_0_2px_0_rgba(255,255,255,0.65)]",
-            "origin-[50%_100%] transition-transform duration-[400ms] ease-[cubic-bezier(0.33,1.15,0.48,1)]",
-            capPulled && "-translate-y-[85%] -rotate-[18deg]",
+            "pointer-events-none mx-auto block h-auto w-full max-w-[min(72vw,16rem)] object-contain",
+            "max-h-[min(52vw,15.5rem)] min-h-[9rem] sm:max-h-[15.5rem]",
+            "drop-shadow-[0_10px_32px_rgba(0,0,0,0.5)] transition-[transform,filter] duration-300 ease-out",
+            capPulled && "scale-[1.06] -rotate-2",
           )}
-          aria-hidden
-        />
-        <Sparkles
-          className="pointer-events-none absolute left-1/2 top-[60%] z-[4] h-6 w-6 -translate-x-1/2 -translate-y-1/2 sm:h-[1.05rem] sm:w-[1.05rem]"
-          strokeWidth={2.35}
-          aria-hidden
-        />
-        <span
-          className="pointer-events-none absolute bottom-[12%] left-1/2 z-[2] h-4 w-4 -translate-x-1/2 rounded-full border-2 border-stone-900/25 bg-black/[0.05]"
-          aria-hidden
         />
       </button>
     );
@@ -323,14 +311,14 @@ export function SecretCapsuleDrawButton({
       title="抽秘密膠囊"
       onClick={onClick}
       className={cn(
-        "relative flex shrink-0 items-center justify-center rounded-[2rem] border-[3px] border-stone-900 bg-[#f4dc3a] text-stone-900 shadow-[6px_6px_0_0_#0f2420] transition-transform active:translate-y-1 active:shadow-[3px_3px_0_0_#0f2420] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/90",
+        "ys-gold-glow relative flex shrink-0 items-center justify-center rounded-[2rem] border border-white/25 bg-[#FFD54F] text-stone-900 transition-transform focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/90 active:scale-95",
         hero
           ? "h-[10.25rem] w-[10.25rem] md:h-[9rem] md:w-[9rem]"
           : "h-[5.5rem] w-[5.5rem]",
       )}
     >
       <span
-        className="pointer-events-none absolute bottom-2 right-2 h-4 w-4 rounded-br-xl border-b-[3px] border-r-[3px] border-stone-900/35 bg-[#ffe78a]"
+        className="pointer-events-none absolute bottom-2 right-2 h-4 w-4 rounded-br-xl border-b border-r border-white/20 bg-[#ffe78a]/90"
         aria-hidden
       />
       <Sparkles
@@ -358,15 +346,18 @@ export function SecretPaperListItem({
   return (
     <div
       onClick={onClick}
-      role="button" // 增加無障礙屬性
-      tabIndex={0} // 讓它可以被選取
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onClick?.();
+        }
+      }}
       className={cn(
-        "w-full text-left cursor-pointer transition-all duration-200", // 增加手指游標
-        "group relative p-3 rounded-2xl border-[3px] border-stone-900 bg-white",
-        "shadow-[4px_4px_0_0_#0f2420] active:translate-y-0.5 active:shadow-[2px_2px_0_0_#0f2420]",
-        selected
-          ? "ring-2 ring-violet-500 bg-violet-50/30"
-          : "hover:bg-stone-50",
+        "ys-square-wall-item group",
+        selected && "ys-square-wall-item--selected",
+        "hover:brightness-[1.04] active:scale-[0.992]",
         className,
       )}
     >
@@ -406,152 +397,177 @@ export function SecretWallSection({
   ) => void;
 }) {
   return (
-    <section className="w-full shrink-0 rounded-2xl border-[3px] border-stone-900 bg-[#fffef7] p-3 shadow-[5px_5px_0_0_#0f2420] md:p-4 md:shadow-[6px_6px_0_0_#142a28]">
+    <section className="ys-square-wall w-full p-3 md:p-4">
+      <div className="ys-square-wall__glow" aria-hidden />
+      <div className="ys-square-wall__glow2" aria-hidden />
       <button
         type="button"
         onClick={onToggleExpanded}
         aria-expanded={expanded}
-        className="flex w-full items-center justify-between gap-2 rounded-xl border-b-2 border-dashed border-stone-900/35 pb-2 text-left outline-none ring-stone-900/15 transition-colors hover:bg-black/[0.03] focus-visible:ring-2 md:mb-0 md:pb-2"
+        className="ys-square-wall__head mb-2 outline-none focus-visible:ring-2 focus-visible:ring-violet-400/40"
       >
-        <div className="flex min-w-0 items-center gap-2">
-          <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border-2 border-stone-900 bg-[#f6e7c8] text-stone-900 shadow-[2px_2px_0_0_#0f2420] md:h-9 md:w-9">
-            <LayoutGrid
-              className="h-4 w-4 md:h-5 md:w-5"
+        <div className="flex min-w-0 items-center gap-2.5">
+          
+          <div className="min-w-0 leading-tight">
+            <div className="flex flex-wrap items-baseline gap-2">
+              <p className="text-[15px] font-black tracking-tight text-white">
+                廣場牆
+              </p>
+              <span className="rounded-full border border-amber-400/25 bg-amber-400/10 px-2 py-0.5 text-[10px] font-black text-amber-200/90 tabular-nums">
+                {postsSortedLength} 則
+              </span>
+            </div>
+            <p className="mt-0.5 text-[11px] font-semibold text-white/55">
+              全站即時上牆的紙條 · 去看看吧
+            </p>
+          </div>
+        </div>
+        <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-violet-400/25 bg-gradient-to-br from-violet-500/35 to-fuchsia-600/20 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]">
+            <MessageSquare
+              className="h-5 w-5"
               strokeWidth={2.25}
               aria-hidden
             />
           </span>
-          <div className="min-w-0 leading-tight">
-            <p className="text-[12px] font-black text-stone-900 md:text-[13px]">
-              廣場牆
-            </p>
-            <p className="text-[10px] font-bold text-stone-600 md:text-[11px]">
-              {expanded
-                ? `共 ${postsSortedLength} 則 · 點此收起列表`
-                : `共 ${postsSortedLength} 則 · 點此展開列表`}
-            </p>
-          </div>
-        </div>
-        <ChevronDown
-          className={cn(
-            "h-5 w-5 shrink-0 text-stone-800 transition-transform duration-200",
-            expanded ? "rotate-180" : "rotate-0",
-          )}
-          strokeWidth={2.5}
-          aria-hidden
-        />
       </button>
       {expanded ? (
         <div
           className={cn(
-            "mt-3 min-h-0 overflow-y-auto apple-scroll pr-0.5",
+            "ys-square-wall__list relative z-[1] mt-1",
             expandedBodyMaxClass,
           )}
         >
           {postsVisible.length === 0 ? (
-            <p className="px-0.5 py-4 text-center text-[12px] font-bold leading-relaxed text-stone-500 md:text-[13px]">
-              {postsSortedLength === 0
-                ? "還沒有能看的公開紙條，等大家貼上廣場吧。"
-                : "有貼文但尚未到預定開啟時間，晚點再來逛逛。"}
-            </p>
+            <div className="flex flex-col items-center gap-2 px-1 py-8 text-center">
+              <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-dashed border-white/15 bg-white/[0.04] text-white/35">
+                <Sparkles className="h-6 w-6" strokeWidth={2.2} aria-hidden />
+              </span>
+              <p className="max-w-xs text-[13px] font-semibold leading-relaxed text-white/55">
+                {postsSortedLength === 0
+                  ? "還沒有公開紙條。先丟一顆或等大家上牆吧。"
+                  : "有貼文但尚未到預定開啟時間，晚點再來逛逛。"}
+              </p>
+            </div>
           ) : (
-            <ul className="space-y-2">
-              {postsVisible.slice(0, maxListItems).map((p) => (
+            <ul className="list-none space-y-2.5 p-0">
+              {postsVisible.slice(0, maxListItems).map((p) => {
+                const onWall = p.createdAt
+                  .toDate()
+                  .toLocaleString("zh-TW", {
+                    month: "numeric",
+                    day: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  });
+                const scheduled = p.snapshotScheduledAt
+                  .toDate()
+                  .toLocaleString("zh-TW", {
+                    month: "numeric",
+                    day: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  });
+                return (
                 <li key={p.sourceMessageId}>
                   <SecretPaperListItem
                     selected={selectedSquarePostId === p.sourceMessageId}
                     onClick={() => onSelectPost(p.sourceMessageId)}
                   >
-                    {/* 1. 正文內容：限制行數並優化字體 */}
-                    <p className="line-clamp-3 text-[13px] font-bold leading-snug text-stone-900">
-                      {p.snapshotContent.length > 140
-                        ? `${p.snapshotContent.slice(0, 140)}…`
-                        : p.snapshotContent}
-                    </p>
-
-                    {/* 2. 地址行：顯示寄件與收件人關係 */}
-                    {(() => {
-                      const line = squareAddressSubtitle(
-                        p.showSenderOnSquare,
-                        p.showRecipientOnSquare,
-                        p.snapshotSenderEmail,
-                        p.snapshotRecipientEmail,
-                        {
-                          sourceKind: p.sourceKind,
-                          senderDisplayName: "",
-                        },
-                      );
-                      return line ? (
-                        <p className="mt-1 truncate text-[10px] font-bold text-stone-600">
-                          {line}
-                        </p>
-                      ) : (
-                        <p className="mt-1 text-[10px] font-bold text-stone-500">
-                          信箱已藏起來
-                        </p>
-                      );
-                    })()}
-
-                    {/* 3. 底部區域：左側為空間入口，右側為互動數據 */}
-                    <div className="mt-3 flex items-center justify-between border-t border-stone-100 pt-2">
-                      {/* 左側：作者資訊與進入空間按鈕 */}
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation(); // 🔑 絕對關鍵：阻止事件冒泡，否則點按鈕會同時觸發選中卡片
-                          onOpenSpace(
-                            p.publisherAccountId,
-                            p.snapshotPublisherName,
-                            p.snapshotPublisherGender,
-                            p.snapshotPublisherBirthDate,
-                          );
-                        }}
-                        className="flex items-center gap-1.5 rounded-lg bg-stone-100 px-2 py-1 transition-colors hover:bg-stone-200 active:scale-95"
-                      >
-                        <span className="max-w-[70px] truncate text-[10px] font-black text-stone-600">
-                          {p.snapshotPublisherName || "神秘用戶"}
+                    <div className="px-3.5 py-3 pl-3">
+                      <div className="flex flex-wrap items-center justify-between gap-1.5 text-[10px] font-bold text-white/45">
+                        <span className="text-violet-200/60">
+                          上牆 {onWall}
                         </span>
-                        <GenderIcon gender={p.snapshotPublisherGender} />
-                      </button>
+                        <span className="text-white/35">預定 {scheduled}</span>
+                      </div>
+                      <p className="mt-1.5 line-clamp-3 text-[14px] font-semibold leading-[1.55] text-white/95">
+                        {p.snapshotContent.length > 120
+                          ? `${p.snapshotContent.slice(0, 120)}…`
+                          : p.snapshotContent}
+                      </p>
+                      {(() => {
+                        const line = squareAddressSubtitle(
+                          p.showSenderOnSquare,
+                          p.showRecipientOnSquare,
+                          p.snapshotSenderEmail,
+                          p.snapshotRecipientEmail,
+                          {
+                            sourceKind: p.sourceKind,
+                            senderDisplayName: "",
+                          },
+                        );
+                        return line ? (
+                          <p className="mt-1.5 line-clamp-1 text-[11px] text-white/50">
+                            {line}
+                          </p>
+                        ) : (
+                          <p className="mt-1.5 line-clamp-1 text-[11px] text-white/40">
+                            寄件人／收件人未公開
+                          </p>
+                        );
+                      })()}
 
-                      {/* 右側：互動統計數據 (讚、評論) */}
-                      <div className="flex items-center gap-3 text-[11px] font-black text-stone-400">
-                        {/* 讚/中立/踩 的總合數量 */}
-                        <span className="inline-flex items-center gap-0.5 transition-colors group-hover:text-stone-600">
-                          <ThumbsUp
-                            className="h-3.5 w-3.5"
-                            strokeWidth={2.5}
-                            aria-hidden
-                          />
-                          {(() => {
-                            const rc = reactionCountsByPost.get(
-                              p.sourceMessageId,
+                      <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-white/10 pt-2.5">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onOpenSpace(
+                              p.publisherAccountId,
+                              p.snapshotPublisherName,
+                              p.snapshotPublisherGender,
+                              p.snapshotPublisherBirthDate,
                             );
-                            const total =
-                              (rc?.up ?? 0) + (rc?.mid ?? 0) + (rc?.down ?? 0);
-                            return total;
-                          })()}
-                        </span>
+                          }}
+                          className="flex min-w-0 max-w-[60%] items-center gap-1.5 rounded-full border border-violet-400/25 bg-violet-500/10 pl-1 pr-2 py-0.5 text-left transition hover:bg-violet-500/20"
+                        >
+                          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-white/10 bg-gradient-to-br from-fuchsia-500/30 to-violet-600/20 text-white/90">
+                            <User className="h-3.5 w-3.5" strokeWidth={2.3} />
+                          </span>
+                          <span className="min-w-0 truncate text-[11px] font-black text-violet-100/95">
+                            {p.snapshotPublisherName || "神秘用戶"}
+                          </span>
+                          <GenderIcon gender={p.snapshotPublisherGender} />
+                        </button>
 
-                        {/* 評論數：僅在開放留言時顯示 */}
-                        {p.repliesPublic && (
-                          <span className="inline-flex items-center gap-0.5 transition-colors group-hover:text-stone-600">
-                            <MessageCircle
-                              className="h-3.5 w-3.5"
-                              strokeWidth={2.5}
+                        <div className="flex shrink-0 items-center gap-1.5">
+                          <span className="inline-flex items-center gap-0.5 rounded-lg bg-white/5 px-1.5 py-0.5 text-[10px] font-black text-amber-200/80 tabular-nums">
+                            <ThumbsUp
+                              className="h-3 w-3 text-amber-300/90"
+                              strokeWidth={2.4}
                               aria-hidden
                             />
-                            {
-                              (commentsByPost.get(p.sourceMessageId) ?? [])
-                                .length
-                            }
+                            {(() => {
+                              const rc = reactionCountsByPost.get(
+                                p.sourceMessageId,
+                              );
+                              return (
+                                (rc?.up ?? 0) +
+                                (rc?.mid ?? 0) +
+                                (rc?.down ?? 0)
+                              );
+                            })()}
                           </span>
-                        )}
+                          {p.repliesPublic ? (
+                            <span className="inline-flex items-center gap-0.5 rounded-lg bg-white/5 px-1.5 py-0.5 text-[10px] font-black text-sky-200/85 tabular-nums">
+                              <MessageCircle
+                                className="h-3 w-3 text-sky-300/90"
+                                strokeWidth={2.4}
+                                aria-hidden
+                              />
+                              {
+                                (commentsByPost.get(p.sourceMessageId) ?? [])
+                                  .length
+                              }
+                            </span>
+                          ) : null}
+                        </div>
                       </div>
                     </div>
                   </SecretPaperListItem>
                 </li>
-              ))}
+                );
+              })}
             </ul>
           )}
         </div>
@@ -587,54 +603,50 @@ export function MineProfileSummaryCard({
   const note = user.profileNote?.trim();
 
   return (
-    <div className="relative overflow-hidden rounded-2xl border-[3px] border-stone-900 bg-[#fffef7] p-4 text-stone-900 shadow-[5px_5px_0_0_#0f2420] md:shadow-[4px_4px_0_0_rgba(15,36,32,0.18)]">
-      <span
-        className="pointer-events-none absolute bottom-0 right-0 h-0 w-0 border-b-[14px] border-l-[14px] border-l-transparent border-b-stone-900/20"
-        aria-hidden
-      />
+    <div className="ys-mine-profile-card p-4 text-white">
       <div className="relative flex gap-3">
         <button
           type="button"
           onClick={onOpenActions}
-          className="group flex min-w-0 flex-1 items-start gap-3 rounded-xl text-left transition-colors hover:bg-stone-900/[0.04]"
+          className="group flex min-w-0 flex-1 items-start gap-3 rounded-2xl text-left transition-colors hover:bg-white/[0.04]"
         >
-          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border-2 border-stone-900 bg-gradient-to-br from-violet-200/90 to-fuchsia-200/80 text-stone-900 shadow-sm">
+          <div className="ys-mine-avatar-slot flex items-center justify-center bg-gradient-to-br from-[#a78bfa]/50 to-[#ff85a2]/30">
             <User className="h-7 w-7" strokeWidth={2.2} aria-hidden />
           </div>
           <div className="min-w-0 flex-1 pr-1">
-            <p className="truncate text-[17px] font-black tracking-tight">
+            <p className="truncate text-[17px] font-black tracking-tight text-white">
               {user.displayName?.trim() ||
                 user.email?.split("@")[0] ||
                 "未命名"}
             </p>
-            <p className="mt-0.5 truncate text-[11px] font-bold text-stone-600">
+            <p className="mt-0.5 truncate text-[11px] font-bold text-white/60">
               {user.email}
             </p>
-            <p className="mt-1 text-[10px] font-bold text-stone-500">
+            <p className="mt-1 text-[10px] font-bold text-white/50">
               {genderLabel} · {ageLine}
             </p>
           </div>
         </button>
       </div>
-      <div className="relative mt-2.5 rounded-xl border border-stone-900/10 bg-white/70 p-2.5">
+      <div className="relative mt-2.5 rounded-2xl border border-white/10 bg-white/5 p-2.5 backdrop-blur-sm">
         <div className="mb-1 flex items-center justify-between gap-2">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-stone-500">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-white/45">
             說說
           </p>
           <button
             type="button"
             onClick={onEditIntro}
-            className="inline-flex items-center gap-1 rounded-md border border-stone-300 bg-white px-2 py-1 text-[10px] font-bold text-stone-700 hover:bg-stone-50"
+            className="inline-flex items-center gap-1 rounded-md border border-white/15 bg-white/10 px-2 py-1 text-[10px] font-bold text-white/80 hover:bg-white/15"
           >
             <Pencil className="h-3 w-3" strokeWidth={2.4} aria-hidden />
           </button>
         </div>
         {note ? (
-          <p className="line-clamp-3 text-[11px] font-medium leading-snug text-stone-700">
+          <p className="line-clamp-3 text-[11px] font-medium leading-snug text-white/75">
             {note}
           </p>
         ) : (
-          <p className="text-[11px] font-medium text-stone-400">
+          <p className="text-[11px] font-medium text-white/40">
             尚未填寫，點右上角修改
           </p>
         )}
@@ -674,7 +686,7 @@ export function MineHubBigCards({
   ) => void;
 }) {
   const cardShell =
-    "group relative overflow-hidden rounded-2xl border-[3px] text-left transition-transform active:scale-[0.99] max-md:shadow-[5px_5px_0_0_rgba(15,36,32,0.9)] md:rounded-[1.4rem] md:shadow-[0_12px_40px_-12px_rgba(0,0,0,0.12)]";
+    "group relative overflow-hidden rounded-[24px] border text-left transition-transform active:scale-[0.99] max-md:shadow-[0_8px_32px_rgba(0,0,0,0.45)] md:rounded-[1.4rem] md:shadow-[0_12px_40px_-16px_rgba(0,0,0,0.55)]";
   const rowInner =
     "relative flex min-h-[3.75rem]  gap-2 p-3 sm:min-h-0 sm:flex-row sm:items-center sm:gap-3 sm:p-4 md:min-h-[4.5rem]";
 
@@ -685,12 +697,12 @@ export function MineHubBigCards({
         onClick={() => onNavigate("inbox")}
         className={cn(
           cardShell,
-          "col-span-1 border-sky-400/90 bg-gradient-to-br from-sky-50 via-white to-cyan-50 ring-0 ring-sky-100/90 md:ring-2",
+          "col-span-1 border-[#FFD54F]/30 bg-[#1A1B22] ring-0 ring-[#FFD54F]/10 md:ring-1",
         )}
       >
-        <div className="pointer-events-none absolute -right-6 -top-6 h-24 w-24 rounded-full bg-sky-200/40 blur-2xl" />
+        <div className="pointer-events-none absolute -right-6 -top-6 h-24 w-24 rounded-full bg-[#FFD54F]/10 blur-2xl" />
         <div className={rowInner}>
-          <div className="flex h-12 w-12 shrink-0 -rotate-6 items-center justify-center rounded-xl bg-gradient-to-br from-sky-400 to-cyan-500 text-white shadow-md shadow-sky-900/25 sm:h-14 sm:w-14 md:h-[4.25rem] md:w-[4.25rem] md:rounded-2xl">
+          <div className="flex h-12 w-12 shrink-0 -rotate-6 items-center justify-center rounded-2xl bg-gradient-to-br from-[#FFD54F] to-amber-600 text-stone-900 shadow-md shadow-black/30 sm:h-14 sm:w-14 md:h-[4.25rem] md:w-[4.25rem] md:rounded-2xl">
             <Inbox
               className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8"
               strokeWidth={2.25}
@@ -698,14 +710,14 @@ export function MineHubBigCards({
             />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-[15px] font-black leading-tight tracking-tight text-sky-950 sm:text-[17px] md:text-[18px]">
+            <p className="text-[15px] font-bold leading-tight tracking-tight text-white sm:text-[17px] md:text-[18px]">
               飄向我的
             </p>
-            <p className="mt-0.5 text-[11px] font-semibold text-sky-800/80 sm:text-[12px]">
+            <p className="mt-0.5 text-[11px] font-medium text-[#8E8E93] sm:text-[12px]">
               共 {inboxCount} 則
             </p>
           </div>
-          <ChevronRight className="absolute right-2 top-1/2 hidden h-6 w-6 -translate-y-1/2 text-sky-400/80 transition-transform group-hover:translate-x-0.5 md:static md:block md:translate-y-0" />
+          <ChevronRight className="absolute right-2 top-1/2 hidden h-6 w-6 -translate-y-1/2 text-[#FFD54F]/40 transition-transform group-hover:translate-x-0.5 md:static md:block md:translate-y-0" />
         </div>
       </button>
 
@@ -714,12 +726,12 @@ export function MineHubBigCards({
         onClick={() => onNavigate("outbox")}
         className={cn(
           cardShell,
-          "col-span-1 border-amber-400/90 bg-gradient-to-br from-amber-50 via-white to-orange-50 ring-0 ring-amber-100/90 md:ring-2",
+          "col-span-1 border-[#F06292]/25 bg-[#1A1B22] ring-0 ring-[#F06292]/10 md:ring-1",
         )}
       >
-        <div className="pointer-events-none absolute -left-4 -bottom-8 h-28 w-28 rounded-full bg-amber-200/35 blur-2xl" />
+        <div className="pointer-events-none absolute -left-4 -bottom-8 h-28 w-28 rounded-full bg-[#F06292]/10 blur-2xl" />
         <div className={rowInner}>
-          <div className="flex h-12 w-12 shrink-0 rotate-3 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-md shadow-amber-900/25 sm:h-14 sm:w-14 md:h-[4.25rem] md:w-[4.25rem] md:rounded-2xl">
+          <div className="flex h-12 w-12 shrink-0 rotate-3 items-center justify-center rounded-2xl bg-gradient-to-br from-[#F06292] to-rose-700 text-white shadow-md shadow-black/30 sm:h-14 sm:w-14 md:h-[4.25rem] md:w-[4.25rem] md:rounded-2xl">
             <History
               className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8"
               strokeWidth={2.25}
@@ -727,14 +739,14 @@ export function MineHubBigCards({
             />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-[15px] font-black leading-tight tracking-tight text-amber-950 sm:text-[17px] md:text-[18px]">
+            <p className="text-[15px] font-bold leading-tight tracking-tight text-white sm:text-[17px] md:text-[18px]">
               我丟出的
             </p>
-            <p className="mt-0.5 text-[11px] font-semibold text-amber-900/80 sm:text-[12px]">
+            <p className="mt-0.5 text-[11px] font-medium text-[#8E8E93] sm:text-[12px]">
               共 {outboxCount} 則
             </p>
           </div>
-          <ChevronRight className="absolute right-2 top-1/2 hidden h-6 w-6 -translate-y-1/2 text-amber-400/80 transition-transform group-hover:translate-x-0.5 md:static md:block md:translate-y-0" />
+          <ChevronRight className="absolute right-2 top-1/2 hidden h-6 w-6 -translate-y-1/2 text-[#F06292]/50 transition-transform group-hover:translate-x-0.5 md:static md:block md:translate-y-0" />
         </div>
       </button>
 
@@ -742,10 +754,10 @@ export function MineHubBigCards({
         onClick={() => onNavigate("chat")}
         countLabel={`共 ${chatCount} 條可續聊`}
         title="聊聊記錄"
-        colors="border-emerald-500/90 bg-gradient-to-br from-emerald-50 via-white to-teal-50 ring-0 ring-emerald-100/90 md:col-span-1 md:ring-2"
-        iconWrap="from-emerald-500 to-teal-500 shadow-emerald-900/25 rotate-2"
-        textColor="text-emerald-950"
-        subTextColor="text-emerald-800/80"
+        colors="border-emerald-500/30 bg-[#1A1B22] ring-0 ring-emerald-500/10 md:col-span-1 md:ring-1"
+        iconWrap="from-emerald-500 to-teal-600 text-white shadow-black/30 rotate-2"
+        textColor="text-white"
+        subTextColor="text-[#8E8E93]"
         icon={
           <MessageCircle
             className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8"
@@ -759,10 +771,10 @@ export function MineHubBigCards({
         onClick={() => onNavigate("space")}
         countLabel="膠囊，廣場"
         title="我的空間"
-        colors="border-cyan-400/90 bg-gradient-to-br from-cyan-50 via-white to-sky-50 ring-0 ring-cyan-100/90 md:col-span-1 md:ring-2"
-        iconWrap="from-cyan-500 to-sky-500 shadow-cyan-900/25 rotate-2"
-        textColor="text-cyan-950"
-        subTextColor="text-cyan-800/80"
+        colors="border-sky-400/25 bg-[#1A1B22] ring-0 ring-[#F06292]/10 md:col-span-1 md:ring-1"
+        iconWrap="from-[#F06292] to-violet-600 text-white shadow-black/30 rotate-2"
+        textColor="text-white"
+        subTextColor="text-[#8E8E93]"
         icon={
           <User
             className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8"
@@ -776,10 +788,10 @@ export function MineHubBigCards({
         onClick={() => onNavigate("favorites")}
         countLabel={`共 ${favCount} 則偷偷收著`}
         title="藏心底"
-        colors="border-violet-400/90 bg-gradient-to-br from-violet-50 via-fuchsia-50/60 to-pink-50 ring-0 ring-violet-100/90 md:col-span-1 md:ring-2"
-        iconWrap="from-violet-500 to-fuchsia-500 shadow-violet-900/25 -rotate-3"
-        textColor="text-violet-950"
-        subTextColor="text-violet-800/80"
+        colors="border-violet-400/30 bg-[#1A1B22] ring-0 ring-violet-500/10 md:col-span-1 md:ring-1"
+        iconWrap="from-violet-500 to-fuchsia-600 text-white shadow-black/30 -rotate-3"
+        textColor="text-white"
+        subTextColor="text-[#8E8E93]"
         icon={
           <Bookmark
             className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8"
@@ -797,10 +809,10 @@ export function MineHubBigCards({
             : "查看舉報審核結果"
         }
         title="我的舉報"
-        colors="border-sky-300/90 bg-gradient-to-br from-sky-50 via-white to-indigo-50 ring-0 ring-sky-100/90 md:col-span-1 md:ring-2"
-        iconWrap="from-sky-400 to-indigo-500 shadow-sky-900/25 rotate-1"
-        textColor="text-sky-950"
-        subTextColor="text-sky-800/80"
+        colors="border-sky-400/25 bg-[#1A1B22] ring-0 ring-sky-500/10 md:col-span-1 md:ring-1"
+        iconWrap="from-sky-500 to-indigo-600 text-white shadow-black/30 rotate-1"
+        textColor="text-white"
+        subTextColor="text-[#8E8E93]"
         icon={
           <MessagesSquare
             className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8"
@@ -815,8 +827,8 @@ export function MineHubBigCards({
           onClick={() => onNavigate("admin_ops")}
           countLabel="總覽 · 權限 · 維運"
           title="超管指揮台"
-          colors="border-emerald-500/90 bg-gradient-to-br from-slate-900 via-slate-800 to-emerald-900 ring-0 ring-emerald-500/25 md:col-span-1 md:ring-2 text-white"
-          iconWrap="from-emerald-400 to-cyan-500 text-slate-950 -rotate-2"
+          colors="border-emerald-500/40 bg-gradient-to-br from-[#0f1419] via-[#121319] to-emerald-950/40 ring-0 ring-emerald-500/20 md:col-span-1 md:ring-1 text-white"
+          iconWrap="from-emerald-400 to-emerald-700 text-white -rotate-2"
           textColor="text-white"
           subTextColor="text-emerald-100/85"
           icon={
@@ -834,10 +846,10 @@ export function MineHubBigCards({
           onClick={() => onNavigate("admin")}
           countLabel="舉報池與審核操作"
           title="管理後台"
-          colors="border-rose-400/90 bg-gradient-to-br from-rose-50 via-white to-orange-50 ring-0 ring-rose-100/90 md:col-span-1 md:ring-2"
-          iconWrap="from-rose-500 to-orange-500 shadow-rose-900/25 -rotate-2"
-          textColor="text-rose-950"
-          subTextColor="text-rose-800/80"
+          colors="border-rose-500/30 bg-[#1A1B22] ring-0 ring-rose-500/10 md:col-span-1 md:ring-1"
+          iconWrap="from-rose-500 to-orange-600 text-white shadow-black/30 -rotate-2"
+          textColor="text-white"
+          subTextColor="text-[#8E8E93]"
           icon={
             <Lock
               className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8"
@@ -871,17 +883,17 @@ function DashboardCard({
   icon: React.ReactNode;
 }) {
   const cardShell =
-    "group relative col-span-2 overflow-hidden rounded-2xl border-[3px] text-left transition-transform active:scale-[0.99] max-md:shadow-[5px_5px_0_0_rgba(15,36,32,0.9)] md:rounded-[1.4rem] md:shadow-[0_12px_40px_-12px_rgba(0,0,0,0.12)]";
+    "group relative col-span-2 overflow-hidden rounded-[24px] border text-left transition-transform active:scale-[0.99] max-md:shadow-[0_8px_32px_rgba(0,0,0,0.45)] md:rounded-[1.4rem] md:shadow-[0_12px_40px_-16px_rgba(0,0,0,0.5)]";
   const rowInner =
     "relative flex min-h-[5.5rem] flex-row items-center gap-2 p-3 sm:min-h-[6.75rem] sm:gap-3 sm:p-4 md:min-h-[4.5rem]";
 
   return (
     <button type="button" onClick={onClick} className={cn(cardShell, colors)}>
-      <div className="pointer-events-none absolute right-2 top-0 h-20 w-20 rounded-full bg-white/20 blur-2xl" />
+      <div className="pointer-events-none absolute right-2 top-0 h-20 w-20 rounded-full bg-[#FFD54F]/6 blur-2xl" />
       <div className={rowInner}>
         <div
           className={cn(
-            "flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-white shadow-md sm:h-14 sm:w-14 md:h-[4.25rem] md:w-[4.25rem] md:rounded-2xl",
+            "flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br shadow-md sm:h-14 sm:w-14 md:h-[4.25rem] md:w-[4.25rem] md:rounded-2xl",
             iconWrap,
           )}
         >
@@ -890,7 +902,7 @@ function DashboardCard({
         <div className="min-w-0 flex-1">
           <p
             className={cn(
-              "text-[15px] font-black leading-tight tracking-tight sm:text-[17px] md:text-[18px]",
+              "text-[15px] font-bold leading-tight tracking-tight sm:text-[17px] md:text-[18px]",
               textColor,
             )}
           >
@@ -898,14 +910,14 @@ function DashboardCard({
           </p>
           <p
             className={cn(
-              "mt-0.5 text-[11px] font-semibold sm:text-[12px]",
+              "mt-0.5 text-[11px] font-medium sm:text-[12px]",
               subTextColor,
             )}
           >
             {countLabel}
           </p>
         </div>
-        <ChevronRight className="ml-auto h-6 w-6 shrink-0 transition-transform group-hover:translate-x-0.5" />
+        <ChevronRight className="ml-auto h-6 w-6 shrink-0 text-white/30 transition-transform group-hover:translate-x-0.5" />
       </div>
     </button>
   );
@@ -998,38 +1010,33 @@ function MessageTile({
     <div
       onClick={onClick}
       className={cn(
-        "pl-2.5 pr-2 py-1.5 cursor-pointer rounded-lg transition-[background-color,box-shadow] duration-200 relative group overflow-hidden border-y border-r border-black/[0.05]",
+        "ys-tap-list-row group relative cursor-pointer overflow-hidden rounded-2xl border border-white/10 py-1.5 pl-2.5 pr-2 backdrop-blur-md transition-[background-color,box-shadow] duration-200",
         listTone === "sealed"
-          ? "border-l-[3px] border-l-amber-400/90 bg-gradient-to-br from-amber-50/95 via-white/70 to-amber-100/35 hover:from-amber-50 hover:via-white/80 hover:to-amber-100/45"
-          : "border-l-[3px] border-l-sky-500/90 bg-gradient-to-br from-sky-50/90 via-white/70 to-sky-100/35 hover:from-sky-50 hover:via-white/80 hover:to-sky-100/45",
+          ? "border-l-[3px] border-l-[#fbbf24] bg-amber-500/10 hover:bg-amber-500/15"
+          : "border-l-[3px] border-l-sky-400/90 bg-sky-500/10 hover:bg-sky-500/15",
         active
-          ? cn(
-              "shadow-sm ring-1 ring-black/[0.06] border-y-black/[0.06] border-r-black/[0.06]",
-              listTone === "sealed"
-                ? "border-l-amber-400 bg-gradient-to-br from-white via-amber-50/40 to-amber-100/25"
-                : "border-l-sky-500 bg-gradient-to-br from-white via-sky-50/40 to-sky-100/25",
-            )
+          ? "ring-1 ring-white/20"
           : null,
       )}
     >
       <div className="flex items-stretch gap-2">
         <div className="flex-1 min-w-0">
           <div className="flex items-baseline gap-2 min-w-0">
-            <h3 className="text-[13px] font-semibold tracking-tight text-apple-near-black truncate min-w-0 flex-1 leading-snug">
+            <h3 className="min-w-0 flex-1 truncate text-[13px] font-semibold leading-snug tracking-tight text-white/95">
               {title}
             </h3>
             {scheduleBesideTitle ? (
-              <span className="text-[10px] font-medium text-black/45 tabular-nums shrink-0 whitespace-nowrap">
+              <span className="shrink-0 whitespace-nowrap text-[10px] font-medium text-white/50 tabular-nums">
                 {scheduleBesideTitle}
               </span>
             ) : null}
           </div>
-          <p className="text-[10px] text-black/38 tabular-nums truncate mt-0.5 leading-tight">
+          <p className="mt-0.5 truncate text-[10px] leading-tight text-white/45 tabular-nums">
             {metaLine}
           </p>
           {showRecipientLine ? (
             <p
-              className="text-[10px] text-black/40 mt-0.5 truncate"
+              className="mt-0.5 truncate text-[10px] text-white/50"
               title={msg.recipientEmail}
             >
               寄給 {msg.recipientEmail}
@@ -1039,10 +1046,10 @@ function MessageTile({
         <div className="shrink-0 flex flex-col items-center justify-center self-center">
           <span
             className={cn(
-              "text-[9px] font-semibold uppercase tracking-wide px-1.5 py-1 rounded-md text-center leading-tight max-w-[4.5rem]",
+              "max-w-[4.5rem] rounded-md px-1.5 py-1 text-center text-[9px] font-semibold uppercase leading-tight tracking-wide",
               msg.isDue
-                ? "bg-gradient-to-b from-sky-100/95 to-sky-50/85 text-sky-800/90 ring-1 ring-sky-200/60"
-                : "bg-gradient-to-b from-amber-100/95 to-amber-50/85 text-amber-900/85 ring-1 ring-amber-200/60",
+                ? "bg-[#10b981]/20 text-[#6ee7b7] ring-1 ring-[#10b981]/40"
+                : "bg-[#fbbf24]/15 text-[#fde68a] ring-1 ring-[#fbbf24]/35",
             )}
           >
             {statusChip}
@@ -1065,11 +1072,11 @@ function MessageTile({
 
 export function MetaItem({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex flex-col gap-0.5 min-w-0">
-      <span className="text-[9px] font-semibold text-black/35 uppercase tracking-wider">
+    <div className="flex min-w-0 flex-col gap-0.5">
+      <span className="text-[9px] font-semibold uppercase tracking-wider text-[#8E8E93]">
         {label}
       </span>
-      <span className="text-[13px] font-medium tracking-tight text-apple-near-black truncate">
+      <span className="truncate text-[13px] font-medium tracking-tight text-white">
         {value}
       </span>
     </div>

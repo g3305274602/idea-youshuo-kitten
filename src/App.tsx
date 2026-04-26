@@ -6,8 +6,8 @@ export default function App() {
 
   if (!connected || !identity) {
     return (
-      <div className="min-h-screen bg-apple-black flex flex-col items-center justify-center p-6 font-sans text-white">
-        <Loader2 className="w-8 h-8 animate-spin text-apple-blue mb-4" />
+      <div className="min-h-screen bg-[#121319] flex flex-col items-center justify-center p-6 font-sans text-white">
+        <Loader2 className="w-8 h-8 animate-spin text-[#FFD54F] mb-4" />
         <p className="text-[15px] text-white/70">連線至 時空膠囊…</p>
       </div>
     );

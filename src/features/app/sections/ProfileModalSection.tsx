@@ -84,20 +84,18 @@ export function ProfileModalSection({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 12 }}
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-[min(100%,22rem)] rounded-2xl border-[3px] border-stone-900 bg-[#fffef7] p-5 shadow-[6px_6px_0_0_#0f2420]"
+            className="cd-modal-panel w-full max-w-[min(100%,22rem)] p-5"
           >
             <h3
               id="profile-modal-title"
-              className="text-[18px] font-black tracking-tight text-stone-900"
+              className="text-[18px] font-bold tracking-tight text-white"
             >
               個人資料
             </h3>
-            <p className="mt-1 text-[12px] font-bold text-stone-500">
-              登入信箱：{user.email}
-            </p>
+            <p className="mt-1 text-[12px] font-medium text-[#8E8E93]">登入信箱：{user.email}</p>
             <form onSubmit={(e) => void onSubmitProfile(e)} className="mt-4 space-y-4">
               <div className="space-y-1.5">
-                <label className="text-[11px] font-black uppercase tracking-wider text-stone-600">
+                <label className="text-[11px] font-bold uppercase tracking-wider text-[#8E8E93]">
                   暱稱
                 </label>
                 <input
@@ -110,18 +108,18 @@ export function ProfileModalSection({
                   }
                   maxLength={32}
                   required
-                  className="w-full rounded-xl border-2 border-stone-900 bg-white px-3 py-2 text-[14px] font-medium text-stone-900 outline-none focus:bg-[#fff9df] transition-colors"
+                  className="cd-field"
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-[11px] font-black uppercase tracking-wider text-stone-600">
+                <label className="text-[11px] font-bold uppercase tracking-wider text-[#8E8E93]">
                   性別
                 </label>
                 <select
                   value={ageGateGender}
                   onChange={(e) => onSetAgeGateGender(e.target.value)}
                   required
-                  className="w-full rounded-xl border-2 border-stone-900 bg-white px-3 py-2 text-[14px] font-medium text-stone-900 outline-none focus:bg-[#fff9df] transition-colors"
+                  className="cd-field"
                 >
                   <option value="male">男</option>
                   <option value="female">女</option>
@@ -131,7 +129,7 @@ export function ProfileModalSection({
               </div>
               <div className="space-y-1.5">
                 <div className="space-y-2">
-                  <label className="text-[11px] font-black uppercase tracking-wider text-stone-600">
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-[#8E8E93]">
                     出生年月日 (目前{" "}
                     {calculateAgeFromDate(new Date(birthYear, birthMonth - 1, birthDay))}{" "}
                     歲)
@@ -163,7 +161,7 @@ export function ProfileModalSection({
               </div>
 
               {profileError ? (
-                <p className="text-[13px] font-bold text-red-600" role="alert">
+                <p className="text-[13px] font-bold text-red-300" role="alert">
                   {profileError}
                 </p>
               ) : null}
@@ -172,14 +170,14 @@ export function ProfileModalSection({
                   type="button"
                   disabled={profileSaving}
                   onClick={onCloseProfileModal}
-                  className="flex-1 rounded-xl border-2 border-stone-900 bg-white px-4 py-2.5 text-[14px] font-black text-stone-900 active:translate-y-px disabled:opacity-50"
+                  className="cd-btn-ghost flex-1 disabled:opacity-50"
                 >
                   取消
                 </button>
                 <button
                   type="submit"
                   disabled={profileSaving}
-                  className="flex-1 rounded-xl border-2 border-stone-900 bg-[#f4dc3a] px-4 py-2.5 text-[14px] font-black text-stone-900 active:translate-y-px disabled:opacity-50"
+                  className="cd-btn-primary flex-1 disabled:opacity-50"
                 >
                   {profileSaving ? "儲存中…" : "儲存"}
                 </button>

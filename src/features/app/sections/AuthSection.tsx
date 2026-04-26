@@ -55,11 +55,10 @@ export function AuthSection({
   };
 
   return (
-    <div className="min-h-screen bg-apple-black flex flex-col items-center justify-center p-6 font-sans text-white relative overflow-hidden">
-      {/* 背景裝飾 */}
-      <div className="pointer-events-none absolute inset-0 bg-radial-[at_50%_50%] from-apple-blue/10 via-transparent to-transparent opacity-50" />
-      <div className="pointer-events-none absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-apple-blue/5 blur-[120px] rounded-full" />
-      <div className="pointer-events-none absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-apple-blue/5 blur-[120px] rounded-full" />
+    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-[#121319] p-6 font-sans text-white">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-10%,rgba(240,98,146,0.12)_0,transparent_55%)]" />
+      <div className="pointer-events-none absolute -left-[10%] top-[-10%] h-[40%] w-[40%] rounded-full bg-[#FFD54F]/8 blur-[120px]" />
+      <div className="pointer-events-none absolute -right-[10%] bottom-[-10%] h-[40%] w-[40%] rounded-full bg-[#F06292]/8 blur-[120px]" />
 
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -70,7 +69,7 @@ export function AuthSection({
           <h1 className="text-[56px] font-semibold tracking-[-0.005em] leading-[1.07] mb-2">
             有說
           </h1>
-          <p className="text-[17px] font-medium text-apple-blue tracking-tight mb-4">
+          <p className="mb-4 text-[17px] font-medium tracking-tight text-[#FFD54F]">
             {view === "login" ? "拆開屬於你的小紙條" : "留一個名字，開始丟膠囊"}
           </p>
           <p className="text-[14px] font-normal leading-relaxed text-white/40 px-4">

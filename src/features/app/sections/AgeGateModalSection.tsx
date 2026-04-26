@@ -56,18 +56,16 @@ export function AgeGateModalSection({
             key="age-gate-modal-overlay"
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="w-full max-w-sm rounded-3xl border-[3px] border-stone-900 bg-[#fffef7] p-6 shadow-[8px_8px_0_0_#0f2420]"
+            className="cd-modal-panel w-full max-w-sm p-6"
           >
-            <p className="text-[22px] font-black text-stone-900 leading-tight">
-              完善資料
-            </p>
-            <p className="mt-2 text-[13px] font-bold text-stone-500">
+            <p className="text-[22px] font-bold leading-tight text-white">完善資料</p>
+            <p className="mt-2 text-[13px] font-medium text-[#8E8E93]">
               系統將根據生日自動換算年齡。
             </p>
 
             <div className="mt-6 space-y-6">
               <div className="space-y-2">
-                <p className="text-[11px] font-black uppercase tracking-wider text-stone-400">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-[#8E8E93]">
                   性別
                 </p>
                 <div className="grid grid-cols-3 gap-2">
@@ -77,10 +75,10 @@ export function AgeGateModalSection({
                       type="button"
                       onClick={() => onSetAgeGateGender(g)}
                       className={cn(
-                        "rounded-xl border-2 border-stone-900 py-2 text-[13px] font-black transition-all active:translate-y-px",
+                        "rounded-xl border py-2 text-[13px] font-bold transition-all active:translate-y-px",
                         ageGateGender === g
-                          ? "bg-[#f4dc3a] text-stone-900 shadow-[2px_2px_0_0_#000]"
-                          : "bg-white text-stone-300",
+                          ? "border-[#FFD54F]/50 bg-[#FFD54F] text-stone-900"
+                          : "border-white/10 bg-white/[0.06] text-[#8E8E93] hover:text-white",
                       )}
                     >
                       {g === "male" ? "男" : g === "female" ? "女" : "其他"}
@@ -90,12 +88,12 @@ export function AgeGateModalSection({
               </div>
 
               <div className="space-y-2">
-                <div className="flex justify-between items-end px-1">
-                  <p className="text-[11px] font-black uppercase tracking-wider text-stone-400">
+                <div className="flex items-end justify-between px-1">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-[#8E8E93]">
                     生日
                   </p>
-                  <p className="text-[12px] font-black text-stone-900">
-                    <span className="text-red-600">{calculatedAge}</span> 歲
+                  <p className="text-[12px] font-bold text-white">
+                    <span className="text-[#F06292]">{calculatedAge}</span> 歲
                   </p>
                 </div>
 
@@ -127,7 +125,7 @@ export function AgeGateModalSection({
 
             {ageGateError ? (
               <p
-                className="mt-4 text-[13px] font-bold text-red-600 text-center"
+                className="mt-4 text-center text-[13px] font-bold text-red-300"
                 role="alert"
               >
                 {ageGateError}
@@ -138,7 +136,7 @@ export function AgeGateModalSection({
               type="button"
               onClick={() => void onSubmitAgeGate()}
               disabled={ageGateSaving}
-              className="mt-8 w-full rounded-2xl border-2 border-stone-900 bg-[#f4dc3a] px-4 py-3.5 text-[16px] font-black text-stone-900 shadow-[5px_5px_0_0_#0f2420] active:translate-y-px active:shadow-none transition-all disabled:opacity-50"
+              className="cd-btn-primary mt-8 w-full py-3.5 text-[16px] font-bold disabled:opacity-50"
             >
               {ageGateSaving ? "儲存中..." : "開啟我的膠囊"}
             </button>

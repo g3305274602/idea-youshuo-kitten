@@ -26,29 +26,29 @@ export const CAPSULE_TYPE_OPTIONS = [
 ] as const;
 
 const CAPSULE_TYPE_THEME: Record<number, string> = {
-  1: "border-sky-300 bg-sky-100 text-sky-800",
-  2: "border-amber-300 bg-amber-100 text-amber-800",
-  3: "border-pink-300 bg-pink-100 text-pink-700",
-  4: "border-violet-300 bg-violet-100 text-violet-800",
-  5: "border-slate-300 bg-slate-200 text-slate-800",
-  6: "border-emerald-300 bg-emerald-100 text-emerald-800",
-  7: "border-orange-300 bg-orange-100 text-orange-800",
-  8: "border-teal-300 bg-teal-100 text-teal-800",
-  9: "border-fuchsia-300 bg-fuchsia-100 text-fuchsia-800",
-  10: "border-indigo-300 bg-indigo-100 text-indigo-800",
+  1: "border-sky-400/30 bg-sky-500/10 text-sky-200",
+  2: "border-amber-400/30 bg-amber-500/10 text-amber-200",
+  3: "border-[#F06292]/40 bg-[#F06292]/10 text-pink-100",
+  4: "border-violet-400/30 bg-violet-500/10 text-violet-200",
+  5: "border-slate-400/30 bg-slate-600/15 text-slate-200",
+  6: "border-emerald-400/30 bg-emerald-500/10 text-emerald-200",
+  7: "border-orange-400/30 bg-orange-500/10 text-orange-200",
+  8: "border-teal-400/30 bg-teal-500/10 text-teal-200",
+  9: "border-fuchsia-400/30 bg-fuchsia-500/10 text-fuchsia-200",
+  10: "border-indigo-400/30 bg-indigo-500/10 text-indigo-200",
 };
 
 const CAPSULE_TYPE_ACTIVE_THEME: Record<number, string> = {
-  1: "border-sky-500 bg-sky-600 text-white",
-  2: "border-amber-500 bg-amber-500 text-white",
-  3: "border-pink-500 bg-pink-500 text-white",
-  4: "border-violet-500 bg-violet-600 text-white",
-  5: "border-slate-500 bg-slate-600 text-white",
-  6: "border-emerald-500 bg-emerald-600 text-white",
-  7: "border-orange-500 bg-orange-500 text-white",
-  8: "border-teal-500 bg-teal-600 text-white",
-  9: "border-fuchsia-500 bg-fuchsia-600 text-white",
-  10: "border-indigo-500 bg-indigo-600 text-white",
+  1: "border-sky-300/80 bg-sky-500/30 text-white",
+  2: "border-amber-300/80 bg-amber-500/30 text-stone-900",
+  3: "border-[#F06292] bg-[#F06292]/50 text-white",
+  4: "border-violet-400/80 bg-violet-600/40 text-white",
+  5: "border-slate-300/80 bg-slate-600/40 text-white",
+  6: "border-emerald-300/80 bg-emerald-600/40 text-white",
+  7: "border-orange-300/80 bg-orange-500/40 text-stone-900",
+  8: "border-teal-300/80 bg-teal-600/40 text-white",
+  9: "border-fuchsia-300/80 bg-fuchsia-600/40 text-white",
+  10: "border-indigo-300/80 bg-indigo-600/40 text-white",
 };
 
 export function capsuleTypeMeta(type: number | undefined) {

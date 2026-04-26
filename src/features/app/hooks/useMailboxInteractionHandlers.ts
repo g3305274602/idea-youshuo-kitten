@@ -152,6 +152,8 @@ export function useMailboxInteractionHandlers(
     params.setChatBackTab(params.activeTab === "chat" ? null : params.activeTab);
     params.setSelectedChatThreadKey(`${sourceMessageId}::${guestHex}`);
     params.setActiveTab("chat");
+    params.setFavoriteSelectedId(null);
+    params.setSelectedMessageId(null);
     params.setCapsuleOpen(false);
     params.setCapsulePostId(null);
     params.setSquareSelectedPostId(null);

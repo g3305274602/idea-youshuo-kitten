@@ -141,3 +141,11 @@ export function Countdown({ targetDate }: { targetDate: string }) {
 
   return <span>{timeLeft}</span>;
 }
+
+export function anonPaperNoteLabel(gender?: string | null): string {
+  const g = (gender ?? "").toLowerCase();
+  if (g === "male") return "一個男孩的紙條";
+  if (g === "female") return "一個女孩的紙條";
+  if (g === "other") return "一則紙條";
+  return "一則匿名紙條";
+}

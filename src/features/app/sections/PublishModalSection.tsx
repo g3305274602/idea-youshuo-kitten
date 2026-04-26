@@ -20,6 +20,10 @@ type PublishModalSectionProps = {
   onSetPublishShowRecipient: (value: boolean) => void;
 };
 
+const optOn =
+  "border-[#F06292]/50 bg-[#F06292]/12 text-white shadow-[0_0_0_1px_rgba(240,98,146,0.2)] -translate-y-px";
+const optOff = "border-white/10 bg-white/[0.04] text-[#8E8E93]";
+
 export function PublishModalSection({
   isPublishModalVisible,
   canRenderPublishModal,
@@ -46,7 +50,7 @@ export function PublishModalSection({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[220] flex items-end justify-center sm:items-center bg-black/80 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]"
+          className="fixed inset-0 z-[220] flex items-end justify-center bg-black/80 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:items-center"
           onClick={() => {
             if (loading) return;
             onClosePublishModal();
@@ -58,20 +62,20 @@ export function PublishModalSection({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 15 }}
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-[min(100%,26rem)] overflow-hidden rounded-[32px] border-[3px] border-stone-900 bg-[#fffef7] shadow-[8px_8px_0_0_#000]"
+            className="w-full max-w-[min(100%,26rem)] overflow-hidden rounded-[32px] border border-white/10 bg-[#1A1B22] text-white shadow-[0_32px_64px_rgba(0,0,0,0.55)]"
           >
-            <div className="bg-violet-600 border-b-[3px] border-stone-900 p-5">
-              <h3 className="text-[20px] font-black tracking-tight text-white">
+            <div className="border-b border-white/10 bg-gradient-to-r from-[#25262e] to-[#1A1B22] p-5">
+              <h3 className="text-[20px] font-bold tracking-tight text-white">
                 貼到廣場給大家看
               </h3>
-              <p className="mt-1 text-[12px] font-bold text-violet-100">
+              <p className="mt-1 text-[12px] font-medium text-[#8E8E93]">
                 {isDirectMode ? "定向信件模式" : "秘密膠囊模式"}
               </p>
             </div>
 
-            <div className="p-6 space-y-6 text-stone-900">
+            <div className="space-y-6 p-6 text-white">
               <div className="space-y-3">
-                <p className="text-[11px] font-black uppercase tracking-[0.15em] text-stone-500">
+                <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-[#8E8E93]">
                   1. 公開內容範圍
                 </p>
                 <div className="grid grid-cols-1 gap-3">
@@ -82,23 +86,21 @@ export function PublishModalSection({
                       onSetPublishIncludeCapsulePrivate(false);
                     }}
                     className={cn(
-                      "w-full text-left p-4 rounded-2xl border-[3px] transition-all",
-                      !publishIncludeThread && !publishIncludeCapsulePrivate
-                        ? "border-stone-900 bg-violet-200 text-stone-900 shadow-[4px_4px_0_0_#000] translate-y-[-2px]"
-                        : "border-stone-200 bg-white text-stone-400",
+                      "w-full rounded-2xl border p-4 text-left transition-all",
+                      !publishIncludeThread && !publishIncludeCapsulePrivate ? optOn : optOff,
                     )}
                   >
                     <p
                       className={cn(
-                        "text-[15px] font-black",
+                        "text-[15px] font-bold",
                         !publishIncludeThread && !publishIncludeCapsulePrivate
-                          ? "text-stone-900"
-                          : "text-stone-400",
+                          ? "text-white"
+                          : "text-[#8E8E93]",
                       )}
                     >
                       僅公開主文
                     </p>
-                    <p className="text-[11px] font-bold opacity-70">
+                    <p className="text-[11px] font-medium text-[#8E8E93] opacity-90">
                       只分享原本的信件正文
                     </p>
                   </button>
@@ -111,23 +113,19 @@ export function PublishModalSection({
                         onSetPublishIncludeCapsulePrivate(false);
                       }}
                       className={cn(
-                        "w-full text-left p-4 rounded-2xl border-[3px] transition-all",
-                        publishIncludeThread
-                          ? "border-stone-900 bg-violet-200 text-stone-900 shadow-[4px_4px_0_0_#000] translate-y-[-2px]"
-                          : "border-stone-200 bg-white text-stone-400",
+                        "w-full rounded-2xl border p-4 text-left transition-all",
+                        publishIncludeThread ? optOn : optOff,
                       )}
                     >
                       <p
                         className={cn(
-                          "text-[15px] font-black",
-                          publishIncludeThread
-                            ? "text-stone-900"
-                            : "text-stone-400",
+                          "text-[15px] font-bold",
+                          publishIncludeThread ? "text-white" : "text-[#8E8E93]",
                         )}
                       >
                         主文 + 雙方往來
                       </p>
-                      <p className="text-[11px] font-bold opacity-70">
+                      <p className="text-[11px] font-medium text-[#8E8E93] opacity-90">
                         包含信件中的互動紀錄
                       </p>
                     </button>
@@ -139,23 +137,19 @@ export function PublishModalSection({
                         onSetPublishIncludeThread(false);
                       }}
                       className={cn(
-                        "w-full text-left p-4 rounded-2xl border-[3px] transition-all",
-                        publishIncludeCapsulePrivate
-                          ? "border-stone-900 bg-violet-200 text-stone-900 shadow-[4px_4px_0_0_#000] translate-y-[-2px]"
-                          : "border-stone-200 bg-white text-stone-400",
+                        "w-full rounded-2xl border p-4 text-left transition-all",
+                        publishIncludeCapsulePrivate ? optOn : optOff,
                       )}
                     >
                       <p
                         className={cn(
-                          "text-[15px] font-black",
-                          publishIncludeCapsulePrivate
-                            ? "text-stone-900"
-                            : "text-stone-400",
+                          "text-[15px] font-bold",
+                          publishIncludeCapsulePrivate ? "text-white" : "text-[#8E8E93]",
                         )}
                       >
                         主文 + 膠囊私訊
                       </p>
-                      <p className="text-[11px] font-bold opacity-70">
+                      <p className="text-[11px] font-medium text-[#8E8E93] opacity-90">
                         包含所有匿名私聊對話
                       </p>
                     </button>
@@ -164,7 +158,7 @@ export function PublishModalSection({
               </div>
 
               <div className="space-y-3">
-                <p className="text-[11px] font-black uppercase tracking-[0.15em] text-stone-500">
+                <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-[#8E8E93]">
                   2. 廣場互動設定
                 </p>
                 <div className="flex gap-3">
@@ -177,13 +171,13 @@ export function PublishModalSection({
                       type="button"
                       onClick={() => onSetPublishRepliesPublic(opt.id)}
                       className={cn(
-                        "flex-1 p-3 rounded-2xl border-[3px] text-center transition-all",
+                        "flex-1 rounded-2xl border p-3 text-center transition-all",
                         publishRepliesPublic === opt.id
-                          ? "border-stone-900 bg-emerald-200 text-stone-900 shadow-[4px_4px_0_0_#000] translate-y-[-2px]"
-                          : "border-stone-200 bg-white text-stone-400",
+                          ? "border-[#10b981]/50 bg-[#10b981]/12 text-white"
+                          : optOff,
                       )}
                     >
-                      <p className="text-[13px] font-black">{opt.label}</p>
+                      <p className="text-[13px] font-bold">{opt.label}</p>
                     </button>
                   ))}
                 </div>
@@ -191,7 +185,7 @@ export function PublishModalSection({
 
               {isDirectMode && (
                 <div className="space-y-3">
-                  <p className="text-[11px] font-black uppercase tracking-[0.15em] text-stone-500">
+                  <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-[#8E8E93]">
                     3. 隱私顯示
                   </p>
                   <div className="flex gap-3">
@@ -199,24 +193,22 @@ export function PublishModalSection({
                       type="button"
                       onClick={() => onSetPublishShowSender(!publishShowSender)}
                       className={cn(
-                        "flex-1 py-3 rounded-xl border-[3px] font-black text-[12px] transition-all",
+                        "flex-1 rounded-xl border py-3 text-[12px] font-bold transition-all",
                         publishShowSender
-                          ? "border-stone-900 bg-stone-200 text-stone-900 shadow-[3px_3px_0_0_#000]"
-                          : "border-stone-200 bg-white text-stone-300",
+                          ? "border-white/20 bg-white/10 text-white"
+                          : optOff,
                       )}
                     >
                       {publishShowSender ? "已顯示寄件人" : "隱藏寄件人"}
                     </button>
                     <button
                       type="button"
-                      onClick={() =>
-                        onSetPublishShowRecipient(!publishShowRecipient)
-                      }
+                      onClick={() => onSetPublishShowRecipient(!publishShowRecipient)}
                       className={cn(
-                        "flex-1 py-3 rounded-xl border-[3px] font-black text-[12px] transition-all",
+                        "flex-1 rounded-xl border py-3 text-[12px] font-bold transition-all",
                         publishShowRecipient
-                          ? "border-stone-900 bg-stone-200 text-stone-900 shadow-[3px_3px_0_0_#000]"
-                          : "border-stone-200 bg-white text-stone-300",
+                          ? "border-white/20 bg-white/10 text-white"
+                          : optOff,
                       )}
                     >
                       {publishShowRecipient ? "已顯示收件人" : "隱藏收件人"}
@@ -226,18 +218,18 @@ export function PublishModalSection({
               )}
             </div>
 
-            <div className="border-t-[3px] border-stone-900 bg-stone-100 p-6 flex gap-3">
+            <div className="flex gap-3 border-t border-white/10 bg-[#121319] p-6">
               <button
                 type="button"
                 onClick={onClosePublishModal}
-                className="flex-1 py-3 rounded-2xl border-[3px] border-stone-900 bg-white text-[15px] font-black text-stone-900 active:translate-y-0.5 transition-all"
+                className="cd-btn-ghost flex-1 py-3 text-[15px]"
               >
                 取消
               </button>
               <button
                 type="button"
                 onClick={() => void onSubmitPublishToSquare()}
-                className="flex-[1.5] py-3 rounded-2xl border-[3px] border-stone-900 bg-[#f4dc3a] text-[15px] font-black text-stone-900 shadow-[4px_4px_0_0_#000] active:translate-y-1 active:shadow-none transition-all"
+                className="cd-btn-primary flex-[1.5] py-3 text-[15px] font-bold"
               >
                 {loading ? "處理中..." : "確認公開"}
               </button>

@@ -91,14 +91,14 @@ export function WheelPicker({
 
   return (
     <div className="flex-1 flex flex-col items-center select-none">
-      <p className="text-[10px] font-black text-stone-400 mb-1 uppercase tracking-widest">
+      <p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-[#8E8E93]">
         {label}
       </p>
       <div
         onClick={handleItemClick}
-        className="relative h-[120px] w-full overflow-hidden border-2 border-stone-900 bg-white rounded-xl shadow-[inset_0_2px_4px_rgba(0,0,0,0.05)] cursor-pointer"
+        className="relative h-[120px] w-full cursor-pointer overflow-hidden rounded-xl border border-white/12 bg-[#121319] shadow-[inset_0_2px_8px_rgba(0,0,0,0.35)]"
       >
-        <div className="pointer-events-none bg-[#ffffffdd] absolute inset-x-0 top-0 h-[40px] flex items-center justify-center text-stone-800 z-20">
+        <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex h-[40px] items-center justify-center bg-[#1A1B22]/95 text-white/80">
           <Minus size={16} strokeWidth={3} />
         </div>
         <div
@@ -113,8 +113,8 @@ export function WheelPicker({
               className={cn(
                 "h-[40px] leading-[40px] flex items-center justify-center snap-center text-[15px] font-black transition-all",
                 value === opt
-                  ? "text-stone-900 scale-110"
-                  : "text-stone-600 opacity-66",
+                  ? "scale-110 text-[#FFD54F]"
+                  : "text-[#8E8E93] opacity-80",
               )}
             >
               {opt}

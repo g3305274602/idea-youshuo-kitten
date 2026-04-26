@@ -11,6 +11,7 @@ import {
   X,
 } from "lucide-react";
 import { cn } from "../../../lib/utils";
+import { anonPaperNoteLabel } from "../helpers";
 import { GenderIcon } from "./PickerControls";
 
 type CapsuleOverlaySectionProps = {
@@ -21,7 +22,8 @@ type CapsuleOverlaySectionProps = {
   capsulePost: any;
   capsuleEmptyReason: string | null;
   openReportModal: (targetType: "capsule", targetId: string) => void;
-  openSpace: (...args: any[]) => void;
+  /** 是否顯示膠囊作者真實暱稱（本人參與或與作者私訊已滿 10 則） */
+  capsuleOverlayShowAuthorRealName: boolean;
   capsuleSquarePost: any;
   squareReactionCountsByPost: ReadonlyMap<string, { up: number; mid: number; down: number }>;
   mySquareReactionByPost: ReadonlyMap<string, "up" | "mid" | "down">;
@@ -39,7 +41,6 @@ type CapsuleOverlaySectionProps = {
   uniqueCapsuleGuestHexes: readonly string[];
   capsuleThreadGuestHex: string | null;
   onSetCapsuleThreadGuestHex?: (value: string | null) => void;
-  capsulePrivateThreadMessages: readonly any[];
   canShowCapsuleModalFirstMessageInput: boolean;
   capsuleModalPrivateTextareaRef: any;
   capsulePrivateDraft: string;
@@ -65,7 +66,7 @@ export function CapsuleOverlaySection(props: CapsuleOverlaySectionProps) {
     capsulePost,
     capsuleEmptyReason,
     openReportModal,
-    openSpace,
+    capsuleOverlayShowAuthorRealName,
     capsuleSquarePost,
     squareReactionCountsByPost,
     mySquareReactionByPost,
@@ -83,7 +84,6 @@ export function CapsuleOverlaySection(props: CapsuleOverlaySectionProps) {
     uniqueCapsuleGuestHexes,
     capsuleThreadGuestHex,
     onSetCapsuleThreadGuestHex,
-    capsulePrivateThreadMessages,
     canShowCapsuleModalFirstMessageInput,
     capsuleModalPrivateTextareaRef,
     capsulePrivateDraft,
@@ -122,16 +122,17 @@ export function CapsuleOverlaySection(props: CapsuleOverlaySectionProps) {
             onClick={(e) => e.stopPropagation()}
             className="ys-capsule-sheet"
           >
+            <div className="ys-capsule-drag" aria-hidden />
             <div className="ys-capsule-header">
               <div className="flex min-w-0 items-center gap-2">
-                <Sparkles className="h-5 w-5 shrink-0 text-cyan-100" strokeWidth={2.5} />
+                <Sparkles className="h-5 w-5 shrink-0 text-white/80" strokeWidth={2.5} />
                 <h2 id="capsule-title" className="shrink-0 text-[17px] font-black tracking-tight ys-night-text">
                   秘密膠囊
                 </h2>
                 <button
                   type="button"
                   onClick={() => capsulePost && openReportModal("capsule", capsulePost?.id)}
-                  className="inline-flex p-1.5 text-cyan-100/55 transition-colors hover:text-red-300 active:scale-95"
+                  className="inline-flex p-1.5 text-[#8E8E93] transition-colors hover:text-red-300 active:scale-95"
                   title="檢舉膠囊"
                 >
                   <AlertTriangle className="h-[22px] w-[22px]" strokeWidth={2.5} />
@@ -140,7 +141,7 @@ export function CapsuleOverlaySection(props: CapsuleOverlaySectionProps) {
               <button
                 type="button"
                 onClick={() => closeCapsuleDrawer()}
-                className="rounded-xl ys-night-surface p-2 font-black ys-night-text hover:bg-cyan-100/15"
+                className="rounded-xl ys-night-surface p-2 font-black ys-night-text hover:bg-white/[0.08]"
                 aria-label="關閉"
               >
                 <X className="h-5 w-5" strokeWidth={2.5} />
@@ -161,7 +162,7 @@ export function CapsuleOverlaySection(props: CapsuleOverlaySectionProps) {
               ) : !capsulePost ? (
                 <div className="space-y-4 py-2 text-center">
                   <Package className="mx-auto h-12 w-12 text-stone-400" strokeWidth={2} />
-                  <p className="text-[15px] font-black leading-snug text-cyan-50">
+                  <p className="text-[15px] font-black leading-snug text-white">
                     {capsuleEmptyReason === "wall_empty"
                       ? "目前還沒有可抽的秘密膠囊。"
                       : capsuleEmptyReason === "timing"
@@ -179,27 +180,18 @@ export function CapsuleOverlaySection(props: CapsuleOverlaySectionProps) {
                     <div className="mb-3 flex items-center justify-between gap-3">
                       <div className="flex min-w-0 flex-col items-start justify-center pt-0.5">
                         <div className="flex items-center gap-2 min-w-0">
-                          <p className="break-words text-[14px] font-black text-cyan-50 truncate">
-                            {capsulePost.authorDisplayName || capsulePost.authorEmail.split("@")[0]}
+                          <p className="break-words text-[14px] text-[#ccc] font-black truncate">
+                            {capsuleOverlayShowAuthorRealName
+                              ? capsulePost.authorDisplayName ||
+                                capsulePost.authorEmail.split("@")[0]
+                              : anonPaperNoteLabel(capsulePost.authorGender)}
                           </p>
-                          <GenderIcon gender={capsulePost.authorGender} />
+                          {capsuleOverlayShowAuthorRealName ? (
+                            <GenderIcon gender={capsulePost.authorGender} />
+                          ) : null}
                         </div>
                       </div>
-                      <div className="flex min-w-0 items-center justify-between gap-2">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            openSpace(
-                              capsulePost.authorAccountId,
-                              capsulePost.authorDisplayName || "神秘用戶",
-                              capsulePost.authorGender,
-                              capsulePost.authorBirthDate,
-                            )
-                          }
-                          className="shrink-0 rounded-xl ys-night-surface px-3 py-1.5 text-[11px] font-black ys-night-text transition-colors hover:bg-cyan-100/15 active:translate-y-px active:shadow-none"
-                        >
-                          TA 的空間
-                        </button>
+                      <div className="flex min-w-0 shrink-0 items-center justify-end gap-2">
                         <div className="flex items-center gap-2">
                           {capsuleSquarePost
                             ? (["up", "mid", "down"] as const).map((rk) => {
@@ -214,7 +206,7 @@ export function CapsuleOverlaySection(props: CapsuleOverlaySectionProps) {
                                     onClick={() => void handleSetSquareReaction(capsuleSquarePost.sourceMessageId, rk)}
                                     className={cn(
                                       "inline-flex h-9 w-9 items-center gap-1.5 rounded-xl border px-3 text-[14px] font-black transition-colors active:translate-y-px",
-                                      mine ? "ys-btn-primary" : "ys-night-surface ys-night-text hover:bg-cyan-100/15",
+                                      mine ? "ys-btn-primary" : "ys-night-surface ys-night-text hover:bg-white/[0.08]",
                                     )}
                                   >
                                     <Icon className="h-4 w-4 shrink-0" strokeWidth={2.5} />
@@ -243,8 +235,8 @@ export function CapsuleOverlaySection(props: CapsuleOverlaySectionProps) {
                                   }
                                 }}
                                 className={cn(
-                                  "inline-flex h-9 w-9 items-center justify-center rounded-xl border border-cyan-200/30 transition-all active:translate-y-px",
-                                  isFav ? "ys-btn-primary" : "ys-night-surface ys-night-text hover:bg-cyan-100/15",
+                                  "inline-flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 transition-all active:translate-y-px",
+                                  isFav ? "ys-btn-primary" : "ys-night-surface ys-night-text hover:bg-white/[0.08]",
                                 )}
                                 title={isFav ? "已收進心底" : "藏進心底"}
                               >
@@ -256,11 +248,11 @@ export function CapsuleOverlaySection(props: CapsuleOverlaySectionProps) {
                       </div>
                     </div>
 
-                    <p className="max-h-[min(32vh,16rem)] overflow-y-auto apple-scroll whitespace-pre-wrap text-[16px] font-medium leading-relaxed text-cyan-50">
+                    <p className="max-h-[min(32vh,16rem)] overflow-y-auto apple-scroll whitespace-pre-wrap text-[16px] font-medium leading-relaxed text-white">
                       {capsulePost.content}
                     </p>
                     <div className="mt-3 flex min-w-0 items-center justify-between gap-2">
-                      <p className="text-[11px] font-bold tabular-nums text-cyan-100/65">
+                      <p className="text-[11px] font-bold tabular-nums text-[#8E8E93]">
                         {capsulePost.scheduledAt.toDate() > now ? "預定開啟 " : ""}
                         {capsulePost.scheduledAt.toDate().toLocaleString("zh-TW", {
                           month: "numeric",
@@ -272,7 +264,7 @@ export function CapsuleOverlaySection(props: CapsuleOverlaySectionProps) {
                       {capsulePost && !capsuleSwitching ? (
                         <span
                           className={cn(
-                            "ml-1 inline-flex shrink-0 rounded-full border border-cyan-200/30 px-2 py-0.5 text-[11px] font-black",
+                            "ml-1 inline-flex shrink-0 rounded-full border border-white/10 px-2 py-0.5 text-[11px] font-black",
                             capsuleTypeMeta(capsulePost.capsuleType).chipClass,
                           )}
                         >
@@ -284,7 +276,7 @@ export function CapsuleOverlaySection(props: CapsuleOverlaySectionProps) {
 
                   <div ref={capsuleModalPrivateThreadRef} id="capsule-modal-private-thread" className="mt-2 scroll-mt-4 space-y-3 rounded-2xl">
                     {isCapsuleParticipantUi && uniqueCapsuleGuestHexes.length > 0 ? (
-                      <label className="block text-[10px] font-black text-cyan-100/70">
+                      <label className="block text-[10px] font-black text-[#8E8E93]">
                         訪客線（回覆對象）
                         <select
                           className="mt-1 w-full rounded-lg px-2 py-1.5 text-[12px] font-bold ys-night-input"
@@ -299,18 +291,8 @@ export function CapsuleOverlaySection(props: CapsuleOverlaySectionProps) {
                         </select>
                       </label>
                     ) : isCapsuleParticipantUi ? (
-                      <p className="text-[11px] font-bold text-cyan-100/55">尚無訪客開線，等有人抽到這則再回覆。</p>
+                      <p className="text-[11px] font-bold text-[#8E8E93]">尚無訪客開線，等有人抽到這則再回覆。</p>
                     ) : null}
-                    <div className="max-h-40 space-y-1.5 overflow-y-auto apple-scroll">
-                      {capsulePrivateThreadMessages.map((m) => (
-                        <div key={m.id} className="rounded-lg ys-night-surface px-2 py-1.5 text-[12px]">
-                          <p className="font-mono text-[9px] text-cyan-100/55">
-                            {m.authorIdentity.toHexString().slice(0, 12)}…
-                          </p>
-                          <p className="whitespace-pre-wrap font-bold text-cyan-50">{m.body}</p>
-                        </div>
-                      ))}
-                    </div>
                     {isCapsuleParticipantUi || canShowCapsuleModalFirstMessageInput ? (
                       <div className="flex flex-col gap-2">
                         <textarea
@@ -318,14 +300,14 @@ export function CapsuleOverlaySection(props: CapsuleOverlaySectionProps) {
                           value={capsulePrivateDraft}
                           onChange={(e) => setCapsulePrivateDraft(e.target.value)}
                           maxLength={textLimit}
-                          rows={4}
+                          rows={2}
                           placeholder="寫膠囊私訊…"
-                          className="min-h-0 flex-1 resize-none rounded-xl px-2 py-1.5 text-[13px] ys-night-input"
+                          className="h-10 min-h-10 max-h-22 line-height-[2.5] shrink-0 resize-none rounded-xl px-2.5 py-1.5 text-[13px] leading-5 ys-night-input"
                         />
                       </div>
                     ) : capsuleSquarePost ? (
                       <div className="rounded-xl ys-night-surface px-3 py-2">
-                        <p className="text-[11px] font-bold text-cyan-100/80">
+                        <p className="text-[11px] font-bold text-[#8E8E93]">
                           你已開過這條線，請到「我的 → 聊聊記錄」繼續對話。
                         </p>
                         <button
@@ -340,14 +322,14 @@ export function CapsuleOverlaySection(props: CapsuleOverlaySectionProps) {
                   </div>
                   {capsuleSquarePost?.repliesPublic ? (
                     <div className="mt-4 space-y-3">
-                      <h3 className="text-[12px] font-bold tracking-wider text-cyan-100/75">廣場評論</h3>
+                      <h3 className="text-[12px] font-bold tracking-wider text-[#8E8E93]">廣場評論</h3>
                       <div className="max-h-48 space-y-2 overflow-y-auto apple-scroll">
                         {(squareCommentsByPost.get(capsuleSquarePost.sourceMessageId) ?? []).map((c: any) => (
                           <div key={c.id} className="rounded-xl ys-night-surface px-3 py-2 text-[13px]">
-                            <p className="mb-1 font-mono text-[10px] text-cyan-100/55">
+                            <p className="mb-1 font-mono text-[10px] text-[#8E8E93]">
                               {c.authorIdentity.toHexString().slice(0, 12)}…
                             </p>
-                            <p className="whitespace-pre-wrap text-cyan-50/95">{c.body}</p>
+                            <p className="whitespace-pre-wrap text-white/95">{c.body}</p>
                           </div>
                         ))}
                       </div>
@@ -358,7 +340,7 @@ export function CapsuleOverlaySection(props: CapsuleOverlaySectionProps) {
                           maxLength={textLimit}
                           rows={2}
                           placeholder="留一句話…"
-                          className="min-h-0 flex-1 resize-none rounded-xl px-3 py-2 text-[14px] ys-night-input focus-visible:border-cyan-100/45 focus-visible:outline-none"
+                          className="min-h-0 flex-1 resize-none rounded-xl px-3 py-2 text-[14px] ys-night-input focus-visible:border-[#FFD54F]/45 focus-visible:outline-none"
                         />
                         <button
                           type="button"
@@ -374,25 +356,35 @@ export function CapsuleOverlaySection(props: CapsuleOverlaySectionProps) {
               )}
             </div>
             {capsulePost ? (
-              <div className="shrink-0 border-t border-cyan-200/20 bg-cyan-100/5 px-3.5 py-3">
+              <div className="shrink-0 border-t border-white/10 bg-white/[0.04] px-3.5 py-3">
                 <div className="flex items-stretch gap-3">
-                  {isCapsuleParticipantUi || canShowCapsuleModalFirstMessageInput ? (
-                    <button
-                      type="button"
-                      onClick={() => void handleAddCapsulePrivateMessage(capsulePost.id, capsuleThreadGuestHex)}
-                      className="flex-1 rounded-2xl px-3 py-2.5 text-[13px] transition-transform active:translate-y-0.5 ys-night-surface ys-night-text font-black"
-                    >
-                      送出私訊
-                    </button>
-                  ) : null}
                   <button
                     type="button"
                     onClick={() => void pickAnotherCapsule()}
                     disabled={!canShuffleCapsule || capsuleSwitching}
-                    className="flex-[1.25] rounded-2xl px-4 py-2.5 text-[15px] tracking-tight transition-transform disabled:cursor-not-allowed disabled:opacity-60 active:translate-y-0.5 ys-btn-primary"
+                    className={cn(
+                      "rounded-2xl px-4 py-2.5 text-[15px] font-black tracking-tight transition-transform disabled:cursor-not-allowed disabled:opacity-60 active:translate-y-0.5",
+                      isCapsuleParticipantUi || canShowCapsuleModalFirstMessageInput
+                        ? "flex-[1.25] ys-night-surface ys-night-text"
+                        : "flex-1 ys-btn-primary",
+                    )}
                   >
                     {capsuleSwitching ? "正在打開新膠囊…" : "換一個"}
                   </button>
+                  {isCapsuleParticipantUi || canShowCapsuleModalFirstMessageInput ? (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        void handleAddCapsulePrivateMessage(
+                          capsulePost.id,
+                          capsuleThreadGuestHex,
+                        )
+                      }
+                      className="flex-1 rounded-2xl px-3 py-2.5 text-[13px] font-black transition-transform active:translate-y-0.5 ys-btn-primary"
+                    >
+                      送出私訊
+                    </button>
+                  ) : null}
                 </div>
               </div>
             ) : null}

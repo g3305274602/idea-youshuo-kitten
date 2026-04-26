@@ -40,6 +40,7 @@ export type AppTab =
   | "admin"
   | "admin_ops"
   | "my_reports"
+  | "mine_square" /** 從「我的」進入的廣場牆二級頁，返回仍回「我的」 */
 
 
 export type AdminSection = "main" | "review" | "reports";
@@ -61,12 +62,16 @@ export type CapsuleChatThreadSummary = {
   threadGuestHex: string;
   counterpartLabel: string;
   counterpartIdentityHex: string;
-  counterpartGender: string;      // 新增的
-  counterpartBirthDate?: any;     // 新增的
+  counterpartGender: string;
+  counterpartBirthDate?: any;
   sourcePreview: string;
   sourceCapsuleType: number;
   lastBody: string;
   lastAtMicros: bigint;
+  threadPrivateMessageCount: number;
+  hasNewMessageFromPeer: boolean;
+  /** 客戶端依已讀游標計算，用於未讀提示 */
+  hasUnread?: boolean;
 };
 export type SpaceFeedItem =
   | {
@@ -88,10 +93,12 @@ export type UnifiedFavoriteListItem =
       key: string;
       createdAtMicros: bigint;
       row: SquareFavorite;
+      peerIdentityUnlocked: boolean;
     }
   | {
       kind: "capsule";
       key: string;
       createdAtMicros: bigint;
       row: CapsuleFavorite;
+      peerIdentityUnlocked: boolean;
     };

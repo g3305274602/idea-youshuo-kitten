@@ -1,5 +1,8 @@
 import { isMineSubTab } from "../shell/navigation";
+import type { BackTab } from "../appUiStore";
 import type { AdminSection, AppTab } from "../types";
+
+type SetStateAction<T> = T | ((prev: T) => T);
 
 type UseNavigationActionsParams = {
   activeTab: AppTab;
@@ -9,8 +12,8 @@ type UseNavigationActionsParams = {
   selectedChatThreadKey: string | null;
   selectedAdminReportId: string | null;
   adminMobileShowContent: boolean;
-  chatBackTab: AppTab | null;
-  spaceBackTab: AppTab | null;
+  chatBackTab: BackTab;
+  spaceBackTab: BackTab;
   isSuperAdmin: boolean;
   setActiveTab: (value: AppTab) => void;
   setSelectedMessageId: (value: string | null) => void;
@@ -19,8 +22,8 @@ type UseNavigationActionsParams = {
   setSelectedChatThreadKey: (value: string | null) => void;
   setSelectedAdminReportId: (value: string | null) => void;
   setAdminMobileShowContent: (value: boolean) => void;
-  setChatBackTab: (value: AppTab | null) => void;
-  setSpaceBackTab: (value: AppTab | null) => void;
+  setChatBackTab: (value: SetStateAction<BackTab>) => void;
+  setSpaceBackTab: (value: SetStateAction<BackTab>) => void;
   setSquareActionError: (value: string) => void;
   setComposeMode: (value: "capsule" | "direct") => void;
   setComposeError: (value: string) => void;
@@ -58,22 +61,22 @@ export function useNavigationActions(params: UseNavigationActionsParams) {
       params.setActiveTab(params.spaceBackTab || "mine");
       return params.setSpaceBackTab(null);
     }
-    if (isMineSubTab(params.activeTab)) return params.setActiveTab("mine");
-    if (params.activeTab === "new" || params.activeTab === "direct") {
-      return params.setActiveTab("secret");
-    }
-    params.setActiveTab("mine");
+    /** 聊聊列表層：若有記錄來源分頁（如秘密首頁），先回到該頁，不要一律回「我的」 */
     if (
       params.activeTab === "chat" &&
-      params.selectedChatThreadKey !== null &&
+      params.selectedChatThreadKey === null &&
       params.chatBackTab
     ) {
       params.setActiveTab(params.chatBackTab);
       params.setChatBackTab(null);
-      params.setSelectedChatThreadKey(null);
       return;
     }
+    if (isMineSubTab(params.activeTab)) return params.setActiveTab("mine");
+    if (params.activeTab === "new" || params.activeTab === "direct") {
+      return params.setActiveTab("secret");
+    }
     clearSelections();
+    params.setActiveTab("mine");
     params.setChatBackTab(null);
   };
 
