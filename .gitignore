@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.env.local
+*.local
+.DS_Store
+# 扁平化後若本機刪不掉舊路徑，可暫時保留；勿提交
+youshuo/
