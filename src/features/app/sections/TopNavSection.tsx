@@ -49,7 +49,7 @@ export function TopNavSection({
   return (
     <nav
       className={cn(
-        "relative z-50 flex h-[56px] shrink-0 items-center border-b border-white/10 bg-black/35 px-3 backdrop-blur-xl md:h-[56px] md:px-6",
+        "fixed inset-x-0 top-0 z-50 flex h-[56px] shrink-0 items-center border-b-0 bg-transparent px-3 backdrop-blur-none md:h-[56px] md:px-6",
       )}
     >
       <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-white/25" />
@@ -141,7 +141,7 @@ export function TopNavSection({
         <button
           type="button"
           onClick={onOpenProfileActionMenu}
-          className="ys-topnav-user-pill px-2.5 py-1.5 text-[11px] font-semibold md:hidden"
+          className="hidden"
         >
           <span className="max-w-[4.75rem] truncate">{userDisplayName}</span>
           <ChevronDown className="h-3.5 w-3.5 shrink-0 text-white/70" />

@@ -75,15 +75,18 @@ export function ChatMainSection({
 
   if (!selectedChatThread) {
     return (
-      <div className="max-w-sm mx-auto text-center py-16 px-4">
-        <MessageCircle className="w-12 h-12 mx-auto text-white/15 mb-3" aria-hidden />
-        <p className="text-[15px] font-medium text-[#8E8E93]">先從左側選一條聊聊紀錄</p>
+      <div className="mx-auto flex min-h-[46vh] max-w-sm items-center justify-center px-4 py-16 text-center">
+        <div>
+          <MessageCircle className="mx-auto mb-3 h-12 w-12 text-white/15" aria-hidden />
+          <p className="text-[15px] font-medium text-[#8E8E93]">先從左側選一條聊聊紀錄</p>
+        </div>
       </div>
     );
   }
 
+  const peerRealName = (selectedChatPeerProfile?.displayName ?? "").trim();
   const peerChatTitle = chatPeerUnlocked
-    ? selectedChatThread.counterpartLabel
+    ? peerRealName || selectedChatThread.counterpartLabel
     : anonPaperNoteLabel(selectedChatThread.counterpartGender);
 
   const unlockRemaining = Math.max(0, 10 - selectedChatProgress);

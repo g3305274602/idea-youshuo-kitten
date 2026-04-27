@@ -34,11 +34,13 @@ export function MyReportsSidebarSection({
 
   if (myReports.length === 0) {
     return (
-      <div className="py-8 px-4 text-center">
-        <Lock className="mx-auto mb-3 h-9 w-9 text-white/15 md:text-black/[0.08]" />
-        <p className="text-[13px] font-medium text-white/50 md:text-black/30">
-          你還沒有提交過任何舉報
-        </p>
+      <div className="flex h-full min-h-[46vh] items-center justify-center px-4 py-8 text-center">
+        <div>
+          <Lock className="mx-auto mb-3 h-9 w-9 text-white/15 md:text-black/[0.08]" />
+          <p className="text-[13px] font-medium text-white/50 md:text-black/30">
+            你還沒有提交過任何舉報
+          </p>
+        </div>
       </div>
     );
   }

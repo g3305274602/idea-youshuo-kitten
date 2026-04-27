@@ -376,15 +376,17 @@ export function ComposeMessageMainSection({
           key="empty"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="max-w-sm mx-auto text-center py-24"
+          className="mx-auto flex min-h-[46vh] max-w-sm items-center justify-center py-24 text-center"
         >
-          <div className="w-20 h-20 bg-stone-100 rounded-3xl border-[3px] border-dashed border-stone-300 flex items-center justify-center mx-auto mb-6">
-            <Inbox className="w-10 h-10 text-stone-300" />
+          <div>
+            <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-3xl border-[3px] border-dashed border-stone-300 bg-stone-100">
+              <Inbox className="h-10 w-10 text-stone-300" />
+            </div>
+            <h3 className="mb-2 text-[20px] font-black text-stone-900">選一則訊息</h3>
+            <p className="text-[14px] font-bold text-stone-400">
+              點擊左側列表，或是到首頁抽膠囊。
+            </p>
           </div>
-          <h3 className="text-[20px] font-black text-stone-900 mb-2">選一則訊息</h3>
-          <p className="text-stone-400 font-bold text-[14px]">
-            點擊左側列表，或是到首頁抽膠囊。
-          </p>
         </motion.div>
       )}
     </AnimatePresence>

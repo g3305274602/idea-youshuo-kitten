@@ -54,6 +54,12 @@ type OverlayModalsSectionProps = {
   onSubmitReport: () => void | Promise<void>;
 };
 
+function genderToZh(gender?: string) {
+  if (gender === "male") return "男";
+  if (gender === "female") return "女";
+  return "未填";
+}
+
 export function OverlayModalsSection({
   isChatPeerProfileVisible,
   selectedChatPeerProfile,
@@ -113,7 +119,7 @@ export function OverlayModalsSection({
               </p>
               <p className="mt-2 text-[12px] text-[#8E8E93]">性別 / 年齡</p>
               <p className="text-[14px] text-white">
-                {selectedChatPeerProfile.gender || "未填"} /{" "}
+                {genderToZh(selectedChatPeerProfile.gender)} /{" "}
                 {calculateAgeFromDate(
                   selectedChatPeerProfile.birthDate?.toDate() || null,
                 )}{" "}

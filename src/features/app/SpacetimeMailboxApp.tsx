@@ -555,6 +555,14 @@ export default function SpacetimeMailboxApp({
     }
     return m;
   }, [allAccountProfileRows]);
+  const profileByAccountId = useMemo(() => {
+    const m = new Map<string, AccountProfile>();
+    for (const p of allAccountProfileRows) {
+      if (!p.accountId) continue;
+      m.set(p.accountId, p);
+    }
+    return m;
+  }, [allAccountProfileRows]);
 
   // 狀態判定
 
@@ -737,15 +745,12 @@ export default function SpacetimeMailboxApp({
     }
   }, [daysInMonth]); // 移除 [birthDay] 的依賴，避免無窮迴圈或過度渲染
 
-  // 定義符合 16-126 歲限制的年份清單
+  // 年份範圍：從當前年份回溯到 1900
   const yearOptions = useMemo(() => {
     const currentYear = new Date().getFullYear();
-    const latestBirthYear = currentYear - 16; // 16 歲對應的出生年份 (例如 2010)
-    const earliestBirthYear = currentYear - 126; // 126 歲對應的出生年份 (例如 1900)
-    const totalYears = latestBirthYear - earliestBirthYear + 1; // 總共 111 個選項
-
-    // 從最新的可選年份 (latestBirthYear) 往回推
-    return Array.from({ length: totalYears }, (_, i) => latestBirthYear - i);
+    const earliestBirthYear = 1900;
+    const totalYears = currentYear - earliestBirthYear + 1;
+    return Array.from({ length: totalYears }, (_, i) => currentYear - i);
   }, []);
 
   const monthOptions = useMemo(
@@ -1358,6 +1363,25 @@ export default function SpacetimeMailboxApp({
   };
 
 
+  const callWithTimeout = async <T,>(
+    task: Promise<T>,
+    timeoutMs = 12000,
+  ): Promise<T> => {
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    try {
+      return await Promise.race([
+        task,
+        new Promise<T>((_, reject) => {
+          timer = setTimeout(() => {
+            reject(new Error("送出逾時，請檢查網路或重新登入後再試"));
+          }, timeoutMs);
+        }),
+      ]);
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+  };
+
   const sendMessage = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
@@ -1400,40 +1424,44 @@ export default function SpacetimeMailboxApp({
     setComposeSuccess("");
     try {
       if (composeMode === "direct") {
-        await sendDirectMessage({
-          recipientEmail,
-          content,
-          scheduledAt,
-          isWaitListVisible,
-          publishToSquare: composePublishToSquare,
-          squareRepliesPublic: composeSquareRepliesPublic,
-          squareIncludeThread: composeSquareIncludeThread,
-          squareIncludeCapsulePrivate:
-            composePublishToSquare && composeIncludeCapsulePrivate,
-          squareShowSender: composePublishToSquare
-            ? composeShowSquareSender
-            : false,
-          squareShowRecipient: composePublishToSquare
-            ? composeShowSquareRecipient
-            : false,
-        });
+        await callWithTimeout(
+          sendDirectMessage({
+            recipientEmail,
+            content,
+            scheduledAt,
+            isWaitListVisible,
+            publishToSquare: composePublishToSquare,
+            squareRepliesPublic: composeSquareRepliesPublic,
+            squareIncludeThread: composeSquareIncludeThread,
+            squareIncludeCapsulePrivate:
+              composePublishToSquare && composeIncludeCapsulePrivate,
+            squareShowSender: composePublishToSquare
+              ? composeShowSquareSender
+              : false,
+            squareShowRecipient: composePublishToSquare
+              ? composeShowSquareRecipient
+              : false,
+          }),
+        );
         setComposeSuccess(
           scheduledAt ? "定向訊息已排程送出。" : "定向訊息已即時送出。",
         );
       } else {
-        await sendCapsuleMessage({
-          content,
-          capsuleType: composeCapsuleType,
-          scheduledAt,
-          isWaitListVisible,
-          isProfilePublic: false,
-          publishToSquare: false,
-          squareRepliesPublic: false,
-          squareIncludeThread: false,
-          squareIncludeCapsulePrivate: false,
-          squareShowSender: false,
-          squareShowRecipient: false,
-        });
+        await callWithTimeout(
+          sendCapsuleMessage({
+            content,
+            capsuleType: composeCapsuleType,
+            scheduledAt,
+            isWaitListVisible,
+            isProfilePublic: false,
+            publishToSquare: false,
+            squareRepliesPublic: false,
+            squareIncludeThread: false,
+            squareIncludeCapsulePrivate: false,
+            squareShowSender: false,
+            squareShowRecipient: false,
+          }),
+        );
         setComposeSuccess("秘密膠囊已即時送出。");
       }
       (e.target as HTMLFormElement).reset();
@@ -1608,6 +1636,7 @@ export default function SpacetimeMailboxApp({
       let counterpartGender = "unspecified";
       let counterpartBirthDate = undefined;
       let counterpartIdentityHex = "";
+      let counterpartAccountId = "";
 
       if (isMeGuest) {
         counterpartLabel =
@@ -1624,13 +1653,34 @@ export default function SpacetimeMailboxApp({
           sourceCapsule?.authorIdentity.toHexString() ||
           post?.publisherIdentity.toHexString() ||
           "";
+        counterpartAccountId =
+          sourceCapsule?.authorAccountId ||
+          post?.snapshotPublisherAccountId ||
+          "";
       } else {
         const gProfile = publicProfileByIdentityHex.get(guestHex);
+        const guestAccountId =
+          gProfile?.accountId ||
+          capsulePrivateRows.find(
+            (x) =>
+              x.sourceMessageId === m.sourceMessageId &&
+              x.threadGuestIdentity.toHexString() === guestHex &&
+              x.authorIdentity.toHexString() === guestHex &&
+              !!(x.authorAccountId ?? "").trim(),
+          )?.authorAccountId ||
+          "";
+        const profileByAid = guestAccountId
+          ? profileByAccountId.get(guestAccountId)
+          : undefined;
         counterpartLabel =
-          (gProfile?.displayName ?? "").trim() || "神秘旅人";
-        counterpartGender = gProfile?.gender || "unspecified";
-        counterpartBirthDate = gProfile?.birthDate;
+          (gProfile?.displayName ?? "").trim() ||
+          (profileByAid?.displayName ?? "").trim() ||
+          "神秘旅人";
+        counterpartGender =
+          gProfile?.gender || profileByAid?.gender || "unspecified";
+        counterpartBirthDate = gProfile?.birthDate || profileByAid?.birthDate;
         counterpartIdentityHex = guestHex;
+        counterpartAccountId = guestAccountId;
       }
 
       const row: CapsuleChatThreadSummary = {
@@ -1639,6 +1689,7 @@ export default function SpacetimeMailboxApp({
         threadGuestHex: guestHex,
         counterpartLabel,
         counterpartIdentityHex,
+        counterpartAccountId,
         counterpartGender,
         counterpartBirthDate,
         sourcePreview,
@@ -1686,6 +1737,7 @@ export default function SpacetimeMailboxApp({
     capsuleMessageRows,
     identity,
     publicProfileByIdentityHex,
+    profileByAccountId,
   ]);
 
   const selectedChatThread = useMemo(():
@@ -1729,6 +1781,10 @@ export default function SpacetimeMailboxApp({
       counterpartIdentityHex:
         sourceCapsule?.authorIdentity.toHexString() ||
         post?.publisherIdentity.toHexString() ||
+        "",
+      counterpartAccountId:
+        sourceCapsule?.authorAccountId ||
+        post?.snapshotPublisherAccountId ||
         "",
       counterpartGender:
         sourceCapsule?.authorGender ||
@@ -1817,7 +1873,11 @@ export default function SpacetimeMailboxApp({
   const selectedChatPeerProfile = selectedChatThread
     ? publicProfileByIdentityHex.get(
         selectedChatThread.counterpartIdentityHex,
-      ) ?? profileByIdentityHex.get(selectedChatThread.counterpartIdentityHex)
+      ) ??
+      profileByIdentityHex.get(selectedChatThread.counterpartIdentityHex) ??
+      (selectedChatThread.counterpartAccountId
+        ? profileByAccountId.get(selectedChatThread.counterpartAccountId)
+        : undefined)
     : undefined;
 
   const isSourceCapsuleMine =
@@ -2604,6 +2664,7 @@ export default function SpacetimeMailboxApp({
       ) : (
         <>
           <TopNavSection {...topNavProps} />
+          <div className="h-[56px] shrink-0" aria-hidden />
         </>
       )}
 
@@ -2898,11 +2959,13 @@ export default function SpacetimeMailboxApp({
                 onSelect={setFavoriteSelectedId}
               />
             ) : currentList.length === 0 ? (
-              <div className="py-8 px-4 text-center">
-                <History className="mx-auto mb-3 h-9 w-9 text-white/20" />
-                <p className="text-[13px] font-medium text-white/45">
-                  暫無信件
-                </p>
+              <div className="flex min-h-[46vh] items-center justify-center px-4 py-8 text-center">
+                <div>
+                  <History className="mx-auto mb-3 h-9 w-9 text-white/20" />
+                  <p className="text-[13px] font-medium text-white/45">
+                    暫無信件
+                  </p>
+                </div>
               </div>
             ) : activeTab === "inbox" || activeTab === "outbox" ? (
               <MailboxGroupedList

@@ -26,11 +26,13 @@ export function ChatThreadsSidebarSection({
 }: ChatThreadsSidebarSectionProps) {
   if (threads.length === 0) {
     return (
-      <div className="py-8 px-4 text-center">
-        <MessageCircle className="mx-auto mb-3 h-9 w-9 text-white/15" />
-        <p className="text-[13px] font-medium text-white/50">
-          還沒有聊聊紀錄，先去秘密膠囊按「聊聊」開一條線
-        </p>
+      <div className="flex h-full min-h-[46vh] items-center justify-center px-4 py-8 text-center">
+        <div>
+          <MessageCircle className="mx-auto mb-3 h-9 w-9 text-white/15" />
+          <p className="text-[13px] font-medium text-white/50">
+            還沒有聊聊紀錄，先去秘密膠囊按「聊聊」開一條線
+          </p>
+        </div>
       </div>
     );
   }

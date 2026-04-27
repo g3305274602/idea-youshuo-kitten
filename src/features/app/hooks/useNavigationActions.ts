@@ -71,6 +71,16 @@ export function useNavigationActions(params: UseNavigationActionsParams) {
       params.setChatBackTab(null);
       return;
     }
+    /** 廣場牆列表層：若是從秘密頁跳轉進來，返回時先回秘密頁 */
+    if (
+      params.activeTab === "mine_square" &&
+      params.squareSelectedPostId === null &&
+      params.chatBackTab
+    ) {
+      params.setActiveTab(params.chatBackTab);
+      params.setChatBackTab(null);
+      return;
+    }
     if (isMineSubTab(params.activeTab)) return params.setActiveTab("mine");
     if (params.activeTab === "new" || params.activeTab === "direct") {
       return params.setActiveTab("secret");
@@ -114,12 +124,16 @@ export function useNavigationActions(params: UseNavigationActionsParams) {
   };
 
   const onMineHubNavigate = (t: AppTab) => {
+    const keepBackToSecret = t === "mine_square" && params.activeTab === "secret";
+    if (keepBackToSecret) {
+      params.setChatBackTab("secret");
+    }
     params.setActiveTab(t === "admin" && params.isSuperAdmin ? "admin_ops" : t);
     if (t === "space") params.setSpaceOwnerHex(params.identityHex);
     clearSelections();
     params.setSelectedChatThreadKey(null);
     params.setSelectedAdminReportId(null);
-    params.setChatBackTab(null);
+    if (!keepBackToSecret) params.setChatBackTab(null);
   };
 
   return {

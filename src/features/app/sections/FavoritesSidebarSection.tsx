@@ -20,11 +20,13 @@ export function FavoritesSidebarSection({
 }: FavoritesSidebarSectionProps) {
   if (items.length === 0) {
     return (
-      <div className="py-8 px-4 text-center">
-        <Bookmark className="mx-auto mb-3 h-9 w-9 text-white/15 md:text-white/15" />
-        <p className="text-[13px] font-medium text-white/50 md:text-white/50">
-          心底還空空的，去秘密那裡藏幾則吧
-        </p>
+      <div className="flex h-full min-h-[46vh] items-center justify-center px-4 py-8 text-center">
+        <div>
+          <Bookmark className="mx-auto mb-3 h-9 w-9 text-white/15 md:text-white/15" />
+          <p className="text-[13px] font-medium text-white/50 md:text-white/50">
+            心底還空空的，去秘密那裡藏幾則吧
+          </p>
+        </div>
       </div>
     );
   }

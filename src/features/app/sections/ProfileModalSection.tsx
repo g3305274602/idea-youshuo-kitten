@@ -123,8 +123,6 @@ export function ProfileModalSection({
                 >
                   <option value="male">男</option>
                   <option value="female">女</option>
-                  <option value="other">其他</option>
-                  <option value="unspecified">不願透露</option>
                 </select>
               </div>
               <div className="space-y-1.5">

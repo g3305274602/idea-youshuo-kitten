@@ -1,6 +1,7 @@
 import { Timestamp, type Identity } from "spacetimedb";
 
 import {
+  CAPSULE_FORWARD_SHOWN_KEY,
   CAPSULE_LAST_SHOWN_KEY,
   CAPSULE_PREV_SHOWN_KEY,
   CAPSULE_SHOWN_IDS_KEY,
@@ -132,6 +133,21 @@ export function useMailboxInteractionHandlers(
     sessionStorage.removeItem(CAPSULE_PREV_SHOWN_KEY);
   };
 
+  const readForwardCapsuleId = (): string | null => {
+    if (typeof window === "undefined") return null;
+    const raw = sessionStorage.getItem(CAPSULE_FORWARD_SHOWN_KEY);
+    return raw && raw.length > 0 ? raw : null;
+  };
+
+  const writeForwardCapsuleId = (id: string | null) => {
+    if (typeof window === "undefined") return;
+    if (id && id.length > 0) {
+      sessionStorage.setItem(CAPSULE_FORWARD_SHOWN_KEY, id);
+      return;
+    }
+    sessionStorage.removeItem(CAPSULE_FORWARD_SHOWN_KEY);
+  };
+
   const openCapsuleDrawer = () => {
     params.setCapsuleOpen(true);
     params.setCapsuleSwitching(false);
@@ -140,6 +156,7 @@ export function useMailboxInteractionHandlers(
     const shownIds = new Set<string>();
     writeShownCapsuleIds(shownIds);
     writePrevCapsuleId(null);
+    writeForwardCapsuleId(null);
     const pool = [...params.capsuleEligiblePool];
     if (pool.length === 0) {
       params.setCapsulePostId(null);
@@ -159,11 +176,34 @@ export function useMailboxInteractionHandlers(
     const shownIds = readShownCapsuleIds();
     shownIds.add(params.capsulePostId);
     const pool = params.capsuleEligiblePool.filter((p) => !shownIds.has(p.id));
+    const forwardId = readForwardCapsuleId();
+    const canResumeForward =
+      !!forwardId &&
+      forwardId !== params.capsulePostId &&
+      params.capsuleEligiblePool.some((p) => p.id === forwardId);
     if (pool.length === 0) {
+      if (canResumeForward) {
+        params.setCapsuleSwitching(true);
+        params.setSquareActionError("");
+        params.setCapsulePrivateDraft("");
+        await new Promise((resolve) => {
+          const timer = typeof window !== "undefined" ? window.setTimeout : setTimeout;
+          timer(resolve, 520);
+        });
+        params.setCapsulePostId(forwardId!);
+        writeForwardCapsuleId(null);
+        writePrevCapsuleId(null);
+        if (typeof window !== "undefined") {
+          sessionStorage.setItem(CAPSULE_LAST_SHOWN_KEY, forwardId!);
+        }
+        params.setCapsuleSwitching(false);
+        return;
+      }
       writeShownCapsuleIds(shownIds);
       // 無可換項目時，改為進入空狀態（符合「換一換後到空狀態」）
       params.setSquareActionError("");
       params.setCapsulePostId(null);
+      writeForwardCapsuleId(null);
       return;
     }
     params.setCapsuleSwitching(true);
@@ -173,8 +213,11 @@ export function useMailboxInteractionHandlers(
       const timer = typeof window !== "undefined" ? window.setTimeout : setTimeout;
       timer(resolve, 520);
     });
-    const pick = pool[Math.floor(Math.random() * pool.length)]!;
-    writePrevCapsuleId(params.capsulePostId);
+    const pick = canResumeForward
+      ? params.capsuleEligiblePool.find((p) => p.id === forwardId)!
+      : pool[Math.floor(Math.random() * pool.length)]!;
+    writePrevCapsuleId(canResumeForward ? null : params.capsulePostId);
+    writeForwardCapsuleId(null);
     shownIds.add(pick.id);
     writeShownCapsuleIds(shownIds);
     params.setCapsulePostId(pick.id);
@@ -192,6 +235,7 @@ export function useMailboxInteractionHandlers(
     params.setCapsuleThreadGuestHex(null);
     params.setSquareActionError("");
     writePrevCapsuleId(null);
+    writeForwardCapsuleId(null);
   };
 
   const prevCapsuleId = readPrevCapsuleId();
@@ -205,6 +249,7 @@ export function useMailboxInteractionHandlers(
     if (!canViewPreviousCapsule || !prevCapsuleId) return;
     params.setCapsuleSwitching(false);
     params.setSquareActionError("");
+    writeForwardCapsuleId(params.capsulePostId);
     params.setCapsulePostId(prevCapsuleId);
     // 只允許單步回看：看過一次即清空，避免無限回溯。
     writePrevCapsuleId(null);

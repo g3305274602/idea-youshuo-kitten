@@ -68,8 +68,8 @@ export function AgeGateModalSection({
                 <p className="text-[11px] font-bold uppercase tracking-wider text-[#8E8E93]">
                   性別
                 </p>
-                <div className="grid grid-cols-3 gap-2">
-                  {["male", "female", "other"].map((g) => (
+                <div className="grid grid-cols-2 gap-2">
+                  {["male", "female"].map((g) => (
                     <button
                       key={g}
                       type="button"
@@ -81,7 +81,7 @@ export function AgeGateModalSection({
                           : "border-white/10 bg-white/[0.06] text-[#8E8E93] hover:text-white",
                       )}
                     >
-                      {g === "male" ? "男" : g === "female" ? "女" : "其他"}
+                      {g === "male" ? "男" : "女"}
                     </button>
                   ))}
                 </div>

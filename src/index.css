@@ -48,6 +48,24 @@
     font-family: var(--font-sans);
     letter-spacing: -0.02em;
   }
+
+  button,
+  button:hover,
+  button:focus,
+  button:active {
+    border: none !important;
+  }
+
+  button:focus,
+  button:focus-visible,
+  button:active {
+    outline: none !important;
+    box-shadow: none !important;
+  }
+
+  button {
+    -webkit-tap-highlight-color: transparent;
+  }
 }
 
 .glass-nav {
@@ -530,7 +548,7 @@
   }
 
   .ys-mobile-bottom-nav-fabSlot .ys-mobile-capsule-button {
-    @apply absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2;
+    @apply absolute left-1/2 top-1 -translate-x-1/2 -translate-y-1/2;
     /* 按壓用 top 微移，勿改此元素的 transform，否則會蓋掉置中 */
     @apply transition-[top,box-shadow] duration-150 ease-out;
   }

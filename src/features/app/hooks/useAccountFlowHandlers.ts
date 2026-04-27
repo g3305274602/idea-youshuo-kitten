@@ -29,6 +29,15 @@ function getSavedTokenForEmail(email: string) {
   return map[email.toLowerCase().trim()];
 }
 
+function normalizeBinaryGender(value: string | null | undefined): "male" | "female" {
+  return value === "female" ? "female" : "male";
+}
+
+function minAllowedBirthDate(): Date {
+  const today = new Date();
+  return new Date(today.getFullYear() - 16, today.getMonth(), today.getDate());
+}
+
 type UseAccountFlowHandlersParams = {
   email: string;
   password: string;
@@ -137,11 +146,11 @@ export function useAccountFlowHandlers(params: UseAccountFlowHandlersParams) {
     if (!params.needsAgeGate || !params.myProfile) return;
     const bday = params.myProfile.birthDate
       ? params.myProfile.birthDate.toDate()
-      : new Date(2000, 0, 1);
+      : minAllowedBirthDate();
     params.setBirthYear(bday.getFullYear());
     params.setBirthMonth(bday.getMonth() + 1);
     params.setBirthDay(bday.getDate());
-    params.setAgeGateGender(params.myProfile.gender || "unspecified");
+    params.setAgeGateGender(normalizeBinaryGender(params.myProfile.gender));
     params.setAgeGateError("");
   }, [params.needsAgeGate, params.myProfile?.birthDate, params.myProfile?.gender]);
 
@@ -187,7 +196,7 @@ export function useAccountFlowHandlers(params: UseAccountFlowHandlersParams) {
           email: currentEmail,
           password: currentPassword,
           displayName: params.registerDisplayName.trim(),
-          gender: params.registerGender,
+          gender: normalizeBinaryGender(params.registerGender),
           birthDate: undefined,
           profileNote: "",
         });
@@ -225,11 +234,11 @@ export function useAccountFlowHandlers(params: UseAccountFlowHandlersParams) {
     if (!params.myProfile) return;
     const bday = params.myProfile.birthDate
       ? params.myProfile.birthDate.toDate()
-      : new Date(2000, 0, 1);
+      : minAllowedBirthDate();
     params.setBirthYear(bday.getFullYear());
     params.setBirthMonth(bday.getMonth() + 1);
     params.setBirthDay(bday.getDate());
-    params.setAgeGateGender(params.myProfile.gender || "unspecified");
+    params.setAgeGateGender(normalizeBinaryGender(params.myProfile.gender));
     params.setProfileForm({
       displayName: params.myProfile.displayName,
       profileNote: params.myProfile.profileNote,
@@ -272,7 +281,7 @@ export function useAccountFlowHandlers(params: UseAccountFlowHandlersParams) {
     try {
       await params.updateAccountProfile({
         displayName: params.profileForm.displayName.trim(),
-        gender: params.ageGateGender,
+        gender: normalizeBinaryGender(params.ageGateGender),
         birthDate: finalBirthDate,
         profileNote: params.profileForm.profileNote.trim(),
       });
@@ -297,7 +306,7 @@ export function useAccountFlowHandlers(params: UseAccountFlowHandlersParams) {
     try {
       await params.updateAccountProfile({
         displayName: params.user.displayName,
-        gender: params.user.gender || "unspecified",
+        gender: normalizeBinaryGender(params.user.gender),
         birthDate: params.myProfile?.birthDate!,
         profileNote: note,
       });
@@ -358,7 +367,7 @@ export function useAccountFlowHandlers(params: UseAccountFlowHandlersParams) {
       );
       await params.updateAccountProfile({
         displayName: params.myProfile?.displayName || "",
-        gender: params.ageGateGender,
+        gender: normalizeBinaryGender(params.ageGateGender),
         birthDate: Timestamp.fromDate(utcDate),
         profileNote: params.myProfile?.profileNote || "",
       });
