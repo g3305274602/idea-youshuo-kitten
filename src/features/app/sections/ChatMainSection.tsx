@@ -300,7 +300,7 @@ export function ChatMainSection({
               maxLength={textLimit}
               rows={1}
               placeholder="輸入聊天內容…"
-              className="h-[42px] max-h-[84px] min-h-[42px] flex-1 resize-none rounded-xl px-3 py-2 text-[14px] leading-5 overflow-y-auto ys-night-input"
+              className="h-[42px] max-h-[84px] min-h-[42px] flex-1 resize-none rounded-xl px-3 py-2 text-[14px] leading-5 overflow-y-auto ys-night-input ys-hide-scrollbar"
             />
             <button
               type="button"

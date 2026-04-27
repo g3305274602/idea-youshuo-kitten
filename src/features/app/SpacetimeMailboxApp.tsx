@@ -1782,10 +1782,15 @@ export default function SpacetimeMailboxApp({
           m.threadGuestIdentity.isEqual(guestId),
       );
       const readCursor = cursorMap.get(t.key) ?? 0n;
-      const hasUnread = computeThreadUnread(readCursor, msgs, identity);
+      const hasUnread = computeThreadUnread(
+        readCursor,
+        msgs,
+        identity,
+        myAccountId,
+      );
       return { ...t, hasUnread };
     });
-  }, [capsuleChatThreads, capsulePrivateRows, identity, cursorMap]);
+  }, [capsuleChatThreads, capsulePrivateRows, identity, myAccountId, cursorMap]);
 
   const chatUnreadThreadCount = useMemo(
     () => capsuleChatThreadsWithUnread.filter((t) => t.hasUnread).length,

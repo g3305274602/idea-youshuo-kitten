@@ -96,6 +96,17 @@
   display: none; /* Chrome, Safari and Opera */
 }
 
+/* 強制隱藏捲軸（含 textarea），保留可滾動能力 */
+.ys-hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.ys-hide-scrollbar::-webkit-scrollbar {
+  width: 0 !important;
+  height: 0 !important;
+  display: none !important;
+}
+
 @layer components {
   /** 全頁主背景：深空＋星雲微光 */
   .ys-dreamy-cosmic {

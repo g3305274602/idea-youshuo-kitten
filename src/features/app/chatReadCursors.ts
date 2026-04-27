@@ -36,6 +36,7 @@ export function computeThreadUnread(
   readCursorMicros: bigint,
   messages: readonly CapsulePrivateMessage[],
   myIdentity: Identity,
+  myAccountId?: string,
 ): boolean {
   if (messages.length === 0) return false;
   const sorted = [...messages].sort(
@@ -45,7 +46,11 @@ export function computeThreadUnread(
       ),
   );
   const last = sorted[sorted.length - 1]!;
-  if (last.authorIdentity.isEqual(myIdentity)) return false;
+  const isMineByAccount =
+    !!myAccountId &&
+    !!last.authorAccountId &&
+    last.authorAccountId === myAccountId;
+  if (isMineByAccount || last.authorIdentity.isEqual(myIdentity)) return false;
   return last.createdAt.microsSinceUnixEpoch > readCursorMicros;
 }
 
