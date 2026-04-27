@@ -158,6 +158,20 @@
   .cd-field {
     @apply w-full rounded-xl border border-white/12 bg-white/[0.06] px-3 py-2 text-[14px] font-medium text-white outline-none transition-colors placeholder:text-[#8E8E93] focus:border-[#FFD54F]/40;
   }
+  /**
+   * 原生 select 展開清單多由系統繪製；若只設 text-white，option 易繼承成淺底白字（一片白看不清）。
+   * 明確寫入 option 前景／底色，在 Chrome / Edge 等可讀性較穩定。
+   */
+  select.cd-field {
+    color-scheme: dark;
+    /* 部分系統會忽略半透明底、畫成整塊淺色，與繼承白字疊成「白塊」；拉深底＋白字 */
+    background-color: rgb(26 27 34 / 0.92);
+    color: #f5f5f5;
+  }
+  select.cd-field option {
+    color: #0c0a09;
+    background-color: #e7e5e4;
+  }
   .cd-btn-ghost {
     @apply rounded-xl border border-white/12 bg-white/[0.06] px-4 py-2.5 text-[14px] font-bold text-white transition-all active:translate-y-px;
   }

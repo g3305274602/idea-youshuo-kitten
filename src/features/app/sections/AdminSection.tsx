@@ -460,7 +460,11 @@ export function AdminContent(props: AdminContentProps) {
         >
           <div className="rounded-[99px] px-3 py-2 text-[12px] text-[#FFD54F] mb-1">
             申訴：{appealTicketRows.length} · 處分：
-            {userSanctionRows.length} · 待審核：{moderationQueueRows.length}
+            {userSanctionRows.length} · 待審核：
+            {
+              moderationQueueRows.filter((m) => !isReportClosedStatus(m.status))
+                .length
+            }
           </div>
           <div className="shrink-0 flex rounded-[99px] items-center gap-1 border-b border-white/10 bg-white/[0.04] px-[1px] py-[1px]">
             <button
@@ -1131,7 +1135,7 @@ export function AdminContent(props: AdminContentProps) {
                         <button
                           type="button"
                           onClick={() => onOpenAdminEditModal(r, em ?? "")}
-                          className="rounded border border-stone-300 bg-white px-2 py-0.5 text-[10px] font-semibold"
+                          className="rounded border border-stone-400 bg-white px-2 py-0.5 text-[10px] font-semibold text-stone-800"
                         >
                           編輯
                         </button>
@@ -1160,11 +1164,11 @@ export function AdminContent(props: AdminContentProps) {
                               : undefined
                           }
                         >
-                          <span className="flex h-6 w-12 items-center rounded-full bg-emerald-500 transition-colors duration-200">
-                            <span className="absolute left-1.5 text-[8px] font-bold text-white select-none">
+                          <span className="relative flex h-6 w-12 items-center rounded-full bg-emerald-500 transition-colors duration-200">
+                            <span className="z-10 pl-1.5 text-[9px] font-extrabold text-white drop-shadow-sm select-none">
                               開啟
                             </span>
-                            <span className="ml-[calc(100%-1.2rem)] h-4 w-4 rounded-full bg-white shadow" />
+                            <span className="absolute right-0.5 top-1/2 h-4 w-4 -translate-y-1/2 rounded-full bg-white shadow" />
                           </span>
                         </button>
                       </div>
@@ -1175,7 +1179,7 @@ export function AdminContent(props: AdminContentProps) {
                           type="text"
                           placeholder="輸入此管理員的 email 重新綁定"
                           list={`admin-rebind-candidates-${hex}`}
-                          className="flex-1 rounded-lg border border-amber-300 bg-white px-2 py-1 text-[11px]"
+                          className="flex-1 rounded-lg border border-amber-300 bg-white px-2 py-1 text-[11px] text-stone-900 placeholder:text-stone-500"
                           onKeyDown={(e) => {
                             if (e.key !== "Enter") return;
                             const val = (e.currentTarget.value ?? "").trim().toLowerCase();
@@ -1249,11 +1253,11 @@ export function AdminContent(props: AdminContentProps) {
                             role="switch"
                             aria-checked={false}
                           >
-                            <span className="flex h-6 w-12 items-center rounded-full bg-stone-300 transition-colors duration-200">
-                              <span className="absolute right-1.5 text-[8px] font-bold text-stone-500 select-none">
+                            <span className="relative flex h-6 w-12 items-center rounded-full bg-stone-400 transition-colors duration-200">
+                              <span className="absolute left-0.5 top-1/2 h-4 w-4 -translate-y-1/2 rounded-full bg-white shadow" />
+                              <span className="absolute right-1 z-10 text-[9px] font-extrabold text-white drop-shadow-sm select-none">
                                 關閉
                               </span>
-                              <span className="ml-1 h-4 w-4 rounded-full bg-white shadow" />
                             </span>
                           </button>
                         </div>
@@ -1725,7 +1729,7 @@ export function AdminModals({
                     <select
                       value={adminGrantRole}
                       onChange={(e) => onSetAdminGrantRole(e.target.value)}
-                      className="cd-field flex-1 text-[13px]"
+                      className="cd-field min-w-0 flex-1 text-[13px]"
                     >
                       <option value="moderator">管理員</option>
                       <option value="reviewer">審核員</option>
@@ -1740,24 +1744,22 @@ export function AdminModals({
                     >
                       <span
                         className={cn(
-                          "flex h-7 w-14 items-center rounded-full transition-colors duration-200",
-                          adminGrantActive ? "bg-emerald-500" : "bg-stone-300",
+                          "relative flex h-7 w-14 items-center rounded-full transition-colors duration-200",
+                          adminGrantActive ? "bg-emerald-500" : "bg-stone-500",
                         )}
                       >
                         <span
                           className={cn(
-                            "absolute top-1/2 -translate-y-1/2 text-[9px] font-bold transition-all duration-200 select-none",
-                            adminGrantActive
-                              ? "left-2 text-white"
-                              : "right-1.5 text-stone-500",
+                            "absolute top-1/2 z-10 -translate-y-1/2 text-[10px] font-extrabold select-none drop-shadow-sm",
+                            adminGrantActive ? "left-1.5 text-white" : "right-1.5 text-white",
                           )}
                         >
                           {adminGrantActive ? "開啟" : "關閉"}
                         </span>
                         <span
                           className={cn(
-                            "h-5 w-5 rounded-full bg-white shadow transition-all duration-200",
-                            adminGrantActive ? "ml-[calc(100%-1.35rem)]" : "ml-1",
+                            "absolute top-1/2 h-5 w-5 -translate-y-1/2 rounded-full bg-white shadow transition-all duration-200",
+                            adminGrantActive ? "right-0.5" : "left-0.5",
                           )}
                         />
                       </span>
@@ -1829,7 +1831,7 @@ export function AdminModals({
                   <select
                     value={adminEditRole}
                     onChange={(e) => onSetAdminEditRole(e.target.value)}
-                    className="cd-field flex-1 text-[13px]"
+                    className="cd-field min-w-0 flex-1 text-[13px]"
                   >
                     <option value="moderator">管理員</option>
                     <option value="reviewer">審核員</option>
@@ -1856,18 +1858,18 @@ export function AdminModals({
                   >
                     <span
                       className={cn(
-                        "flex h-7 w-14 items-center rounded-full transition-colors duration-200",
+                        "relative flex h-7 w-14 items-center rounded-full transition-colors duration-200",
                         adminEditRole === "super_admin" || adminEditActive
                           ? "bg-emerald-500"
-                          : "bg-stone-300",
+                          : "bg-stone-500",
                       )}
                     >
                       <span
                         className={cn(
-                          "absolute top-1/2 -translate-y-1/2 text-[9px] font-bold transition-all duration-200 select-none",
+                          "absolute top-1/2 z-10 -translate-y-1/2 text-[10px] font-extrabold select-none drop-shadow-sm",
                           adminEditRole === "super_admin" || adminEditActive
-                            ? "left-2 text-white"
-                            : "right-1.5 text-stone-500",
+                            ? "left-1.5 text-white"
+                            : "right-1.5 text-white",
                         )}
                       >
                         {adminEditRole === "super_admin" || adminEditActive
@@ -1876,10 +1878,10 @@ export function AdminModals({
                       </span>
                       <span
                         className={cn(
-                          "h-5 w-5 rounded-full bg-white shadow transition-all duration-200",
+                          "absolute top-1/2 h-5 w-5 -translate-y-1/2 rounded-full bg-white shadow transition-all duration-200",
                           adminEditRole === "super_admin" || adminEditActive
-                            ? "ml-[calc(100%-1.35rem)]"
-                            : "ml-1",
+                            ? "right-0.5"
+                            : "left-0.5",
                         )}
                       />
                     </span>
