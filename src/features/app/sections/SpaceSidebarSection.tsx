@@ -22,9 +22,9 @@ export function SpaceSidebarSection({
           </div>
           <div className="min-w-0">
             <p className="truncate text-[15px] font-bold text-white">
-              {isOwnSpace ? displayName : displayName || "神秘旅人"}
+              {isOwnSpace ? displayName : displayName || "一位朋友"}
             </p>
-            <p className="text-[10px] font-medium text-[#8E8E93]">時光旅人</p>
+            <p className="text-[10px] font-medium text-[#8E8E93]">朋友動態</p>
           </div>
         </div>
         <div className="mt-4 grid grid-cols-2 gap-2 text-center">

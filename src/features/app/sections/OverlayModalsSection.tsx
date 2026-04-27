@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from "motion/react";
 import { Lock } from "lucide-react";
+import { reportTargetTypeLabel } from "../adminReportDisplay";
 import type { Message } from "../types";
 
 type ChatPeerProfile = {
@@ -296,7 +297,8 @@ export function OverlayModalsSection({
             >
               <p className="text-[18px] font-bold text-white">送出舉報</p>
               <p className="mt-1 text-[12px] font-medium text-[#8E8E93]">
-                類型：{reportTargetType} · 目標：{reportTargetId.slice(0, 18)}
+                類型：{reportTargetTypeLabel(reportTargetType)} · 目標 ID：
+                {reportTargetId.slice(0, 18)}
                 {reportTargetId.length > 18 ? "…" : ""}
               </p>
               <div className="mt-4 space-y-3">

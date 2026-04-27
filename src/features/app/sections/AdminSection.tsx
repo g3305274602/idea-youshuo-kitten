@@ -1,6 +1,7 @@
 import type React from "react";
+import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { Activity, Lock, X } from "lucide-react";
+import { Activity, ChevronRight, LayoutGrid, Lock, ShieldAlert, UserCog, X } from "lucide-react";
 import { Identity } from "spacetimedb";
 import { cn } from "../../../lib/utils";
 import type {
@@ -15,6 +16,72 @@ import type {
   UserSanction,
 } from "../../../module_bindings/types";
 import type { AdminSection, AdminReportFilter, AppTab } from "../types";
+import {
+  type PartyDisplay,
+  formatReportParty,
+  isReportClosedStatus,
+  reportReasonLabel,
+  reportStatusLabel,
+  reportTargetTypeLabel,
+  resolveReportTargetIdentityHex,
+  snapshotAuthorEmail,
+  snapshotIdentityHints,
+} from "../adminReportDisplay";
+
+function ReportCopyValueRow({
+  label,
+  value,
+  mono,
+}: {
+  label: string;
+  value: string;
+  mono?: boolean;
+}) {
+  const [copied, setCopied] = useState(false);
+  const v = value.trim();
+  if (!v) return null;
+  return (
+    <div className="flex min-w-0 items-start gap-1.5">
+      <span className="shrink-0 pt-0.5 text-[9px] text-white/40">{label}</span>
+      <span
+        className={cn(
+          "min-w-0 flex-1 break-all text-[10px] leading-snug text-white/75",
+          mono && "font-mono text-[9px] text-white/85",
+        )}
+      >
+        {v}
+      </span>
+      <button
+        type="button"
+        onClick={() => {
+          void navigator.clipboard.writeText(v).then(() => {
+            setCopied(true);
+            window.setTimeout(() => setCopied(false), 2000);
+          });
+        }}
+        className="shrink-0 rounded-md border border-white/12 bg-white/[0.06] px-1.5 py-0.5 text-[9px] font-bold text-[#FFD54F] hover:bg-white/10"
+      >
+        {copied ? "已複製" : "複製"}
+      </button>
+    </div>
+  );
+}
+
+function ReportPartyCopyBlock({ party }: { party: PartyDisplay }) {
+  const hasAny =
+    party.emailForCopy.trim() ||
+    party.accountIdForCopy.trim() ||
+    party.identityHex.trim();
+  if (!hasAny) return null;
+  return (
+    <div className="mt-1.5 space-y-1 border-t border-white/10 pt-1.5">
+      <p className="text-[9px] font-bold text-white/35">一鍵複製（帳務／搜尋）</p>
+      <ReportCopyValueRow label="信箱" value={party.emailForCopy} />
+      <ReportCopyValueRow label="帳號 ID" value={party.accountIdForCopy} mono />
+      <ReportCopyValueRow label="Identity" value={party.identityHex} mono />
+    </div>
+  );
+}
 
 type AdminSidebarProps = {
   activeTab: Extract<AppTab, "admin" | "admin_ops">;
@@ -49,6 +116,10 @@ export function AdminSidebar({
   onSelectReports,
   onSelectReview,
 }: AdminSidebarProps) {
+  const unresolvedReportCount = adminReportsSorted.filter(
+    (r) => !isReportClosedStatus(r.status),
+  ).length;
+
   if (!isAdmin) {
     return (
       <div className="py-8 px-4 text-center">
@@ -97,58 +168,87 @@ export function AdminSidebar({
     );
   }
 
+  /** 左側選中條用 border，不用 inset shadow：全域 button:focus { box-shadow:none } 會吃掉 shadow。 */
+  const rowBaseClass =
+    "relative box-border flex w-full items-center gap-3 border-l-[3px] border-l-transparent px-3 py-2.5 text-left text-white/90 transition-[background-color,border-color] hover:bg-white/[0.04]";
+  const rowActiveClass = "border-l-[#FFD54F] bg-[#FFD54F]/10";
+
   return (
-    <div className="space-y-2">
+    <div className="relative z-[1] overflow-hidden rounded-2xl border border-white/10 bg-[rgba(26,27,34,0.65)] backdrop-blur-[16px] [-webkit-backdrop-filter:blur(16px)] shadow-[inset_0_0_10px_rgba(255,255,255,0.02)]">
       {isSuperAdmin ? (
         <button
           type="button"
           onClick={onSelectAdminOpsMain}
           className={cn(
-            "w-full rounded-xl border-2 px-3 py-2 text-left text-[12px] font-bold transition-all",
-            activeTab === "admin_ops" && adminSection === "main"
-              ? "border-emerald-300 bg-emerald-50 text-emerald-800 ring-2 ring-emerald-300/40"
-              : "border-black/[0.08] bg-white text-stone-700 hover:border-black/[0.15]",
+            rowBaseClass,
+            activeTab === "admin_ops" &&
+              adminSection === "main" &&
+              rowActiveClass,
           )}
+          aria-current={
+            activeTab === "admin_ops" && adminSection === "main"
+              ? "page"
+              : undefined
+          }
         >
-          可視化總覽
+          <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#a78bfa]">
+            <LayoutGrid className="h-4 w-4 text-white" strokeWidth={2.6} aria-hidden />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-[15px] font-semibold leading-tight text-white">可視化總覽</span>
+            <span className="mt-0.5 block text-[11px] font-normal text-[#8E8E93]">超級管理面板</span>
+          </span>
+          <ChevronRight className="h-[18px] w-[18px] text-slate-400" aria-hidden />
+          <span className="pointer-events-none absolute bottom-0 left-[3.25rem] right-3 h-px bg-white/10" aria-hidden />
         </button>
       ) : null}
+
       <button
         type="button"
         onClick={onSelectReports}
-        className={cn(
-          "flex w-full items-center justify-between rounded-xl border-2 px-3 py-2 text-left text-[12px] font-bold transition-all",
-          adminSection === "reports"
-            ? "border-rose-300 bg-rose-50 text-rose-800 ring-2 ring-rose-300/40"
-            : "border-black/[0.08] bg-white text-stone-700 hover:border-black/[0.15]",
-        )}
+        className={cn(rowBaseClass, adminSection === "reports" && rowActiveClass)}
+        aria-current={adminSection === "reports" ? "page" : undefined}
       >
-        <span>處理舉報</span>
-        {adminReportsSorted.filter((r) => r.status !== "resolved").length > 0 ? (
-          <span
-            className={cn(
-              "inline-flex items-center justify-center rounded-full px-1.5 py-0.5 text-[9px] font-bold",
-              adminSection === "reports"
-                ? "bg-rose-500 text-white"
-                : "bg-rose-100 text-rose-700",
-            )}
-          >
-            {adminReportsSorted.filter((r) => r.status !== "resolved").length}
+        <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#F06292]">
+          <ShieldAlert className="h-4 w-4 text-white" strokeWidth={2.6} aria-hidden />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-[15px] font-semibold leading-tight text-white">處理舉報</span>
+          <span className="mt-0.5 block text-[11px] font-normal text-[#8E8E93]">待處理案件與裁定</span>
+        </span>
+        {unresolvedReportCount > 0 ? (
+          <span className="mr-1 inline-flex min-h-[1.4rem] min-w-[1.4rem] items-center justify-center rounded-full border border-red-200/40 bg-[linear-gradient(145deg,#ff2d6a_0%,#e11d48_45%,#fb923c_100%)] px-2 py-0.5 text-[12px] font-black tabular-nums text-white shadow-[0_0_12px_3px_rgba(244,63,94,0.55),0_1px_0_rgba(0,0,0,0.2)_inset]">
+            {unresolvedReportCount}
           </span>
         ) : null}
+        <ChevronRight className="h-[18px] w-[18px] text-slate-400" aria-hidden />
+        <span className="pointer-events-none absolute bottom-0 left-[3.25rem] right-3 h-px bg-white/10" aria-hidden />
       </button>
+
       <button
         type="button"
         onClick={onSelectReview}
         className={cn(
-          "w-full rounded-xl border-2 px-3 py-2 text-left text-[12px] font-bold transition-all",
-          (activeTab === "admin" && adminSection === "main") ||
-            adminSection === "review"
-            ? "border-violet-300 bg-violet-50 text-violet-800 ring-2 ring-violet-300/40"
-            : "border-black/[0.08] bg-white text-stone-700 hover:border-black/[0.15]",
+          rowBaseClass,
+          ((activeTab === "admin" && adminSection === "main") ||
+            adminSection === "review") &&
+            rowActiveClass,
         )}
+        aria-current={
+          (activeTab === "admin" && adminSection === "main") ||
+          adminSection === "review"
+            ? "page"
+            : undefined
+        }
       >
-        帳號審核管理
+        <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#69c49b]">
+          <UserCog className="h-4 w-4 text-white" strokeWidth={2.6} aria-hidden />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-[15px] font-semibold leading-tight text-white">帳號審核管理</span>
+          <span className="mt-0.5 block text-[11px] font-normal text-[#8E8E93]">管理員與審核設定</span>
+        </span>
+        <ChevronRight className="h-[18px] w-[18px] text-slate-400" aria-hidden />
       </button>
     </div>
   );
@@ -354,7 +454,7 @@ export function AdminContent(props: AdminContentProps) {
       <div className="flex flex-col md:flex-row h-full min-h-0 w-full">
         <div
           className={cn(
-            "md:w-80 shrink-0 border-r border-black/[0.06] flex flex-col overflow-hidden",
+            "md:w-80 shrink-0 border-r border-white/10 flex flex-col overflow-hidden",
             selectedAdminReportId !== null ? "hidden md:flex" : "flex",
           )}
         >
@@ -362,7 +462,7 @@ export function AdminContent(props: AdminContentProps) {
             申訴：{appealTicketRows.length} · 處分：
             {userSanctionRows.length} · 待審核：{moderationQueueRows.length}
           </div>
-          <div className="shrink-0 flex rounded-[99px] items-center gap-1 border-b border-black/[0.05] bg-stone-50 px-[1px] py-[1px]">
+          <div className="shrink-0 flex rounded-[99px] items-center gap-1 border-b border-white/10 bg-white/[0.04] px-[1px] py-[1px]">
             <button
               type="button"
               onClick={() => onSetAdminReportFilter("pending")}
@@ -370,10 +470,10 @@ export function AdminContent(props: AdminContentProps) {
                 "flex-1 rounded-[99px] rounded-r-[0px] py-1.5 text-[11px] font-bold transition-colors",
                 adminReportFilter === "pending"
                   ? "bg-rose-500 text-white"
-                  : "text-stone-500 hover:bg-stone-200",
+                  : "text-white/60 hover:bg-white/[0.08]",
               )}
             >
-              待處理 ({adminReportsSorted.filter((r) => r.status !== "resolved").length})
+              待處理 ({adminReportsSorted.filter((r) => !isReportClosedStatus(r.status)).length})
             </button>
             <button
               type="button"
@@ -381,24 +481,31 @@ export function AdminContent(props: AdminContentProps) {
               className={cn(
                 "flex-1 rounded-[99px] rounded-l-[0px] py-1.5 text-[11px] font-bold transition-colors",
                 adminReportFilter === "resolved"
-                  ? "bg-stone-600 text-white"
-                  : "text-stone-500 hover:bg-stone-200",
+                  ? "bg-white/25 text-white"
+                  : "text-white/60 hover:bg-white/[0.08]",
               )}
             >
-              已處理 ({adminReportsSorted.filter((r) => r.status === "resolved").length})
+              已處理 ({adminReportsSorted.filter((r) => isReportClosedStatus(r.status)).length})
             </button>
           </div>
           <div className="flex-1 overflow-y-auto apple-scroll p-2 space-y-1.5">
             {adminReportsSorted
               .filter((r) =>
                 adminReportFilter === "resolved"
-                  ? r.status === "resolved"
-                  : r.status !== "resolved",
+                  ? isReportClosedStatus(r.status)
+                  : !isReportClosedStatus(r.status),
               )
               .map((r) => {
-                const assignedProfile = r.assignedAdminIdentity
-                  ? profileByIdentityHex.get(r.assignedAdminIdentity.toHexString())
+                const assigneeHex = r.assignedAdminIdentity?.toHexString() ?? "";
+                const assignedProfile = assigneeHex
+                  ? profileByIdentityHex.get(assigneeHex)
                   : undefined;
+                const assigneeParty =
+                  assigneeHex && r.assignedAdminIdentity
+                    ? formatReportParty(assignedProfile, assigneeHex, {
+                        emailFallback: adminEmailByHex.get(assigneeHex),
+                      })
+                    : null;
                 const isSelected = selectedAdminReportId === r.id;
                 return (
                   <button
@@ -408,32 +515,39 @@ export function AdminContent(props: AdminContentProps) {
                     className={cn(
                       "ys-tap-list-row w-full text-left rounded-xl border px-3 py-2 transition-all",
                       isSelected
-                        ? "border-rose-300/60 bg-rose-50 ring-2 ring-rose-300/40"
-                        : "border-black/[0.06] bg-white hover:border-black/[0.12]",
+                        ? "border-rose-300/60 bg-rose-500/15 ring-2 ring-rose-300/30"
+                        : "border-white/10 bg-white/[0.04] hover:border-white/20",
                     )}
                   >
                     <div className="flex items-center justify-between gap-1">
                       <span
                         className={cn(
-                          "text-[10px] font-bold uppercase",
-                          r.status === "resolved" ? "text-stone-400" : "text-rose-600",
+                          "text-[10px] font-bold",
+                          r.status.toLowerCase() === "resolved" ||
+                            r.status.toLowerCase() === "dismissed" ||
+                            r.status.toLowerCase() === "rejected"
+                            ? "text-stone-400"
+                            : "text-rose-600",
                         )}
                       >
-                        {r.status}
+                        {reportStatusLabel(r.status)}
                       </span>
-                      <span className="text-[10px] text-black/30 tabular-nums">
+                      <span className="text-[10px] text-white/45 tabular-nums">
                         {r.updatedAt.toDate().toLocaleDateString("zh-TW", {
                           month: "numeric",
                           day: "numeric",
                         })}
                       </span>
                     </div>
-                    <p className="mt-0.5 text-[12px] font-semibold text-stone-900 truncate">
-                      {r.targetType} · {r.reasonCode || "無原因"}
+                    <p className="mt-0.5 text-[12px] font-semibold text-white truncate">
+                      {reportTargetTypeLabel(r.targetType)} · {reportReasonLabel(r.reasonCode)}
                     </p>
-                    {assignedProfile ? (
-                      <p className="mt-0.5 text-[10px] text-stone-500 truncate">
-                        處理：{assignedProfile.displayName || assignedProfile.email}
+                    {assigneeParty ? (
+                      <p className="mt-0.5 text-[10px] text-white/60 truncate">
+                        處理：{assigneeParty.primary}
+                        {assigneeParty.accountIdLine
+                          ? ` · ${assigneeParty.accountIdLine.replace(/^帳號 ID：/, "")}`
+                          : ""}
                       </p>
                     ) : null}
                   </button>
@@ -441,10 +555,10 @@ export function AdminContent(props: AdminContentProps) {
               })}
             {adminReportsSorted.filter((r) =>
               adminReportFilter === "resolved"
-                ? r.status === "resolved"
-                : r.status !== "resolved",
+                ? isReportClosedStatus(r.status)
+                : !isReportClosedStatus(r.status),
             ).length === 0 ? (
-              <p className="py-6 text-center text-[12px] text-stone-400">
+              <p className="py-6 text-center text-[12px] text-white/50">
                 {adminReportFilter === "resolved" ? "尚無已處理舉報" : "目前沒有待處理舉報"}
               </p>
             ) : null}
@@ -461,25 +575,25 @@ export function AdminContent(props: AdminContentProps) {
         >
           {!selectedAdminReport ? (
             <div className="text-center">
-              <Lock className="w-10 h-10 mx-auto text-black/10 mb-2" />
-              <p className="text-[13px] text-black/35">從左側選一張舉報單</p>
+              <Lock className="w-10 h-10 mx-auto text-white/20 mb-2" />
+              <p className="text-[13px] text-white/45">從左側選一張舉報單</p>
             </div>
           ) : (
             (() => {
               const r = selectedAdminReport;
-              const reporterProfile = profileByIdentityHex.get(
-                r.reporterIdentity.toHexString(),
+              const reporterHex = r.reporterIdentity.toHexString();
+              const reporterProfile = profileByIdentityHex.get(reporterHex);
+              const snapHints = snapshotIdentityHints(selectedAdminSnapshot);
+              let targetAccountHex = resolveReportTargetIdentityHex(
+                r,
+                capsuleMessageRows,
+                squarePostRows,
               );
-              const targetAccountHex =
-                r.targetType === "chat_account"
-                  ? r.targetId
-                  : r.targetType === "capsule"
-                    ? (capsuleMessageRows.find((c) => c.id === r.targetId)?.authorIdentity.toHexString() ??
-                      null)
-                    : r.targetType === "square_post"
-                      ? (squarePostRows.find((p) => p.sourceMessageId === r.targetId)?.publisherIdentity.toHexString() ??
-                        null)
-                      : null;
+              const ttLower = r.targetType.trim().toLowerCase();
+              if (!targetAccountHex && ttLower === "capsule" && snapHints.authorHex)
+                targetAccountHex = snapHints.authorHex;
+              if (!targetAccountHex && ttLower === "square_post" && snapHints.publisherHex)
+                targetAccountHex = snapHints.publisherHex;
               const targetProfile = targetAccountHex
                 ? profileByIdentityHex.get(targetAccountHex)
                 : undefined;
@@ -491,94 +605,184 @@ export function AdminContent(props: AdminContentProps) {
                 r.targetType === "square_post"
                   ? squarePostRows.find((p) => p.sourceMessageId === r.targetId)
                   : undefined;
+              const snapAuthorEmail = snapshotAuthorEmail(
+                r.targetType,
+                selectedAdminSnapshot?.snapshotJson,
+              );
+              const reporterParty = formatReportParty(reporterProfile, reporterHex, {
+                emailFallback:
+                  (r.reporterEmail && r.reporterEmail.trim()) ||
+                  adminEmailByHex.get(reporterHex) ||
+                  undefined,
+                accountIdFallback:
+                  (r.reporterAccountId && r.reporterAccountId.trim()) || undefined,
+              });
+              const targetHexForParty = targetAccountHex ?? "";
+              const targetParty = formatReportParty(targetProfile, targetHexForParty, {
+                emailFallback:
+                  (targetHexForParty
+                    ? adminEmailByHex.get(targetHexForParty)
+                    : undefined) ||
+                  (targetCapsule?.authorEmail?.trim() || undefined) ||
+                  (targetSquare?.snapshotSenderEmail?.trim() || undefined) ||
+                  (snapAuthorEmail || undefined),
+                accountIdFallback:
+                  targetCapsule?.authorAccountId?.trim() ||
+                  targetSquare?.publisherAccountId?.trim() ||
+                  undefined,
+                displayNameFallback:
+                  targetCapsule?.authorDisplayName?.trim() ||
+                  targetSquare?.snapshotPublisherName?.trim() ||
+                  undefined,
+              });
 
               return (
                 <div className="w-full max-w-2xl mx-auto space-y-4">
-                  <div className="rounded-2xl border border-black/[0.08] bg-white p-4 space-y-3">
+                  <div className="cd-card-raised rounded-2xl p-4 space-y-3">
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
                         <p
                           className={cn(
-                            "text-[11px] font-bold uppercase",
-                            r.status === "resolved" || r.status === "dismissed"
+                            "text-[11px] font-bold",
+                            ["resolved", "dismissed", "rejected"].includes(
+                              r.status.trim().toLowerCase(),
+                            )
                               ? "text-stone-400"
                               : "text-rose-600",
                           )}
                         >
-                          {r.status === "open"
-                            ? "待審核"
-                            : r.status === "in_review"
-                              ? "審核中"
-                              : r.status === "resolved"
-                                ? "已結案"
-                                : "不予處理"}
+                          {reportStatusLabel(r.status)}
                           {" · 優先級 "}
                           {Number(r.priority)}
                         </p>
-                        <p className="mt-0.5 text-[15px] font-black text-stone-900">
-                          {r.targetType === "capsule"
-                            ? "舉報膠囊"
-                            : r.targetType === "square_post"
-                              ? "舉報廣場貼文"
-                              : r.targetType === "chat_account"
-                                ? "舉報帳號"
-                                : "舉報聊天"}
+                        <p className="mt-0.5 text-[15px] font-black text-white">
+                          舉報
+                          {reportTargetTypeLabel(r.targetType)}
                           {" · "}
-                          {r.reasonCode || "未填原因"}
+                          {reportReasonLabel(r.reasonCode)}
                         </p>
                       </div>
                       <button
                         type="button"
                         onClick={onClearSelectedAdminReport}
-                        className="md:hidden shrink-0 rounded-full p-1 hover:bg-stone-100"
+                        className="md:hidden shrink-0 rounded-full p-1 hover:bg-white/10"
                       >
-                        <X className="h-4 w-4 text-stone-500" />
+                        <X className="h-4 w-4 text-white/60" />
                       </button>
                     </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="rounded-xl border border-stone-100 bg-stone-50 px-3 py-2 text-[11px] space-y-0.5">
-                        <p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                      <div className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-[11px] space-y-1">
+                        <p className="text-[10px] font-bold tracking-wide text-white/45">
                           舉報人
                         </p>
-                        <p className="font-semibold text-stone-800 truncate">
-                          {reporterProfile?.displayName || "未命名"}
+                        <p className="font-semibold text-white break-words">
+                          {reporterParty.primary}
                         </p>
-                        <p className="text-stone-500 truncate">
-                          {reporterProfile?.email ||
-                            `${r.reporterIdentity.toHexString().slice(0, 16)}…`}
+                        <p className="text-white/60 text-[10px] break-all">
+                          {reporterParty.secondary}
                         </p>
+                        {reporterParty.accountIdLine ? (
+                          <p className="text-[10px] text-[#FFD54F]/90 break-all">
+                            {reporterParty.accountIdLine}
+                          </p>
+                        ) : null}
+                        <ReportPartyCopyBlock party={reporterParty} />
                       </div>
-                      <div className="rounded-xl border border-rose-100 bg-rose-50 px-3 py-2 text-[11px] space-y-0.5">
-                        <p className="text-[10px] font-bold uppercase tracking-wide text-rose-400">
-                          被舉報
+                      <div className="rounded-xl border border-rose-300/30 bg-rose-500/12 px-3 py-2 text-[11px] space-y-1">
+                        <p className="text-[10px] font-bold tracking-wide text-rose-200">
+                          被舉報對象
                         </p>
-                        <p className="font-semibold text-stone-800 truncate">
-                          {targetProfile?.displayName || "未命名"}
+                        <p className="font-semibold text-white break-words">
+                          {targetAccountHex ? targetParty.primary : "無法解析（請看目標 ID）"}
                         </p>
-                        <p className="text-stone-500 truncate">
-                          {targetProfile?.email || (targetAccountHex ? `${targetAccountHex.slice(0, 16)}…` : "—")}
+                        <p className="text-white/60 text-[10px] break-all">
+                          {targetAccountHex
+                            ? targetParty.secondary
+                            : `目標類型：${reportTargetTypeLabel(r.targetType)} · ID：${r.targetId}`}
                         </p>
+                        {targetParty.accountIdLine ? (
+                          <p className="text-[10px] text-[#FFD54F]/90 break-all">
+                            {targetParty.accountIdLine}
+                          </p>
+                        ) : null}
+                        {targetAccountHex ? (
+                          <ReportPartyCopyBlock party={targetParty} />
+                        ) : r.targetId.trim() ? (
+                          <div className="mt-1.5 space-y-1 border-t border-rose-400/20 pt-1.5">
+                            <p className="text-[9px] font-bold text-rose-200/80">
+                              一鍵複製（目標定位）
+                            </p>
+                            <ReportCopyValueRow label="目標 ID" value={r.targetId} mono />
+                          </div>
+                        ) : null}
                       </div>
                     </div>
+                    <p className="text-[9px] leading-relaxed text-white/40">
+                      帳號以「信箱／帳號 ID」為準，換裝置登入不變。新版舉報單會一併儲存舉報人帳號／信箱；
+                      舊單若仍只見 hex，代表建立時尚未寫入，可改看存證或膠囊／廣場列表上的作者快照。
+                      Identity 為送出當下的連線身份，可能與目前檔案鑰匙不同；搜尋用戶請優先複製「信箱」或「帳號
+                      ID」。
+                    </p>
                     {r.detailText ? (
-                      <p className="whitespace-pre-wrap text-[12px] text-stone-700 leading-relaxed">
-                        {r.detailText}
-                      </p>
-                    ) : null}
-                    {selectedAdminSnapshot ? (
-                      <div className="rounded-lg bg-stone-50 border border-stone-200 p-2 text-[11px] text-stone-600 whitespace-pre-wrap">
-                        快照：{selectedAdminSnapshot.snapshotText}
-                      </div>
-                    ) : null}
-                    {targetCapsule || targetSquare ? (
-                      <div className="rounded-xl border border-black/[0.06] bg-white p-3 text-[11px] space-y-1">
-                        <p className="font-bold text-stone-700">被舉報內容預覽</p>
-                        <p className="text-stone-600 line-clamp-3 whitespace-pre-wrap">
-                          {targetCapsule?.content ?? targetSquare?.snapshotContent ?? "—"}
+                      <div className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2">
+                        <p className="text-[10px] font-bold text-white/45">舉報說明</p>
+                        <p className="mt-1 whitespace-pre-wrap text-[12px] text-white/85 leading-relaxed">
+                          {r.detailText}
                         </p>
                       </div>
                     ) : null}
-                    <div className="text-[10px] text-stone-400 space-y-0.5">
+                    {(() => {
+                      const snapshotBody =
+                        selectedAdminSnapshot?.snapshotText?.trim() ?? "";
+                      const liveBody = (
+                        targetCapsule?.content ??
+                        targetSquare?.snapshotContent ??
+                        ""
+                      ).trim();
+                      const hasSnap = snapshotBody.length > 0;
+                      const hasLive = liveBody.length > 0;
+                      const same = hasSnap && hasLive && snapshotBody === liveBody;
+                      if (!hasSnap && !hasLive) return null;
+                      if (same) {
+                        return (
+                          <div className="rounded-xl border border-white/12 bg-white/[0.05] p-3 text-[11px] space-y-1">
+                            <p className="font-bold text-[#FFD54F]/90">被舉報內容</p>
+                            <p className="text-white/75 whitespace-pre-wrap leading-relaxed">
+                              {liveBody || snapshotBody}
+                            </p>
+                            <p className="text-[10px] text-white/40">
+                              與舉報當下存證一致；若之後遭修改，此處會隨資料更新。
+                            </p>
+                          </div>
+                        );
+                      }
+                      return (
+                        <div className="space-y-2">
+                          {hasSnap ? (
+                            <div className="rounded-xl border border-amber-400/25 bg-amber-500/10 p-3 text-[11px] space-y-1">
+                              <p className="font-bold text-amber-100/95">舉報當下存證（不可改）</p>
+                              <p className="text-white/80 whitespace-pre-wrap leading-relaxed">
+                                {snapshotBody}
+                              </p>
+                            </div>
+                          ) : null}
+                          {hasLive ? (
+                            <div className="rounded-xl border border-white/10 bg-white/[0.04] p-3 text-[11px] space-y-1">
+                              <p className="font-bold text-white/90">目前平台上的內容</p>
+                              <p className="text-white/70 whitespace-pre-wrap leading-relaxed">
+                                {liveBody}
+                              </p>
+                              {hasSnap ? (
+                                <p className="text-[10px] text-white/45">
+                                  若與上方存證不同，表示事後曾被編輯或狀態變更。
+                                </p>
+                              ) : null}
+                            </div>
+                          ) : null}
+                        </div>
+                      );
+                    })()}
+                    <div className="text-[10px] text-white/45 space-y-0.5">
                       <p>
                         建立：
                         {r.createdAt.toDate().toLocaleString("zh-TW", {
@@ -600,34 +804,50 @@ export function AdminContent(props: AdminContentProps) {
                         })}
                       </p>
                       {r.assignedAdminIdentity ? (
-                        <p>
-                          處理人：
-                          {profileByIdentityHex.get(r.assignedAdminIdentity.toHexString())?.displayName ||
-                            adminEmailByHex.get(r.assignedAdminIdentity.toHexString()) ||
-                            "—"}
-                        </p>
+                        <div className="space-y-0.5">
+                          <p>處理人（管理員）</p>
+                          {(() => {
+                            const h = r.assignedAdminIdentity!.toHexString();
+                            const p = formatReportParty(
+                              profileByIdentityHex.get(h),
+                              h,
+                              { emailFallback: adminEmailByHex.get(h) },
+                            );
+                            return (
+                              <>
+                                <p className="text-white/70">{p.primary}</p>
+                                <p className="break-all text-white/55">{p.secondary}</p>
+                                {p.accountIdLine ? (
+                                  <p className="break-all text-[#FFD54F]/85">{p.accountIdLine}</p>
+                                ) : null}
+                                <ReportPartyCopyBlock party={p} />
+                              </>
+                            );
+                          })()}
+                        </div>
                       ) : null}
                       {r.resolutionNote ? <p>說明：{r.resolutionNote}</p> : null}
                     </div>
                   </div>
 
-                  <div className="rounded-2xl border border-black/[0.08] bg-white p-4 space-y-3">
-                    <p className="text-[13px] font-black text-stone-900">審核操作</p>
+                  <div className="cd-card-raised rounded-2xl p-4 space-y-3">
+                    <p className="text-[13px] font-black text-white">審核操作</p>
                     <div className="grid grid-cols-2 gap-2">
-                      <label className="text-[11px] font-bold text-stone-600">
+                      <label className="text-[11px] font-bold text-white/70">
                         狀態
                         <select
                           value={adminReportStatus}
                           onChange={(e) => onSetAdminReportStatus(e.target.value)}
-                          className="mt-1 w-full rounded-lg border border-stone-300 bg-stone-50 px-2 py-1.5 text-[13px]"
+                          className="cd-field mt-1 text-[13px]"
                         >
                           <option value="open">待審核</option>
                           <option value="in_review">審核中</option>
                           <option value="resolved">已結案</option>
                           <option value="dismissed">不予處理</option>
+                          <option value="rejected">已駁回</option>
                         </select>
                       </label>
-                      <label className="text-[11px] font-bold text-stone-600">
+                      <label className="text-[11px] font-bold text-white/70">
                         優先級（0-9）
                         <input
                           type="number"
@@ -639,11 +859,11 @@ export function AdminContent(props: AdminContentProps) {
                               Math.max(0, Math.min(9, Number(e.target.value) || 0)),
                             )
                           }
-                          className="mt-1 w-full rounded-lg border border-stone-300 bg-stone-50 px-2 py-1.5 text-[13px]"
+                          className="cd-field mt-1 text-[13px]"
                         />
                       </label>
                     </div>
-                    <label className="block text-[11px] font-bold text-stone-600">
+                    <label className="block text-[11px] font-bold text-white/70">
                       備註說明
                       <span className="ml-1 text-[10px] font-normal text-stone-400">
                         （同步存入帳號處分記錄，用於舉報結果通知）
@@ -656,7 +876,7 @@ export function AdminContent(props: AdminContentProps) {
                           onSetSanctionDetailDraft(e.target.value);
                         }}
                         placeholder="例：言論違規，已給予警告"
-                        className="mt-1 w-full rounded-lg border border-stone-300 bg-stone-50 px-2 py-1.5 text-[13px]"
+                        className="cd-field mt-1 min-h-[3.5rem] text-[13px]"
                       />
                     </label>
                     <button
@@ -669,8 +889,8 @@ export function AdminContent(props: AdminContentProps) {
                     </button>
 
                     {targetCapsule || targetSquare ? (
-                      <div className="border-t border-stone-100 pt-3 space-y-1">
-                        <p className="text-[11px] font-bold text-stone-600">刪除違規內容</p>
+                    <div className="border-t border-white/10 pt-3 space-y-1">
+                        <p className="text-[11px] font-bold text-white/70">刪除違規內容</p>
                         {targetCapsule ? (
                           <button
                             type="button"
@@ -700,8 +920,8 @@ export function AdminContent(props: AdminContentProps) {
                       </div>
                     ) : null}
 
-                    <div className="border-t border-stone-100 pt-3 space-y-2">
-                      <p className="text-[12px] font-black text-stone-900">
+                    <div className="border-t border-white/10 pt-3 space-y-2">
+                      <p className="text-[12px] font-black text-white">
                         帳號快速動作{!targetAccountHex ? "（無法識別帳號）" : ""}
                       </p>
                       {targetAccountHex ? (
@@ -804,7 +1024,7 @@ export function AdminContent(props: AdminContentProps) {
                           </button>
                         </div>
                       ) : null}
-                      <p className="text-[10px] text-stone-400">
+                      <p className="text-[10px] text-white/45">
                         備註說明會同步帶入上方「備註說明」欄位
                       </p>
                     </div>
@@ -1054,23 +1274,23 @@ export function AdminContent(props: AdminContentProps) {
 
   return (
     <div className="max-w-2xl w-full mx-auto space-y-3">
-      <div className="rounded-2xl border border-black/[0.08] bg-white p-4 space-y-3">
+      <div className="cd-card-raised rounded-2xl p-4 space-y-3">
         <div className="flex items-center justify-between gap-2">
-          <p className="text-[13px] font-black text-stone-900">管理帳號</p>
-          <span className="text-[11px] font-semibold text-stone-500">
+          <p className="text-[13px] font-black text-white">管理帳號</p>
+          <span className="text-[11px] font-semibold text-white/60">
             共 {activeAdminRows.length} 位啟用
           </span>
         </div>
         {activeAdminRows.length === 0 ? (
-          <p className="text-[12px] text-stone-500">目前還沒有管理帳號。</p>
+          <p className="text-[12px] text-white/60">目前還沒有管理帳號。</p>
         ) : (
           <ul className="space-y-1.5">
             {activeAdminRows.map((r) => (
               <li
                 key={r.adminIdentity.toHexString()}
-                className="rounded-lg border border-stone-200 bg-stone-50 px-2 py-1.5 text-[12px] text-stone-700 break-all"
+                className="rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1.5 text-[12px] text-white/80 break-all"
               >
-                <span className="font-bold text-stone-900">{r.role}</span> ·{" "}
+                <span className="font-bold text-white">{r.role}</span> ·{" "}
                 {r.adminIdentity.toHexString()}
                 {r.adminIdentity.isEqual(identity) ? "（你）" : ""}
               </li>
@@ -1078,17 +1298,17 @@ export function AdminContent(props: AdminContentProps) {
           </ul>
         )}
       </div>
-      <div className="rounded-2xl border border-black/[0.08] bg-white p-4 space-y-3">
-        <p className="text-[13px] font-black text-stone-900">帳號搜尋與一鍵停權 / 復權</p>
+      <div className="cd-card-raised rounded-2xl p-4 space-y-3">
+        <p className="text-[13px] font-black text-white">帳號搜尋與一鍵停權 / 復權</p>
         <input
           value={adminAccountSearch}
           onChange={(e) => onSetAdminAccountSearch(e.target.value)}
           placeholder="搜尋暱稱 / 信箱 / identity"
-          className="w-full rounded-lg border border-stone-300 bg-stone-50 px-2 py-1.5 text-[12px] text-stone-800"
+          className="cd-field text-[12px]"
         />
-        <div className="max-h-40 overflow-y-auto rounded-lg border border-stone-200 bg-stone-50 p-1">
+        <div className="max-h-40 overflow-y-auto rounded-lg border border-white/10 bg-white/[0.03] p-1">
           {adminSearchRows.length === 0 ? (
-            <p className="px-2 py-2 text-[12px] text-stone-500">找不到符合帳號</p>
+            <p className="px-2 py-2 text-[12px] text-white/55">找不到符合帳號</p>
           ) : (
             adminSearchRows.map((p) => {
               const hx = p.ownerIdentity.toHexString();
@@ -1101,8 +1321,8 @@ export function AdminContent(props: AdminContentProps) {
                   className={cn(
                     "mb-1 w-full rounded-md border px-2 py-1.5 text-left text-[12px] transition-all",
                     selected
-                      ? "border-violet-300 bg-violet-50 text-violet-800 ring-2 ring-violet-300/40"
-                      : "border-stone-200 bg-white text-stone-700 hover:bg-stone-100",
+                      ? "border-violet-300/60 bg-violet-500/16 text-violet-100 ring-2 ring-violet-300/30"
+                      : "border-white/10 bg-white/[0.04] text-white/80 hover:bg-white/[0.08]",
                   )}
                 >
                   <p className="font-bold">{p.displayName || "(未命名)"}</p>
@@ -1112,17 +1332,17 @@ export function AdminContent(props: AdminContentProps) {
             })
           )}
         </div>
-        <div className="rounded-lg border border-stone-200 bg-stone-50 px-2 py-2">
-          <p className="text-[11px] font-bold text-stone-700">
+        <div className="rounded-lg border border-white/10 bg-white/[0.04] px-2 py-2">
+          <p className="text-[11px] font-bold text-white/85">
             目前選中：
             {selectedAdminTargetProfile
               ? `${selectedAdminTargetProfile.displayName || "(未命名)"} / ${selectedAdminTargetProfile.email}`
               : "未選擇帳號"}
           </p>
-          <p className="mt-0.5 break-all text-[10px] text-stone-500">
+          <p className="mt-0.5 break-all text-[10px] text-white/55">
             {adminTargetIdentityHex || "—"}
           </p>
-          <p className="mt-1 text-[10px] text-stone-500">
+          <p className="mt-1 text-[10px] text-white/55">
             啟用處分：{activeSanctionsForTarget.length}（ban：
             {activeSanctionsForTarget.filter((s) => s.sanctionType === "ban").length}）
           </p>
@@ -1258,8 +1478,8 @@ export function AdminModals({
               <div className="mb-3 flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <p className="text-[16px] font-bold text-white">處理舉報單</p>
-                  <p className="mt-0.5 text-[12px] font-bold text-rose-600 uppercase">
-                    {selectedAdminReport.status} · 優先級{" "}
+                  <p className="mt-0.5 text-[12px] font-bold text-rose-400">
+                    {reportStatusLabel(selectedAdminReport.status)} · 優先級{" "}
                     {Number(selectedAdminReport.priority)}
                   </p>
                 </div>
@@ -1274,11 +1494,12 @@ export function AdminModals({
               <div className="mb-3 space-y-1 rounded-xl border border-white/10 bg-white/[0.04] p-3 text-[12px] text-white/90">
                 <p>
                   <span className="font-bold text-[#8E8E93]">類型：</span>
-                  {selectedAdminReport.targetType} ·{" "}
-                  {selectedAdminReport.reasonCode || "未填原因"}
+                  {reportTargetTypeLabel(selectedAdminReport.targetType)} ·{" "}
+                  {reportReasonLabel(selectedAdminReport.reasonCode)}
                 </p>
                 <p className="break-all">
-                  <span className="font-bold text-[#8E8E93]">目標：</span>
+                  <span className="font-bold text-[#8E8E93]">目標 ID：</span>
+                  {reportTargetTypeLabel(selectedAdminReport.targetType)} ·{" "}
                   {selectedAdminReport.targetId}
                 </p>
                 {selectedAdminReport.detailText ? (
@@ -1286,9 +1507,9 @@ export function AdminModals({
                     {selectedAdminReport.detailText}
                   </p>
                 ) : null}
-                {selectedAdminSnapshot ? (
-                  <p className="whitespace-pre-wrap text-[11px] text-[#8E8E93]">
-                    快照：{selectedAdminSnapshot.snapshotText}
+                {selectedAdminSnapshot?.snapshotText?.trim() ? (
+                  <p className="whitespace-pre-wrap text-[11px] text-white/55">
+                    舉報當下存證：{selectedAdminSnapshot.snapshotText}
                   </p>
                 ) : null}
               </div>
@@ -1305,6 +1526,7 @@ export function AdminModals({
                       <option value="in_review">審核中</option>
                       <option value="resolved">已結案</option>
                       <option value="dismissed">不予處理</option>
+                      <option value="rejected">已駁回</option>
                     </select>
                   </label>
                   <label className="text-[11px] font-bold text-stone-600">

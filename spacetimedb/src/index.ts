@@ -357,6 +357,12 @@ const reportTicket = table(
     createdAt: t.timestamp(),
     updatedAt: t.timestamp(),
     resolvedAt: t.timestamp().optional(),
+    /**
+     * 舉報建立當下寫入。預設用單一空白（maincloud 遷移對 `default("")` 的辨識可能失敗，見 STDB#4700 相關行為）；
+     * 讀取端請 trim；新列由 reducer 寫入真實值。
+     */
+    reporterAccountId: t.string().default(" "),
+    reporterEmail: t.string().default(" "),
   },
 );
 
@@ -1597,6 +1603,8 @@ export const create_report_ticket = spacetimedb.reducer(
       createdAt: ctx.timestamp,
       updatedAt: ctx.timestamp,
       resolvedAt: undefined,
+      reporterAccountId: pf.accountId,
+      reporterEmail: pf.email,
     });
     ctx.db.reportTargetSnapshot.insert({
       id: newMessageId(ctx.random),

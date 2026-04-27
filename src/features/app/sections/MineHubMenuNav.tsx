@@ -55,7 +55,7 @@ const menuItemDefs = [
   {
     key: "chat" as const,
     title: "聊聊記錄",
-    getSubtitle: () => "與宇宙人的對話",
+    getSubtitle: () => "與朋友的對話",
     iconClass: "ys-mine-menu-icon--green",
     icon: MessageCircle,
   },

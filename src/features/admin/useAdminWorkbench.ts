@@ -37,7 +37,7 @@ export function useAdminWorkbenchTables({
   myProfile,
   isMyReportTab,
 }: UseAdminWorkbenchTablesParams) {
-  const [adminRoleRows] = useTable(tables.adminRole);
+  const [adminRoleRows, adminRoleRowsLoading] = useTable(tables.adminRole);
   const rawIsAdmin = !!(
     myAccountId &&
     adminRoleRows.find((r) => r.accountId === myAccountId && r.isActive)
@@ -87,6 +87,7 @@ export function useAdminWorkbenchTables({
 
   return {
     adminRoleRows,
+    adminRoleRowsLoading,
     rawIsAdmin,
     adminProfiles,
     adminAuditLogRows,

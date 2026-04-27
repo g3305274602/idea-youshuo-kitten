@@ -112,9 +112,9 @@ export function TopNavSection({
               activeTab === "inbox" ||
               activeTab === "outbox" ||
               activeTab === "favorites" ||
+              activeTab === "mine_square" ||
+              activeTab === "my_reports" ||
               activeTab === "space" ||
-              activeTab === "admin" ||
-              activeTab === "admin_ops" ||
               activeTab === "chat"
             }
             onClick={onMineTab}

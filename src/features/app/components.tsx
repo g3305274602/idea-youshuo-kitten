@@ -525,7 +525,7 @@ export function SecretWallSection({
                             <User className="h-3.5 w-3.5" strokeWidth={2.3} />
                           </span>
                           <span className="min-w-0 truncate text-[11px] font-black text-violet-100/95">
-                            {p.snapshotPublisherName || "神秘用戶"}
+                            {p.snapshotPublisherName || "一位朋友"}
                           </span>
                           <GenderIcon gender={p.snapshotPublisherGender} />
                         </button>

@@ -25,4 +25,6 @@ export default __t.row({
   createdAt: __t.timestamp().name("created_at"),
   updatedAt: __t.timestamp().name("updated_at"),
   resolvedAt: __t.option(__t.timestamp()).name("resolved_at"),
+  reporterAccountId: __t.string().name("reporter_account_id"),
+  reporterEmail: __t.string().name("reporter_email"),
 });

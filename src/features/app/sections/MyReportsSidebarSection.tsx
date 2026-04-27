@@ -1,6 +1,11 @@
 import { Lock } from "lucide-react";
 
 import { cn, emailsEqual } from "../../../lib/utils";
+import {
+  reportReasonLabel,
+  reportStatusLabel,
+  reportTargetTypeLabel,
+} from "../adminReportDisplay";
 
 type ReportRow = {
   id: string;
@@ -45,17 +50,12 @@ export function MyReportsSidebarSection({
     );
   }
 
-  const statusLabel: Record<string, string> = {
-    open: "審核中",
-    in_review: "審核中",
-    resolved: "已結案",
-    dismissed: "不予處理",
-  };
   const statusColor: Record<string, string> = {
     open: "text-amber-600",
     in_review: "text-blue-600",
     resolved: "text-emerald-600",
     dismissed: "text-stone-500",
+    rejected: "text-stone-500",
   };
 
   return myReports.map((r) => (
@@ -67,10 +67,10 @@ export function MyReportsSidebarSection({
         <span
           className={cn(
             "text-[11px] font-bold",
-            statusColor[r.status] ?? "text-stone-500",
+            statusColor[r.status.trim().toLowerCase()] ?? "text-stone-500",
           )}
         >
-          {statusLabel[r.status] ?? r.status}
+          {reportStatusLabel(r.status)}
         </span>
         <span className="text-[10px] text-black/30">
           {r.updatedAt.toDate().toLocaleDateString("zh-TW", {
@@ -80,21 +80,19 @@ export function MyReportsSidebarSection({
         </span>
       </div>
       <p className="mt-0.5 text-[12px] font-semibold text-stone-900">
-        {r.targetType === "capsule"
-          ? "舉報膠囊"
-          : r.targetType === "square_post"
-            ? "舉報廣場貼文"
-            : r.targetType === "chat_account"
-              ? "舉報帳號"
-              : "舉報聊天"}
+        舉報{reportTargetTypeLabel(r.targetType)}
         {" · "}
-        {r.reasonCode}
+        {reportReasonLabel(r.reasonCode)}
       </p>
-      {r.status === "resolved" || r.status === "dismissed" ? (
+      {["resolved", "dismissed", "rejected"].includes(
+        r.status.trim().toLowerCase(),
+      ) ? (
         <p className="mt-1 text-[11px] text-stone-500">
-          {r.status === "resolved"
+          {r.status.trim().toLowerCase() === "resolved"
             ? "你的舉報已受理，違規行為已處置。"
-            : "你的舉報已審查，未發現違規。"}
+            : r.status.trim().toLowerCase() === "rejected"
+              ? "你的舉報未成立或已被駁回。"
+              : "你的舉報已審查，未發現違規。"}
           {r.resolutionNote ? ` 說明：${r.resolutionNote}` : ""}
         </p>
       ) : (

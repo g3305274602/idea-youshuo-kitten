@@ -33,7 +33,7 @@ export function SpaceMainSection({
     <div className="mx-auto w-full max-w-xl space-y-4 pb-20 md:px-6">
       <div className="cd-card-raised rounded-2xl p-5">
         <h2 className="text-[22px] font-bold text-white">
-          {isOwnSpace ? "我的空間" : `${spaceTargetDisplayName || "神秘旅人"} 的空間`}
+          {isOwnSpace ? "我的空間" : `${spaceTargetDisplayName || "一位朋友"} 的空間`}
         </h2>
         <p className="text-[13px] font-medium text-[#8E8E93]">這是存放在時光裡的記憶...</p>
       </div>

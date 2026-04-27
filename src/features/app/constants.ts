@@ -13,6 +13,11 @@ export const CAPSULE_SHOWN_IDS_KEY = "youshuo_capsule_shown_ids";
 export const CAPSULE_PREV_SHOWN_KEY = "youshuo_capsule_prev_shown_id";
 export const CAPSULE_FORWARD_SHOWN_KEY = "youshuo_capsule_forward_shown_id";
 
+/** 登入後導覽還原（分頁 + 附帶選取狀態）；登出／清 session 時一併刪除。 */
+export const LAST_MAILBOX_NAV_KEY = "YS_MAILBOX_NAV_V1";
+/** 舊版僅存 tab 字串，讀取時會遷移為 V1 快照。 */
+export const LEGACY_LAST_ACTIVE_TAB_KEY = "YS_LAST_ACTIVE_TAB";
+
 export const TEXT_LIMIT = 300;
 
 export const CAPSULE_TYPE_OPTIONS = [

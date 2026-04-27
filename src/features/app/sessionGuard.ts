@@ -1,4 +1,5 @@
 import { SPACETIME_TOKEN_KEY } from "./constants";
+import { clearMailboxNavSession } from "./navSessionStorage";
 
 const SPACETIME_KEYS_MAP = "STBD_MAILBOX_KEYS";
 const AUTH_PENDING_RETRY = "STBD_AUTH_PENDING";
@@ -27,5 +28,6 @@ export function clearLocalSessionState() {
   localStorage.removeItem("LAST_USED_EMAIL");
   localStorage.removeItem(SPACETIME_KEYS_MAP);
   sessionStorage.removeItem(AUTH_PENDING_RETRY);
+  clearMailboxNavSession();
   sessionStorage.setItem("SKIP_BOOT_WAIT", "true");
 }

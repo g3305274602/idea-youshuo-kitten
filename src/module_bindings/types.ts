@@ -170,6 +170,8 @@ export const ReportTicket = __t.object("ReportTicket", {
   createdAt: __t.timestamp(),
   updatedAt: __t.timestamp(),
   resolvedAt: __t.option(__t.timestamp()),
+  reporterAccountId: __t.string(),
+  reporterEmail: __t.string(),
 });
 export type ReportTicket = __Infer<typeof ReportTicket>;
 

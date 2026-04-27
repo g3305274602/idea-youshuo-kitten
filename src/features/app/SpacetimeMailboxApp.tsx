@@ -4,7 +4,7 @@
  */
 
 import type React from "react";
-import { useCallback, useEffect, useRef, useMemo } from "react";
+import { useCallback, useEffect, useRef, useMemo, useState } from "react";
 import { motion } from "motion/react";
 import {
   User,
@@ -108,6 +108,10 @@ import {
   isSessionInvalidErrorMessage,
 } from "./sessionGuard";
 import {
+  readMailboxNavSnapshot,
+  writeMailboxNavSnapshot,
+} from "./navSessionStorage";
+import {
   AdminWorkbench,
   createAdminViewProps,
 } from "../admin/AdminWorkbench";
@@ -115,6 +119,7 @@ import {
   useAdminWorkbenchRuntime,
   useAdminWorkbenchState,
 } from "../admin/useAdminWorkbench";
+
 function calculateAgeFromDate(birthDate: Date | null): number {
   if (!birthDate) return 0;
   const today = new Date();
@@ -131,6 +136,14 @@ export default function SpacetimeMailboxApp({
 }: {
   identity: Identity;
 }) {
+  /** 上次分頁還原已跑完前，禁止寫 sessionStorage，避免預設 tab 覆蓋 admin。 */
+  const lastActiveTabRestoreCompletedRef = useRef(false);
+  /** 還原內呼叫 setActiveTab 後，略過下一次持久化（同 tick 仍見舊 activeTab）。 */
+  const skipNextPersistAfterRestoreRef = useRef(false);
+  /** 管理頁還原：訂閱剛套用時列可能尚空，短重試避免誤判無權限。 */
+  const [adminNavRestoreTick, setAdminNavRestoreTick] = useState(0);
+  const adminNavRestoreAttemptsRef = useRef(0);
+
   useEffect(() => {
     // 改為每 10 秒更新一次，足以應付倒數計時顯示
     const id = window.setInterval(() => setNowTick(Date.now()), 10000);
@@ -601,6 +614,7 @@ export default function SpacetimeMailboxApp({
 
     return () => clearTimeout(timeout);
   }, [myProfile]);
+
   // --- B. 郵件與膠囊 (功能核心) ---
   const [inboxRows] = useTable(
     identity
@@ -629,6 +643,7 @@ export default function SpacetimeMailboxApp({
 
   const {
     adminRoleRows,
+    adminRoleRowsLoading,
     reportTicketRows,
     reportSnapshotRows,
     moderationQueueRows,
@@ -1050,12 +1065,21 @@ export default function SpacetimeMailboxApp({
       ? myAccountId
       : spaceTargetInfo?.accountId;
 
-    if (!targetAccountId) return [];
+    if (!targetAccountId && !isOwnSpace) return [];
 
     return (
       [...capsuleMessageRows]
         .filter((m) => !isCapsuleDeleted(m.id))
-        .filter((m) => m.authorAccountId === targetAccountId)
+        .filter((m) => {
+          if (isOwnSpace) {
+            // 兼容舊資料：有些列可能 accountId 缺失或不一致，改以 identity 作後備比對。
+            return (
+              (!!myAccountId && m.authorAccountId === myAccountId) ||
+              m.authorIdentity.isEqual(identity)
+            );
+          }
+          return m.authorAccountId === targetAccountId;
+        })
         .filter((m) => {
           if (isOwnSpace) return true;
           return isCapsulePublicInSpace(m.id) && m.scheduledAt.toDate() <= now;
@@ -1079,12 +1103,21 @@ export default function SpacetimeMailboxApp({
     const targetAccountId = isOwnSpace
       ? myAccountId
       : spaceTargetInfo?.accountId;
-    if (!targetAccountId) return [];
+    if (!targetAccountId && !isOwnSpace) return [];
 
     const sourceRows = isOwnSpace ? squarePostsSorted : squarePostsVisible;
 
     return sourceRows
-      .filter((p) => p.publisherAccountId === targetAccountId) // 使用 accountId
+      .filter((p) => {
+        if (isOwnSpace) {
+          // 兼容舊快照資料：publisherAccountId 可能為空或歷史值，identity 可補齊。
+          return (
+            (!!myAccountId && p.publisherAccountId === myAccountId) ||
+            p.publisherIdentity.isEqual(identity)
+          );
+        }
+        return p.publisherAccountId === targetAccountId; // 使用 accountId
+      })
       .sort((a, b) =>
         Number(
           b.createdAt.microsSinceUnixEpoch - a.createdAt.microsSinceUnixEpoch,
@@ -1135,14 +1168,14 @@ export default function SpacetimeMailboxApp({
     const firstItem = spaceFeed[0];
     if (firstItem?.kind === "capsule") {
       return {
-        name: firstItem.capsule.authorDisplayName || "神秘用戶",
+        name: firstItem.capsule.authorDisplayName || "一位朋友",
         gender: firstItem.capsule.authorGender,
         birthDate: firstItem.capsule.authorBirthDate,
       };
     }
     if (firstItem?.kind === "square") {
       return {
-        name: firstItem.post.snapshotPublisherName || "神秘用戶",
+        name: firstItem.post.snapshotPublisherName || "一位朋友",
         gender: firstItem.post.snapshotPublisherGender,
         birthDate: firstItem.post.snapshotPublisherBirthDate,
       };
@@ -1270,6 +1303,169 @@ export default function SpacetimeMailboxApp({
       isWarned: myActiveSanctions.some((s) => s.sanctionType === "warn"),
     };
   }, [myAccountId, adminRoleRows, myActiveSanctions]);
+
+  const activeAdminRoleRow = useMemo(
+    () =>
+      adminRoleRows.find(
+        (r) =>
+          r.isActive &&
+          (r.adminIdentity.isEqual(identity) ||
+            (!!myAccountId && r.accountId === myAccountId)),
+      ) ?? null,
+    [adminRoleRows, identity, myAccountId],
+  );
+
+  useEffect(() => {
+    if (!myProfile) return;
+    if (lastActiveTabRestoreCompletedRef.current) return;
+
+    const snap = readMailboxNavSnapshot();
+    if (!snap) {
+      lastActiveTabRestoreCompletedRef.current = true;
+      return;
+    }
+
+    const savedTab = snap.tab;
+    const isSavedAdminNav = savedTab === "admin" || savedTab === "admin_ops";
+    if (!isSavedAdminNav) adminNavRestoreAttemptsRef.current = 0;
+
+    const applyResolvedTab = (tab: AppTab) => {
+      adminNavRestoreAttemptsRef.current = 0;
+      skipNextPersistAfterRestoreRef.current = true;
+      setSpaceBackTab(snap.spaceBackTab);
+      setChatBackTab(snap.chatBackTab);
+      setSpaceOwnerHex(snap.spaceOwnerHex);
+      setSpaceTargetInfo(snap.spaceTargetInfo);
+      setSelectedChatThreadKey(snap.selectedChatThreadKey);
+      setSelectedMessageId(snap.selectedMessageId);
+      setSquareSelectedPostId(snap.squareSelectedPostId);
+      setFavoriteSelectedId(snap.favoriteSelectedId);
+      setSelectedAdminReportId(snap.selectedAdminReportId);
+      setAdminSection(snap.adminSection);
+      setActiveTab(tab);
+      lastActiveTabRestoreCompletedRef.current = true;
+    };
+
+    if (adminRoleRowsLoading) return;
+
+    if (savedTab === "admin_ops") {
+      const roleRow = activeAdminRoleRow;
+      if (roleRow?.role === "super_admin") {
+        applyResolvedTab("admin_ops");
+        return;
+      }
+      if (roleRow) {
+        applyResolvedTab("admin");
+        return;
+      }
+      if (adminNavRestoreAttemptsRef.current < 36) {
+        adminNavRestoreAttemptsRef.current += 1;
+        const tid = window.setTimeout(
+          () => setAdminNavRestoreTick((n) => n + 1),
+          100,
+        );
+        return () => window.clearTimeout(tid);
+      }
+      adminNavRestoreAttemptsRef.current = 0;
+      lastActiveTabRestoreCompletedRef.current = true;
+      return;
+    }
+
+    if (savedTab === "admin") {
+      const roleRow = activeAdminRoleRow;
+      if (roleRow) {
+        applyResolvedTab("admin");
+        return;
+      }
+      if (adminNavRestoreAttemptsRef.current < 36) {
+        adminNavRestoreAttemptsRef.current += 1;
+        const tid = window.setTimeout(
+          () => setAdminNavRestoreTick((n) => n + 1),
+          100,
+        );
+        return () => window.clearTimeout(tid);
+      }
+      adminNavRestoreAttemptsRef.current = 0;
+      lastActiveTabRestoreCompletedRef.current = true;
+      return;
+    }
+
+    applyResolvedTab(savedTab);
+  }, [
+    myProfile,
+    myAccountId,
+    activeAdminRoleRow,
+    adminRoleRowsLoading,
+    adminNavRestoreTick,
+    setActiveTab,
+    setSpaceBackTab,
+    setChatBackTab,
+    setSpaceOwnerHex,
+    setSpaceTargetInfo,
+    setSelectedChatThreadKey,
+    setSelectedMessageId,
+    setSquareSelectedPostId,
+    setFavoriteSelectedId,
+    setSelectedAdminReportId,
+    setAdminSection,
+  ]);
+
+  useEffect(() => {
+    if (!myProfile) return;
+    if (!lastActiveTabRestoreCompletedRef.current) return;
+    if (skipNextPersistAfterRestoreRef.current) {
+      skipNextPersistAfterRestoreRef.current = false;
+      return;
+    }
+    /** 管理分頁：訂閱已就緒且列上無有效角色時，不把 admin 寫進快照（防竄改 localStorage／權限被撤）。載入中仍寫目前 tab 以利刷新還原。 */
+    const roleReady = !adminRoleRowsLoading;
+    let tabToSave: AppTab = activeTab;
+    if (roleReady) {
+      if (activeTab === "admin_ops") {
+        if (activeAdminRoleRow?.role === "super_admin") tabToSave = "admin_ops";
+        else if (activeAdminRoleRow) tabToSave = "admin";
+        else tabToSave = "secret";
+      } else if (activeTab === "admin") {
+        tabToSave = activeAdminRoleRow ? "admin" : "secret";
+      }
+    }
+
+    writeMailboxNavSnapshot({
+      v: 1,
+      tab: tabToSave,
+      spaceOwnerHex,
+      spaceTargetInfo: spaceTargetInfo
+        ? {
+            accountId: spaceTargetInfo.accountId,
+            displayName: spaceTargetInfo.displayName,
+            gender: spaceTargetInfo.gender,
+          }
+        : null,
+      spaceBackTab,
+      chatBackTab,
+      selectedChatThreadKey,
+      selectedMessageId,
+      squareSelectedPostId,
+      favoriteSelectedId,
+      selectedAdminReportId,
+      adminSection,
+    });
+  }, [
+    activeTab,
+    myProfile,
+    adminRoleRowsLoading,
+    activeAdminRoleRow,
+    spaceOwnerHex,
+    spaceTargetInfo,
+    spaceBackTab,
+    chatBackTab,
+    selectedChatThreadKey,
+    selectedMessageId,
+    squareSelectedPostId,
+    favoriteSelectedId,
+    selectedAdminReportId,
+    adminSection,
+  ]);
 
   const {
     handleAuth,
@@ -1684,7 +1880,7 @@ export default function SpacetimeMailboxApp({
         counterpartLabel =
           (gProfile?.displayName ?? "").trim() ||
           (profileByAid?.displayName ?? "").trim() ||
-          "神秘旅人";
+          "一位朋友";
         counterpartGender =
           gProfile?.gender || profileByAid?.gender || "unspecified";
         counterpartBirthDate = gProfile?.birthDate || profileByAid?.birthDate;
@@ -2956,7 +3152,7 @@ export default function SpacetimeMailboxApp({
                       秘密
                     </p>
                     <p className="text-[12px] mt-2 leading-snug text-white/60">
-                      在右欄揀一顆旅人膠囊。小紙條在「廣場牆」、聊聊在底列，由此跳轉即可。
+                      在右欄揀一顆朋友膠囊。小紙條在「廣場牆」、聊聊在底列，由此跳轉即可。
                     </p>
                   </div>
                 </div>
