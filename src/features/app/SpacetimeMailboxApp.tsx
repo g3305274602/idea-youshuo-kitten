@@ -998,10 +998,13 @@ export default function SpacetimeMailboxApp({
     () =>
       capsuleMessagesVisible.filter(
         (m) =>
-          !m.authorIdentity.isEqual(identity) &&
+          !(
+            m.authorIdentity.isEqual(identity) ||
+            (!!myAccountId && m.authorAccountId === myAccountId)
+          ) &&
           !capsuleIdsExcludedFromDraw.has(m.id),
       ),
-    [capsuleMessagesVisible, identity, capsuleIdsExcludedFromDraw],
+    [capsuleMessagesVisible, identity, myAccountId, capsuleIdsExcludedFromDraw],
   );
 
   const capsuleEmptyReason = useMemo(() => {
@@ -1014,7 +1017,11 @@ export default function SpacetimeMailboxApp({
         : ("timing" as const);
     }
     const others = capsuleMessagesVisible.filter(
-      (m) => !m.authorIdentity.isEqual(identity),
+      (m) =>
+        !(
+          m.authorIdentity.isEqual(identity) ||
+          (!!myAccountId && m.authorAccountId === myAccountId)
+        ),
     );
     if (others.length === 0) return "only_self" as const;
     if (capsuleEligiblePool.length === 0) return "all_saved" as const;
@@ -1023,6 +1030,7 @@ export default function SpacetimeMailboxApp({
     capsuleMessagesVisible,
     capsuleMessageRows,
     identity,
+    myAccountId,
     capsuleEligiblePool,
     capsuleStateById,
   ]);
