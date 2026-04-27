@@ -2515,6 +2515,7 @@ export const add_capsule_private_message = spacetimedb.reducer(
     if (!pf) throw new SenderError("尚未登入");
     const myAccountId = pf.accountId;
     const guestPf = ctx.db.accountProfile.ownerIdentity.find(threadGuestIdentity);
+    if (!guestPf) throw new SenderError("訪客資料不存在，請重新開線");
     const guestAccountId = guestPf?.accountId || "";
     const post = ctx.db.squarePost.sourceMessageId.find(sourceMessageId);
     const source = post

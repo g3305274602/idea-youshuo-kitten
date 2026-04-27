@@ -1,3 +1,8 @@
+import {
+  forceReauthRedirect,
+  isSessionInvalidErrorMessage,
+} from "../sessionGuard";
+
 type UseFavoriteHandlersParams = {
   favoriteSelectedId: string | null;
   setFavoriteSelectedId: (value: string | null) => void;
@@ -9,12 +14,20 @@ type UseFavoriteHandlersParams = {
 };
 
 export function useFavoriteHandlers(params: UseFavoriteHandlersParams) {
+  const handleSessionInvalid = (msg: string) => {
+    if (!isSessionInvalidErrorMessage(msg)) return false;
+    params.setSquareActionError("登入已在其他裝置更新，請重新登入。");
+    forceReauthRedirect();
+    return true;
+  };
+
   const handleFavoriteSquare = async (sourceMessageId: string) => {
     params.setSquareActionError("");
     try {
       await params.favoriteSquarePost({ sourceMessageId });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
+      if (handleSessionInvalid(msg)) return;
       params.setSquareActionError(msg || "藏進心底失敗");
     }
   };
@@ -26,6 +39,7 @@ export function useFavoriteHandlers(params: UseFavoriteHandlersParams) {
       if (params.favoriteSelectedId) params.setFavoriteSelectedId(null);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
+      if (handleSessionInvalid(msg)) return;
       params.setSquareActionError(msg || "從心底拿出失敗");
     }
   };
@@ -36,6 +50,7 @@ export function useFavoriteHandlers(params: UseFavoriteHandlersParams) {
       await params.favoriteCapsule({ capsuleId });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
+      if (handleSessionInvalid(msg)) return;
       params.setSquareActionError(msg || "藏進心底失敗");
     }
   };
@@ -47,6 +62,7 @@ export function useFavoriteHandlers(params: UseFavoriteHandlersParams) {
       if (params.favoriteSelectedId) params.setFavoriteSelectedId(null);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
+      if (handleSessionInvalid(msg)) return;
       params.setSquareActionError(msg || "從心底拿出失敗");
     }
   };

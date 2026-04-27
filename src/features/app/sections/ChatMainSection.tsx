@@ -16,6 +16,7 @@ type ChatMessageItem = {
 type ChatMainSectionProps = {
   selectedChatThread: any;
   selectedChatPeerProfile: any;
+  canOpenChatPeerSpace?: boolean;
   isSourceCapsuleMine?: boolean;
   chatPeerUnlocked: boolean;
   selectedChatProgress: number;
@@ -39,6 +40,7 @@ type ChatMainSectionProps = {
 export function ChatMainSection({
   selectedChatThread,
   selectedChatPeerProfile,
+  canOpenChatPeerSpace = false,
   isSourceCapsuleMine = false,
   chatPeerUnlocked,
   selectedChatProgress,
@@ -56,6 +58,21 @@ export function ChatMainSection({
   onSendChatMessage,
   chatInputRef,
 }: ChatMainSectionProps) {
+  const chatScrollRef = useRef<HTMLDivElement>(null);
+  const threadKey = selectedChatThread?.key ?? "";
+  const lastMessageId =
+    selectedChatMessages.length > 0
+      ? selectedChatMessages[selectedChatMessages.length - 1]!.id
+      : "";
+
+  useLayoutEffect(() => {
+    // Keep hooks order stable: effect is always declared, but no-op without thread.
+    if (!selectedChatThread) return;
+    const el = chatScrollRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
+  }, [selectedChatThread, threadKey, selectedChatMessages.length, lastMessageId]);
+
   if (!selectedChatThread) {
     return (
       <div className="max-w-sm mx-auto text-center py-16 px-4">
@@ -64,18 +81,6 @@ export function ChatMainSection({
       </div>
     );
   }
-
-  const chatScrollRef = useRef<HTMLDivElement>(null);
-  const lastMessageId =
-    selectedChatMessages.length > 0
-      ? selectedChatMessages[selectedChatMessages.length - 1]!.id
-      : "";
-
-  useLayoutEffect(() => {
-    const el = chatScrollRef.current;
-    if (!el) return;
-    el.scrollTop = el.scrollHeight;
-  }, [selectedChatThread.key, selectedChatMessages.length, lastMessageId]);
 
   const peerChatTitle = chatPeerUnlocked
     ? selectedChatThread.counterpartLabel
@@ -130,7 +135,16 @@ export function ChatMainSection({
                 <button
                   type="button"
                   onClick={onOpenChatPeerSpace}
-                  className="inline-flex items-center gap-1 rounded-full border border-white/12 bg-white/6 px-3 py-1.5 text-[11px] font-semibold text-white/80 transition-colors hover:border-white/18 hover:bg-white/10"
+                  disabled={!canOpenChatPeerSpace}
+                  title={
+                    canOpenChatPeerSpace
+                      ? "前往 TA 的空間"
+                      : "對方資料尚未同步，暫時無法開啟空間"
+                  }
+                  className={cn(
+                    "inline-flex items-center gap-1 rounded-full border border-white/12 bg-white/6 px-3 py-1.5 text-[11px] font-semibold text-white/80 transition-colors hover:border-white/18 hover:bg-white/10",
+                    !canOpenChatPeerSpace && "cursor-not-allowed opacity-55",
+                  )}
                 >
                   <Home className="h-3.5 w-3.5 shrink-0" strokeWidth={2.4} />
                   TA 的空間

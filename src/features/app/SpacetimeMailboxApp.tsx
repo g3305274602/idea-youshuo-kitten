@@ -103,6 +103,11 @@ import { useMessagingActions } from "./hooks/useMessagingActions";
 import { useNavigationActions } from "./hooks/useNavigationActions";
 import { useAsideActions } from "./hooks/useAsideActions";
 import {
+  clearLocalSessionState,
+  forceReauthRedirect,
+  isSessionInvalidErrorMessage,
+} from "./sessionGuard";
+import {
   AdminWorkbench,
   createAdminViewProps,
 } from "../admin/AdminWorkbench";
@@ -579,6 +584,7 @@ export default function SpacetimeMailboxApp({
     // 情況 C：有 Token 但沒資料（可能是刷新），才需要顯示「連線中」等同步
     const timeout = setTimeout(() => {
       if (!myProfile) {
+        clearLocalSessionState();
         setView("login");
         setIsBooting(false);
       }
@@ -1443,6 +1449,11 @@ export default function SpacetimeMailboxApp({
       setTimeout(() => setComposeSuccess(""), 4000);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
+      if (isSessionInvalidErrorMessage(msg)) {
+        setComposeError("登入已在其他裝置更新，請重新登入。");
+        forceReauthRedirect();
+        return;
+      }
       setComposeError(msg || "寄送失敗");
     } finally {
       setLoading(false);
@@ -1504,12 +1515,29 @@ export default function SpacetimeMailboxApp({
   );
 
   const uniqueCapsuleGuestHexes = useMemo(() => {
+    const meHex = identity.toHexString();
     const s = new Set<string>();
     for (const m of capsulePrivateForActiveUi) {
-      s.add(m.threadGuestIdentity.toHexString());
+      const guestHex = m.threadGuestIdentity.toHexString();
+      // 回覆對象只保留「其他訪客」：排除自己、去重、忽略空值
+      if (!guestHex || guestHex === meHex) continue;
+      s.add(guestHex);
     }
     return [...s];
-  }, [capsulePrivateForActiveUi]);
+  }, [capsulePrivateForActiveUi, identity]);
+
+  useEffect(() => {
+    if (!isCapsuleParticipantUi) return;
+    if (!capsuleThreadGuestHex) return;
+    if (uniqueCapsuleGuestHexes.includes(capsuleThreadGuestHex)) return;
+    // 當列表更新後原本選項不存在時，回退為空狀態提示
+    setCapsuleThreadGuestHex(null);
+  }, [
+    isCapsuleParticipantUi,
+    capsuleThreadGuestHex,
+    uniqueCapsuleGuestHexes,
+    setCapsuleThreadGuestHex,
+  ]);
 
   const hasMyGuestThreadOnCurrentCapsule = useMemo(() => {
     if (!capsuleUiPostId) return false;
@@ -1599,7 +1627,7 @@ export default function SpacetimeMailboxApp({
       } else {
         const gProfile = publicProfileByIdentityHex.get(guestHex);
         counterpartLabel =
-          gProfile?.displayName || `訪客 ${guestHex.slice(0, 8)}…`;
+          (gProfile?.displayName ?? "").trim() || "神秘旅人";
         counterpartGender = gProfile?.gender || "unspecified";
         counterpartBirthDate = gProfile?.birthDate;
         counterpartIdentityHex = guestHex;
@@ -1998,8 +2026,7 @@ export default function SpacetimeMailboxApp({
       : unifiedFavoriteItems.find((x) => x.key === favoriteSelectedId);
 
   const canShuffleCapsule =
-    !!capsulePostId &&
-    capsuleEligiblePool.filter((p) => p.id !== capsulePostId).length > 0;
+    !!capsulePostId && capsuleEligiblePool.length > 0;
 
   const canPublishCurrentMessage =
     !!currentMessage &&
@@ -2039,6 +2066,8 @@ export default function SpacetimeMailboxApp({
   const {
     openCapsuleDrawer,
     pickAnotherCapsule,
+    viewPreviousCapsule,
+    canViewPreviousCapsule,
     closeCapsuleDrawer,
     jumpToChatFromCapsule,
     openSpace,
@@ -2361,6 +2390,8 @@ export default function SpacetimeMailboxApp({
     handleAddSquareComment,
     handleAddCapsulePrivateMessage,
     pickAnotherCapsule,
+    onViewPreviousCapsule: viewPreviousCapsule,
+    canViewPreviousCapsule,
     canShuffleCapsule,
   };
 
@@ -2425,6 +2456,7 @@ export default function SpacetimeMailboxApp({
   const chatMainProps = {
     selectedChatThread,
     selectedChatPeerProfile: selectedChatPeerProfile ?? null,
+    canOpenChatPeerSpace: !!selectedChatPeerProfile,
     isSourceCapsuleMine,
     onOpenChatPeerSpace: () => {
       const p = selectedChatPeerProfile;

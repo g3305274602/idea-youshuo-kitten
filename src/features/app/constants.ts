@@ -9,6 +9,8 @@ export const AUTH_DB = import.meta.env.VITE_SPACETIMEDB_DB_NAME ?? "idea-jd2zx";
 export const SPACETIME_TOKEN_KEY = `${AUTH_HOST}/${AUTH_DB}/auth_token`;
 
 export const CAPSULE_LAST_SHOWN_KEY = "youshuo_capsule_last_shown_id";
+export const CAPSULE_SHOWN_IDS_KEY = "youshuo_capsule_shown_ids";
+export const CAPSULE_PREV_SHOWN_KEY = "youshuo_capsule_prev_shown_id";
 
 export const TEXT_LIMIT = 300;
 

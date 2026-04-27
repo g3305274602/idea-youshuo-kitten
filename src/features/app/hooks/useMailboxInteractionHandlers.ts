@@ -1,6 +1,10 @@
 import { Timestamp, type Identity } from "spacetimedb";
 
-import { CAPSULE_LAST_SHOWN_KEY } from "../constants";
+import {
+  CAPSULE_LAST_SHOWN_KEY,
+  CAPSULE_PREV_SHOWN_KEY,
+  CAPSULE_SHOWN_IDS_KEY,
+} from "../constants";
 import { isoToDatetimeLocalValue } from "../helpers";
 
 type OutboxRow = {
@@ -93,23 +97,57 @@ type UseMailboxInteractionHandlersParams = {
 export function useMailboxInteractionHandlers(
   params: UseMailboxInteractionHandlersParams,
 ) {
+  const readShownCapsuleIds = (): Set<string> => {
+    if (typeof window === "undefined") return new Set<string>();
+    try {
+      const raw = sessionStorage.getItem(CAPSULE_SHOWN_IDS_KEY);
+      if (!raw) return new Set<string>();
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return new Set<string>();
+      return new Set(
+        parsed.filter((x): x is string => typeof x === "string" && x.length > 0),
+      );
+    } catch {
+      return new Set<string>();
+    }
+  };
+
+  const writeShownCapsuleIds = (ids: Set<string>) => {
+    if (typeof window === "undefined") return;
+    sessionStorage.setItem(CAPSULE_SHOWN_IDS_KEY, JSON.stringify([...ids]));
+  };
+
+  const readPrevCapsuleId = (): string | null => {
+    if (typeof window === "undefined") return null;
+    const raw = sessionStorage.getItem(CAPSULE_PREV_SHOWN_KEY);
+    return raw && raw.length > 0 ? raw : null;
+  };
+
+  const writePrevCapsuleId = (id: string | null) => {
+    if (typeof window === "undefined") return;
+    if (id && id.length > 0) {
+      sessionStorage.setItem(CAPSULE_PREV_SHOWN_KEY, id);
+      return;
+    }
+    sessionStorage.removeItem(CAPSULE_PREV_SHOWN_KEY);
+  };
+
   const openCapsuleDrawer = () => {
     params.setCapsuleOpen(true);
     params.setCapsuleSwitching(false);
     params.setSquareActionError("");
-    const last =
-      typeof window !== "undefined"
-        ? sessionStorage.getItem(CAPSULE_LAST_SHOWN_KEY)
-        : null;
-    let pool = last
-      ? params.capsuleEligiblePool.filter((p) => p.id !== last)
-      : [...params.capsuleEligiblePool];
-    if (pool.length === 0) pool = [...params.capsuleEligiblePool];
+    // 新一輪抽取：清空「本輪已出現」集合，確保從完整候選池開始。
+    const shownIds = new Set<string>();
+    writeShownCapsuleIds(shownIds);
+    writePrevCapsuleId(null);
+    const pool = [...params.capsuleEligiblePool];
     if (pool.length === 0) {
       params.setCapsulePostId(null);
       return;
     }
     const pick = pool[Math.floor(Math.random() * pool.length)]!;
+    shownIds.add(pick.id);
+    writeShownCapsuleIds(shownIds);
     params.setCapsulePostId(pick.id);
     if (typeof window !== "undefined") {
       sessionStorage.setItem(CAPSULE_LAST_SHOWN_KEY, pick.id);
@@ -118,9 +156,14 @@ export function useMailboxInteractionHandlers(
 
   const pickAnotherCapsule = async () => {
     if (!params.capsulePostId) return;
-    const pool = params.capsuleEligiblePool.filter((p) => p.id !== params.capsulePostId);
+    const shownIds = readShownCapsuleIds();
+    shownIds.add(params.capsulePostId);
+    const pool = params.capsuleEligiblePool.filter((p) => !shownIds.has(p.id));
     if (pool.length === 0) {
-      params.setSquareActionError("目前沒有另一則能換囉");
+      writeShownCapsuleIds(shownIds);
+      // 無可換項目時，改為進入空狀態（符合「換一換後到空狀態」）
+      params.setSquareActionError("");
+      params.setCapsulePostId(null);
       return;
     }
     params.setCapsuleSwitching(true);
@@ -131,6 +174,9 @@ export function useMailboxInteractionHandlers(
       timer(resolve, 520);
     });
     const pick = pool[Math.floor(Math.random() * pool.length)]!;
+    writePrevCapsuleId(params.capsulePostId);
+    shownIds.add(pick.id);
+    writeShownCapsuleIds(shownIds);
     params.setCapsulePostId(pick.id);
     if (typeof window !== "undefined") {
       sessionStorage.setItem(CAPSULE_LAST_SHOWN_KEY, pick.id);
@@ -145,6 +191,23 @@ export function useMailboxInteractionHandlers(
     params.setCapsulePrivateDraft("");
     params.setCapsuleThreadGuestHex(null);
     params.setSquareActionError("");
+    writePrevCapsuleId(null);
+  };
+
+  const prevCapsuleId = readPrevCapsuleId();
+  const canViewPreviousCapsule =
+    !!params.capsulePostId &&
+    !!prevCapsuleId &&
+    prevCapsuleId !== params.capsulePostId &&
+    params.capsuleEligiblePool.some((p) => p.id === prevCapsuleId);
+
+  const viewPreviousCapsule = () => {
+    if (!canViewPreviousCapsule || !prevCapsuleId) return;
+    params.setCapsuleSwitching(false);
+    params.setSquareActionError("");
+    params.setCapsulePostId(prevCapsuleId);
+    // 只允許單步回看：看過一次即清空，避免無限回溯。
+    writePrevCapsuleId(null);
   };
 
   const jumpToChatFromCapsule = (sourceMessageId: string) => {
@@ -320,6 +383,8 @@ export function useMailboxInteractionHandlers(
   return {
     openCapsuleDrawer,
     pickAnotherCapsule,
+    viewPreviousCapsule,
+    canViewPreviousCapsule,
     closeCapsuleDrawer,
     jumpToChatFromCapsule,
     openSpace,

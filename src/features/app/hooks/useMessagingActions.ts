@@ -1,5 +1,9 @@
 import type React from "react";
 import { Identity } from "spacetimedb";
+import {
+  forceReauthRedirect,
+  isSessionInvalidErrorMessage,
+} from "../sessionGuard";
 
 type UseMessagingActionsParams = {
   selectedMessageId: string | null;
@@ -60,6 +64,13 @@ type UseMessagingActionsParams = {
 };
 
 export function useMessagingActions(params: UseMessagingActionsParams) {
+  const handleSessionInvalid = (msg: string) => {
+    if (!isSessionInvalidErrorMessage(msg)) return false;
+    params.setSquareActionError("登入已在其他裝置更新，請重新登入。");
+    forceReauthRedirect();
+    return true;
+  };
+
   const submitPublishToSquare = async () => {
     if (!params.selectedMessageId) return;
     params.setLoading(true);
@@ -77,6 +88,7 @@ export function useMessagingActions(params: UseMessagingActionsParams) {
       params.setPublishModalOpenWithStack(false);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
+      if (handleSessionInvalid(msg)) return;
       params.setSquareActionError(msg || "貼到牆上失敗");
     } finally {
       params.setLoading(false);
@@ -89,6 +101,7 @@ export function useMessagingActions(params: UseMessagingActionsParams) {
       await params.unpublishFromSquare({ sourceMessageId });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
+      if (handleSessionInvalid(msg)) return;
       params.setSquareActionError(msg || "撤下失敗");
     }
   };
@@ -104,6 +117,7 @@ export function useMessagingActions(params: UseMessagingActionsParams) {
       await params.setSquareReaction({ sourceMessageId, kind: nextKind });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
+      if (handleSessionInvalid(msg)) return;
       params.setSquareActionError(msg || "反應失敗");
     }
   };
@@ -122,6 +136,7 @@ export function useMessagingActions(params: UseMessagingActionsParams) {
       params.setExchangeAppendDraft("");
     } catch (err: any) {
       const msg = err.message || String(err);
+      if (handleSessionInvalid(msg)) return;
       params.setSquareActionError(msg);
     } finally {
       params.setExchangeAppendBusy(false);
@@ -141,6 +156,7 @@ export function useMessagingActions(params: UseMessagingActionsParams) {
       params.setSquareCommentDraft("");
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
+      if (handleSessionInvalid(msg)) return;
       params.setSquareActionError(msg || "留言失敗");
     }
   };
@@ -172,6 +188,7 @@ export function useMessagingActions(params: UseMessagingActionsParams) {
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
+      if (handleSessionInvalid(msg)) return;
       params.setSquareActionError(msg || "膠囊私訊送出失敗");
     }
   };
@@ -203,6 +220,7 @@ export function useMessagingActions(params: UseMessagingActionsParams) {
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
+      if (handleSessionInvalid(msg)) return;
       params.setSquareActionError(msg || "聊天訊息送出失敗");
     }
   };

@@ -53,6 +53,8 @@ type CapsuleOverlaySectionProps = {
   handleAddSquareComment: (sourceMessageId: string) => Promise<void> | void;
   handleAddCapsulePrivateMessage: (sourceMessageId: string, guestHex: string | null) => Promise<void> | void;
   pickAnotherCapsule: () => Promise<void> | void;
+  onViewPreviousCapsule: () => void;
+  canViewPreviousCapsule: boolean;
   canShuffleCapsule: boolean;
   extension?: Record<string, unknown>;
 };
@@ -96,6 +98,8 @@ export function CapsuleOverlaySection(props: CapsuleOverlaySectionProps) {
     handleAddSquareComment,
     handleAddCapsulePrivateMessage,
     pickAnotherCapsule,
+    onViewPreviousCapsule,
+    canViewPreviousCapsule,
     canShuffleCapsule,
   } = props;
 
@@ -171,7 +175,7 @@ export function CapsuleOverlaySection(props: CapsuleOverlaySectionProps) {
                           ? "目前只有你自己發的膠囊，抽取會排除自己；等等看其他人資料。"
                           : capsuleEmptyReason === "all_saved"
                             ? "能抽的別人紙條你都收進心底啦；到清單慢慢看，或從心底拿出幾則再來抽。"
-                            : "這則剛好不在公開清單了，可按下方「換一個」再試，或關掉再開。"}
+                            : "好像沒有更多了~晚點再看看吧"}
                   </p>
                 </div>
               ) : (
@@ -261,6 +265,15 @@ export function CapsuleOverlaySection(props: CapsuleOverlaySectionProps) {
                           minute: "2-digit",
                         })}
                       </p>
+                      {canViewPreviousCapsule && !capsuleSwitching ? (
+                        <button
+                          type="button"
+                          onClick={onViewPreviousCapsule}
+                          className="inline-flex shrink-0 rounded-full border border-white/12 bg-white/[0.06] px-2 py-0.5 text-[11px] font-black text-white/80 transition-colors hover:bg-white/[0.1] active:translate-y-px"
+                        >
+                          看上一條
+                        </button>
+                      ) : null}
                       {capsulePost && !capsuleSwitching ? (
                         <span
                           className={cn(

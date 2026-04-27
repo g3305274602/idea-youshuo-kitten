@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { Timestamp } from "spacetimedb";
 
 import { SPACETIME_TOKEN_KEY } from "../constants";
+import { clearLocalSessionState } from "../sessionGuard";
 import type { User as AppUser } from "../types";
 
 const SPACETIME_KEYS_MAP = "STBD_MAILBOX_KEYS";
@@ -341,11 +342,7 @@ export function useAccountFlowHandlers(params: UseAccountFlowHandlersParams) {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem(SPACETIME_TOKEN_KEY);
-    localStorage.removeItem("LAST_USED_EMAIL");
-    localStorage.removeItem(SPACETIME_KEYS_MAP);
-    sessionStorage.removeItem(AUTH_PENDING_RETRY);
-    sessionStorage.setItem("SKIP_BOOT_WAIT", "true");
+    clearLocalSessionState();
     window.location.href = window.location.origin;
   };
 
