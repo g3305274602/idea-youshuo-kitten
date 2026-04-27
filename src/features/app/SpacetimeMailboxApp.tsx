@@ -761,12 +761,12 @@ export default function SpacetimeMailboxApp({
     }
   }, [daysInMonth]); // 移除 [birthDay] 的依賴，避免無窮迴圈或過度渲染
 
-  // 年份範圍：從當前年份回溯到 1900
+  // 年份範圍：1900 → 今年（遞增）。WheelPicker 底端「+」為 index+1，須對應「西元年 +1」，不可新→舊否則 + 會變更年輕。
   const yearOptions = useMemo(() => {
     const currentYear = new Date().getFullYear();
     const earliestBirthYear = 1900;
     const totalYears = currentYear - earliestBirthYear + 1;
-    return Array.from({ length: totalYears }, (_, i) => currentYear - i);
+    return Array.from({ length: totalYears }, (_, i) => earliestBirthYear + i);
   }, []);
 
   const monthOptions = useMemo(
