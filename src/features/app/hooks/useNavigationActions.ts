@@ -32,6 +32,7 @@ type UseNavigationActionsParams = {
   setAdminSection: (value: AdminSection) => void;
   bootstrapAdminSelf: () => Promise<void>;
   setSpaceOwnerHex: (value: string) => void;
+  setSpaceTargetInfo: (value: null) => void;
   identityHex: string;
 };
 
@@ -53,14 +54,14 @@ export function useNavigationActions(params: UseNavigationActionsParams) {
   };
 
   const onMobileBack = () => {
-    if (params.selectedMessageId !== null) return params.setSelectedMessageId(null);
-    if (params.squareSelectedPostId !== null) return params.setSquareSelectedPostId(null);
-    if (params.favoriteSelectedId !== null) return params.setFavoriteSelectedId(null);
-    if (params.selectedChatThreadKey !== null) return params.setSelectedChatThreadKey(null);
     if (params.activeTab === "space") {
       params.setActiveTab(params.spaceBackTab || "mine");
       return params.setSpaceBackTab(null);
     }
+    if (params.selectedMessageId !== null) return params.setSelectedMessageId(null);
+    if (params.squareSelectedPostId !== null) return params.setSquareSelectedPostId(null);
+    if (params.favoriteSelectedId !== null) return params.setFavoriteSelectedId(null);
+    if (params.selectedChatThreadKey !== null) return params.setSelectedChatThreadKey(null);
     /** 聊聊列表層：若有記錄來源分頁（如秘密首頁），先回到該頁，不要一律回「我的」 */
     if (
       params.activeTab === "chat" &&
@@ -129,7 +130,11 @@ export function useNavigationActions(params: UseNavigationActionsParams) {
       params.setChatBackTab("secret");
     }
     params.setActiveTab(t === "admin" && params.isSuperAdmin ? "admin_ops" : t);
-    if (t === "space") params.setSpaceOwnerHex(params.identityHex);
+    if (t === "space") {
+      // 從「我的」進我的空間時，清掉舊訪客目標，避免殘留上一個他人空間。
+      params.setSpaceTargetInfo(null);
+      params.setSpaceOwnerHex(params.identityHex);
+    }
     clearSelections();
     params.setSelectedChatThreadKey(null);
     params.setSelectedAdminReportId(null);

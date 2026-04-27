@@ -589,14 +589,15 @@ export default function SpacetimeMailboxApp({
       return;
     }
 
-    // 情況 C：有 Token 但沒資料（可能是刷新），才需要顯示「連線中」等同步
+    // 情況 C：有 Token 但沒資料（可能是刷新/前景切換後重同步），先給足夠時間等待。
+    // 頁面非可見狀態時不做逾時判定，避免切窗造成誤登出。
+    if (document.visibilityState !== "visible") return;
     const timeout = setTimeout(() => {
       if (!myProfile) {
-        clearLocalSessionState();
         setView("login");
         setIsBooting(false);
       }
-    }, 1200); // 縮短等待時間到 1.2 秒
+    }, 10000);
 
     return () => clearTimeout(timeout);
   }, [myProfile]);
@@ -2273,6 +2274,7 @@ export default function SpacetimeMailboxApp({
       await bootstrapAdminSelf();
     },
     setSpaceOwnerHex,
+    setSpaceTargetInfo: (value) => setSpaceTargetInfo(value),
     identityHex: identity.toHexString(),
   });
 

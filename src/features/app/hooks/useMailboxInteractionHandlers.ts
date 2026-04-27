@@ -276,6 +276,7 @@ export function useMailboxInteractionHandlers(
     targetGender: string,
     targetBirthDate?: any,
   ) => {
+    const fromChatThread = params.activeTab === "chat";
     params.setSpaceBackTab(
       params.activeTab === "space" ? params.spaceBackTab : params.activeTab,
     );
@@ -292,7 +293,8 @@ export function useMailboxInteractionHandlers(
     params.setSquareSelectedPostId(null);
     params.setSelectedMessageId(null);
     params.setFavoriteSelectedId(null);
-    params.setSelectedChatThreadKey(null);
+    // 從聊天視窗進入空間時保留 thread，返回可直接回到同一個對話。
+    if (!fromChatThread) params.setSelectedChatThreadKey(null);
     params.setSelectedAdminReportId(null);
     params.setSquareActionError("");
   };

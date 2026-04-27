@@ -1,5 +1,5 @@
 import { Loader2, RefreshCcw } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSpacetimeDB } from "spacetimedb/react";
 import catLoading from "./assets/images/common/cat1.png";
 import { SPACETIME_TOKEN_KEY } from "./features/app/constants";
@@ -19,6 +19,13 @@ export default function App() {
   const [retryTick, setRetryTick] = useState(0);
   const [softRetryCount, setSoftRetryCount] = useState(0);
   const [copyIndex, setCopyIndex] = useState(0);
+  const connectedRef = useRef(connected);
+  const identityRef = useRef(identity);
+
+  useEffect(() => {
+    connectedRef.current = connected;
+    identityRef.current = identity;
+  }, [connected, identity]);
 
   useEffect(() => {
     if (connected && identity) {
@@ -46,9 +53,15 @@ export default function App() {
   useEffect(() => {
     const onVisible = () => {
       if (document.visibilityState === "visible") {
-        // 手機切回前景時重啟一次等待流程，觸發連線重試觀察。
+        // 手機切回前景時先觸發一次軟重連觀察。
         setTimedOut(false);
         setRetryTick((x) => x + 1);
+        // 若前景恢復後短時間仍未連上，代表底層 ws 可能已僵住，改為硬重整重建連線。
+        window.setTimeout(() => {
+          if (!connectedRef.current || !identityRef.current) {
+            window.location.reload();
+          }
+        }, 2500);
       }
     };
     document.addEventListener("visibilitychange", onVisible);
