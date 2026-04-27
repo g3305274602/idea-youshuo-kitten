@@ -1655,7 +1655,7 @@ export default function SpacetimeMailboxApp({
           "";
         counterpartAccountId =
           sourceCapsule?.authorAccountId ||
-          post?.snapshotPublisherAccountId ||
+          post?.publisherAccountId ||
           "";
       } else {
         const gProfile = publicProfileByIdentityHex.get(guestHex);
@@ -1784,7 +1784,7 @@ export default function SpacetimeMailboxApp({
         "",
       counterpartAccountId:
         sourceCapsule?.authorAccountId ||
-        post?.snapshotPublisherAccountId ||
+        post?.publisherAccountId ||
         "",
       counterpartGender:
         sourceCapsule?.authorGender ||
