@@ -13,6 +13,11 @@ type AuthSectionProps = {
   registerDisplayName: string;
   registerGender: string;
   registerProfileNote: string;
+  registerOtpCode: string;
+  registerOtpBusy: boolean;
+  registerOtpMessage: string;
+  registerOtpCooldownUntilMs: number;
+  registerOtpVerified: boolean;
   loading: boolean;
   error: string;
   onSubmit: () => void; // 這對應原先的 handleAuth
@@ -23,6 +28,8 @@ type AuthSectionProps = {
   onRegisterDisplayNameChange: (value: string) => void;
   onRegisterGenderChange: (value: string) => void;
   onRegisterProfileNoteChange: (value: string) => void;
+  onRegisterOtpCodeChange: (value: string) => void;
+  onRequestRegisterOtp: () => void;
   onClearTransientState: () => void;
 };
 
@@ -34,6 +41,11 @@ export function AuthSection({
   registerDisplayName,
   registerGender,
   registerProfileNote,
+  registerOtpCode,
+  registerOtpBusy,
+  registerOtpMessage,
+  registerOtpCooldownUntilMs,
+  registerOtpVerified,
   loading,
   error,
   onSubmit,
@@ -44,6 +56,8 @@ export function AuthSection({
   onRegisterDisplayNameChange,
   onRegisterGenderChange,
   onRegisterProfileNoteChange,
+  onRegisterOtpCodeChange,
+  onRequestRegisterOtp,
   onClearTransientState,
 }: AuthSectionProps) {
   // 密碼顯示狀態放在組件內部
@@ -53,6 +67,12 @@ export function AuthSection({
     e.preventDefault();
     onSubmit();
   };
+
+  const otpCooldownSec = Math.max(
+    0,
+    Math.ceil((registerOtpCooldownUntilMs - Date.now()) / 1000),
+  );
+  const otpCanRequest = otpCooldownSec <= 0 && !registerOtpBusy;
 
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-[#121319] p-6 font-sans text-white">
@@ -123,6 +143,57 @@ export function AuthSection({
             />
           </div>
 
+          <AnimatePresence mode="wait">
+            {view === "register" ? (
+              <motion.div
+                initial={{ opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -4 }}
+                className="rounded-[16px] border border-white/[0.08] bg-white/[0.03] p-3"
+              >
+                <p className="text-[12px] font-semibold text-white/75">信箱驗證</p>
+                <div className="mt-2 flex items-center gap-2">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={6}
+                    value={registerOtpCode}
+                    onChange={(e) =>
+                      onRegisterOtpCodeChange(e.target.value.replace(/\D+/g, "").slice(0, 6))
+                    }
+                    className="min-w-0 flex-1 rounded-[12px] border border-white/[0.1] bg-white/[0.04] px-3 py-2 text-[15px] text-white placeholder:text-white/25 outline-none focus:ring-1 focus:ring-white/40"
+                    placeholder="輸入 6 位驗證碼"
+                  />
+                  <button
+                    type="button"
+                    disabled={!otpCanRequest}
+                    onClick={onRequestRegisterOtp}
+                    className="shrink-0 rounded-[12px] border border-white/20 bg-white/[0.08] px-3 py-2 text-[12px] font-semibold text-white disabled:opacity-45"
+                  >
+                    {otpCooldownSec > 0 ? `${otpCooldownSec}s` : "發送驗證碼"}
+                  </button>
+                </div>
+                {registerOtpMessage ? (
+                  <p
+                    className={cn(
+                      "mt-2 text-[12px]",
+                      registerOtpVerified ? "text-emerald-300" : "text-white/65",
+                    )}
+                  >
+                    {registerOtpMessage}
+                  </p>
+                ) : null}
+                {/* {registerOtpBusy ? (
+                  <p className="mt-1 text-[11px] text-white/50">正在驗證中…</p>
+                ) : registerOtpVerified ? (
+                  <p className="mt-1 text-[11px] text-emerald-300">已完成驗證</p>
+                ) : registerOtpCode.trim().length === 6 ? (
+                  <p className="mt-1 text-[11px] text-white/50">已輸入 6 位，將自動驗證</p>
+                ) : null} */}
+              </motion.div>
+            ) : null}
+          </AnimatePresence>
+
           {/* 3. 密碼 (附帶眼睛) */}
           <div className="relative">
             <input
@@ -190,7 +261,7 @@ export function AuthSection({
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || (view === "register" && !registerOtpVerified)}
             className="w-full py-[14px] mt-6 bg-white text-apple-black hover:bg-white/90 rounded-[980px] font-sans font-semibold text-[17px] tracking-tight transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
           >
             {loading && <Loader2 className="w-4 h-4 animate-spin" />}

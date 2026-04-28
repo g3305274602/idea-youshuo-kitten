@@ -32,6 +32,8 @@ import FavoriteSquarePostReducer from "../favorite_square_post_reducer";
 import LoginAccountReducer from "../login_account_reducer";
 import PublishToSquareReducer from "../publish_to_square_reducer";
 import RegisterAccountReducer from "../register_account_reducer";
+import RegisterAccountWithEmailOtpReducer from "../register_account_with_email_otp_reducer";
+import RequestEmailOtpReducer from "../request_email_otp_reducer";
 import RestoreCapsuleMessageReducer from "../restore_capsule_message_reducer";
 import SendCapsuleMessageReducer from "../send_capsule_message_reducer";
 import SendDirectMessageReducer from "../send_direct_message_reducer";
@@ -44,6 +46,7 @@ import UnfavoriteSquarePostReducer from "../unfavorite_square_post_reducer";
 import UnpublishFromSquareReducer from "../unpublish_from_square_reducer";
 import UpdateAccountProfileReducer from "../update_account_profile_reducer";
 import UpdateScheduledMessageReducer from "../update_scheduled_message_reducer";
+import VerifyEmailOtpReducer from "../verify_email_otp_reducer";
 
 export type AddCapsulePrivateMessageParams = __Infer<typeof AddCapsulePrivateMessageReducer>;
 export type AddSquareCommentParams = __Infer<typeof AddSquareCommentReducer>;
@@ -71,6 +74,8 @@ export type FavoriteSquarePostParams = __Infer<typeof FavoriteSquarePostReducer>
 export type LoginAccountParams = __Infer<typeof LoginAccountReducer>;
 export type PublishToSquareParams = __Infer<typeof PublishToSquareReducer>;
 export type RegisterAccountParams = __Infer<typeof RegisterAccountReducer>;
+export type RegisterAccountWithEmailOtpParams = __Infer<typeof RegisterAccountWithEmailOtpReducer>;
+export type RequestEmailOtpParams = __Infer<typeof RequestEmailOtpReducer>;
 export type RestoreCapsuleMessageParams = __Infer<typeof RestoreCapsuleMessageReducer>;
 export type SendCapsuleMessageParams = __Infer<typeof SendCapsuleMessageReducer>;
 export type SendDirectMessageParams = __Infer<typeof SendDirectMessageReducer>;
@@ -83,4 +88,5 @@ export type UnfavoriteSquarePostParams = __Infer<typeof UnfavoriteSquarePostRedu
 export type UnpublishFromSquareParams = __Infer<typeof UnpublishFromSquareReducer>;
 export type UpdateAccountProfileParams = __Infer<typeof UpdateAccountProfileReducer>;
 export type UpdateScheduledMessageParams = __Infer<typeof UpdateScheduledMessageReducer>;
+export type VerifyEmailOtpParams = __Infer<typeof VerifyEmailOtpReducer>;
 

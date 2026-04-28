@@ -1,7 +1,7 @@
-import { useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Timestamp } from "spacetimedb";
 
-import { SPACETIME_TOKEN_KEY } from "../constants";
+import { EMAIL_OTP_GATEWAY_URL, SPACETIME_TOKEN_KEY } from "../constants";
 import { clearLocalSessionState } from "../sessionGuard";
 import type { User as AppUser } from "../types";
 
@@ -58,6 +58,16 @@ type UseAccountFlowHandlersParams = {
     birthDate: undefined;
     profileNote: string;
   }) => Promise<unknown>;
+  registerAccountWithEmailOtp: (args: {
+    email: string;
+    password: string;
+    displayName: string;
+    gender: string;
+    birthDate: undefined;
+    profileNote: string;
+  }) => Promise<unknown>;
+  requestEmailOtp: (args: { email: string; purpose: string; code: string }) => Promise<unknown>;
+  verifyEmailOtp: (args: { email: string; purpose: string; code: string }) => Promise<unknown>;
   myProfile: any;
   user: AppUser | null;
   setBirthYear: (v: number) => void;
@@ -125,6 +135,70 @@ type UseAccountFlowHandlersParams = {
 };
 
 export function useAccountFlowHandlers(params: UseAccountFlowHandlersParams) {
+  async function callOtpGateway<T>(path: string, body: Record<string, unknown>): Promise<T> {
+    const res = await fetch(`${EMAIL_OTP_GATEWAY_URL}${path}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const json = (await res.json().catch(() => ({}))) as {
+      message?: string;
+      data?: T;
+      details?: string;
+    };
+    if (!res.ok) {
+      throw new Error(json.message || json.details || "OTP 服務暫時不可用");
+    }
+    return (json.data ?? ({} as T)) as T;
+  }
+
+  const [registerOtpCode, setRegisterOtpCode] = useState("");
+  const [registerOtpBusy, setRegisterOtpBusy] = useState(false);
+  const [registerOtpMessage, setRegisterOtpMessage] = useState("");
+  const [registerOtpVerifiedEmail, setRegisterOtpVerifiedEmail] = useState("");
+  const [registerOtpVerifiedCode, setRegisterOtpVerifiedCode] = useState("");
+  const [registerOtpCooldownUntilMs, setRegisterOtpCooldownUntilMs] = useState(0);
+  const [registerOtpRejectedCode, setRegisterOtpRejectedCode] = useState("");
+
+  const normalizedEmail = useMemo(
+    () => params.email.trim().toLowerCase(),
+    [params.email],
+  );
+
+  useEffect(() => {
+    if (!normalizedEmail) {
+      setRegisterOtpVerifiedEmail("");
+      setRegisterOtpVerifiedCode("");
+      setRegisterOtpCode("");
+      setRegisterOtpMessage("");
+      setRegisterOtpCooldownUntilMs(0);
+      setRegisterOtpRejectedCode("");
+      return;
+    }
+    if (registerOtpVerifiedEmail && registerOtpVerifiedEmail !== normalizedEmail) {
+      setRegisterOtpVerifiedEmail("");
+      setRegisterOtpVerifiedCode("");
+      setRegisterOtpCode("");
+      setRegisterOtpMessage("信箱已變更，請重新驗證");
+      setRegisterOtpRejectedCode("");
+    }
+  }, [normalizedEmail, registerOtpVerifiedEmail]);
+
+  useEffect(() => {
+    const code = registerOtpCode.trim();
+    if (!registerOtpVerifiedCode) return;
+    if (code === registerOtpVerifiedCode) return;
+    setRegisterOtpVerifiedEmail("");
+    setRegisterOtpVerifiedCode("");
+  }, [registerOtpCode, registerOtpVerifiedCode]);
+
+  useEffect(() => {
+    if (registerOtpCode.trim() !== registerOtpRejectedCode) return;
+    if (registerOtpCode.trim().length !== 6) {
+      setRegisterOtpRejectedCode("");
+    }
+  }, [registerOtpCode, registerOtpRejectedCode]);
+
   useEffect(() => {
     const pending = sessionStorage.getItem(AUTH_PENDING_RETRY);
     if (pending) {
@@ -192,7 +266,11 @@ export function useAccountFlowHandlers(params: UseAccountFlowHandlersParams) {
       if (isLogin) {
         await params.loginAccount({ email: currentEmail, password: currentPassword });
       } else {
-        await params.registerAccount({
+        if (registerOtpVerifiedEmail !== currentEmail) {
+          params.setError("請先完成信箱驗證");
+          return;
+        }
+        await params.registerAccountWithEmailOtp({
           email: currentEmail,
           password: currentPassword,
           displayName: params.registerDisplayName.trim(),
@@ -200,6 +278,11 @@ export function useAccountFlowHandlers(params: UseAccountFlowHandlersParams) {
           birthDate: undefined,
           profileNote: "",
         });
+        setRegisterOtpVerifiedEmail("");
+        setRegisterOtpVerifiedCode("");
+        setRegisterOtpCode("");
+        setRegisterOtpMessage("");
+        setRegisterOtpCooldownUntilMs(0);
       }
 
       const tokenAfterLogin = localStorage.getItem(SPACETIME_TOKEN_KEY);
@@ -229,6 +312,85 @@ export function useAccountFlowHandlers(params: UseAccountFlowHandlersParams) {
       params.setLoading(false);
     }
   };
+
+  const requestRegisterEmailOtp = async () => {
+    const em = params.email.trim().toLowerCase();
+    if (!em) {
+      setRegisterOtpMessage("請先輸入信箱");
+      return;
+    }
+    setRegisterOtpBusy(true);
+    setRegisterOtpMessage("");
+    try {
+      const code = String(Math.floor(100000 + Math.random() * 900000));
+      await params.requestEmailOtp({ email: em, purpose: "register", code });
+      await callOtpGateway("/otp/request", { email: em, purpose: "register", code });
+      setRegisterOtpVerifiedEmail("");
+      setRegisterOtpVerifiedCode("");
+      setRegisterOtpCode("");
+      setRegisterOtpCooldownUntilMs(Date.now() + 60_000);
+      setRegisterOtpRejectedCode("");
+      setRegisterOtpMessage("驗證碼已送出，請查收信箱");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setRegisterOtpMessage(msg || "發送驗證碼失敗");
+    } finally {
+      setRegisterOtpBusy(false);
+    }
+  };
+
+  const verifyRegisterEmailOtp = async (overrideCode?: string) => {
+    const em = params.email.trim().toLowerCase();
+    const code = (overrideCode ?? registerOtpCode).trim();
+    if (!em) {
+      setRegisterOtpMessage("請先輸入信箱");
+      return;
+    }
+    if (!/^\d{6}$/.test(code)) {
+      setRegisterOtpMessage("請輸入 6 位數驗證碼");
+      return;
+    }
+    setRegisterOtpBusy(true);
+    setRegisterOtpMessage("");
+    try {
+      await params.verifyEmailOtp({ email: em, purpose: "register", code });
+      setRegisterOtpVerifiedEmail(em);
+      setRegisterOtpVerifiedCode(code);
+      setRegisterOtpRejectedCode("");
+      setRegisterOtpMessage("信箱驗證成功");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setRegisterOtpRejectedCode(code);
+      setRegisterOtpMessage(msg || "驗證失敗");
+    } finally {
+      setRegisterOtpBusy(false);
+    }
+  };
+
+  useEffect(() => {
+    if (registerOtpBusy) return;
+    const code = registerOtpCode.trim();
+    if (
+      registerOtpVerifiedEmail === normalizedEmail &&
+      !!normalizedEmail &&
+      registerOtpVerifiedCode === code
+    ) {
+      return;
+    }
+    if (code.length !== 6) return;
+    if (code === registerOtpRejectedCode) return;
+    const t = window.setTimeout(() => {
+      void verifyRegisterEmailOtp(code);
+    }, 650);
+    return () => window.clearTimeout(t);
+  }, [
+    registerOtpCode,
+    registerOtpBusy,
+    registerOtpRejectedCode,
+    registerOtpVerifiedEmail,
+    registerOtpVerifiedCode,
+    normalizedEmail,
+  ]);
 
   const openProfileModal = () => {
     if (!params.myProfile) return;
@@ -418,6 +580,14 @@ export function useAccountFlowHandlers(params: UseAccountFlowHandlersParams) {
 
   return {
     handleAuth,
+    registerOtpCode,
+    setRegisterOtpCode,
+    registerOtpBusy,
+    registerOtpMessage,
+    registerOtpCooldownUntilMs,
+    registerOtpVerified: registerOtpVerifiedEmail === normalizedEmail && !!normalizedEmail,
+    requestRegisterEmailOtp,
+    verifyRegisterEmailOtp,
     openProfileModal,
     openProfileActionMenu,
     openAccountProfile,

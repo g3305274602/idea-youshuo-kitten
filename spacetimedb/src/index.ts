@@ -151,6 +151,54 @@ const accountSecret = table(
   },
 );
 
+/** Email OTP challenge（私有） */
+const emailOtpChallenge = table(
+  { name: "email_otp_challenge", public: false },
+  {
+    challengeKey: t.string().primaryKey(),
+    purpose: t.string().index("btree"),
+    email: t.string().index("btree"),
+    otpSalt: t.string(),
+    otpHash: t.string(),
+    attemptCount: t.u16().default(0),
+    sendCount: t.u16().default(0),
+    expiresAt: t.timestamp(),
+    resendAfter: t.timestamp(),
+    lockedUntil: t.timestamp().optional(),
+    lastRequestedBy: t.identity(),
+    updatedAt: t.timestamp(),
+  },
+);
+
+/** Email OTP 驗證會話（私有） */
+const emailOtpSession = table(
+  { name: "email_otp_session", public: false },
+  {
+    sessionKey: t.string().primaryKey(),
+    purpose: t.string().index("btree"),
+    email: t.string().index("btree"),
+    ownerIdentity: t.identity().index("btree"),
+    expiresAt: t.timestamp(),
+    createdAt: t.timestamp(),
+  },
+);
+
+/** Email OTP 審計日誌（私有） */
+const emailOtpAuditLog = table(
+  { name: "email_otp_audit_log", public: false },
+  {
+    id: t.string().primaryKey(),
+    challengeKey: t.string().index("btree"),
+    purpose: t.string().index("btree"),
+    email: t.string().index("btree"),
+    action: t.string(),
+    status: t.string(),
+    detail: t.string().default(""),
+    operatorIdentity: t.identity(),
+    createdAt: t.timestamp(),
+  },
+);
+
 const scheduledMessage = table(
   { name: "scheduled_message", public: true },
   {
@@ -453,6 +501,9 @@ const spacetimedb = schema({
   accountProfile,
   accountProfileCreatedAt,
   accountSecret,
+  emailOtpChallenge,
+  emailOtpSession,
+  emailOtpAuditLog,
   scheduledMessage,
   capsuleMessage,
   capsuleMessageSpaceState,
@@ -803,6 +854,13 @@ const REPORT_TARGET_TYPES = new Set([
   "chat_account",
 ]);
 const ADMIN_ROLES = new Set(["super_admin", "moderator", "reviewer"]);
+const EMAIL_OTP_PURPOSES = new Set(["register"]);
+const EMAIL_OTP_CODE_LEN = 6;
+const EMAIL_OTP_EXPIRE_MICROS = 5n * 60n * 1_000_000n;
+const EMAIL_OTP_RESEND_MICROS = 60n * 1_000_000n;
+const EMAIL_OTP_LOCK_MICROS = 15n * 60n * 1_000_000n;
+const EMAIL_OTP_SESSION_MICROS = 15n * 60n * 1_000_000n;
+const EMAIL_OTP_MAX_ATTEMPTS = 5;
 
 function validateProfileFields(
   displayName: string,
@@ -861,6 +919,139 @@ function validateProfileFieldsRegister(
             );
           })();
   return { dn, g, note, age };
+}
+
+function assertEmailForOtp(raw: string): string {
+  const em = normalizeEmail(raw);
+  if (!em) throw new SenderError("請填寫信箱");
+  if (em.length > 254) throw new SenderError("信箱格式不正確");
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) {
+    throw new SenderError("信箱格式不正確");
+  }
+  return em;
+}
+
+function normalizeOtpPurpose(raw: string): string {
+  const p = (raw ?? "").trim().toLowerCase();
+  if (!EMAIL_OTP_PURPOSES.has(p)) {
+    throw new SenderError("不支援的驗證用途");
+  }
+  return p;
+}
+
+function makeOtpChallengeKey(purpose: string, email: string): string {
+  return `${purpose}:${email}`;
+}
+
+function makeOtpSessionKey(sender: Identity, purpose: string, email: string): string {
+  return `${sender.toHexString()}:${purpose}:${email}`;
+}
+
+function randomOtpCode(rng: Random): string {
+  const buf = new Uint8Array(EMAIL_OTP_CODE_LEN);
+  rng.fill(buf);
+  let out = "";
+  for (let i = 0; i < buf.length; i++) out += String(buf[i]! % 10);
+  return out;
+}
+
+function hashOtpCode(email: string, purpose: string, salt: string, code: string): string {
+  return bytesToHex(sha256(utf8(`otp:v1:${email}:${purpose}:${salt}:${code}`)));
+}
+
+function writeOtpAudit(
+  ctx: { db: any; sender: Identity; random: Random; timestamp: Timestamp },
+  args: {
+    challengeKey: string;
+    purpose: string;
+    email: string;
+    action: string;
+    status: string;
+    detail?: string;
+  },
+) {
+  ctx.db.emailOtpAuditLog.insert({
+    id: newMessageId(ctx.random),
+    challengeKey: args.challengeKey,
+    purpose: args.purpose,
+    email: args.email,
+    action: args.action,
+    status: args.status,
+    detail: (args.detail ?? "").trim(),
+    operatorIdentity: ctx.sender,
+    createdAt: ctx.timestamp,
+  });
+}
+
+function assertOtpSessionForRegister(ctx: { db: any; sender: Identity; timestamp: Timestamp }, email: string) {
+  const purpose = "register";
+  const key = makeOtpSessionKey(ctx.sender, purpose, email);
+  const row = ctx.db.emailOtpSession.sessionKey.find(key);
+  if (!row) throw new SenderError("請先完成信箱驗證");
+  if (row.expiresAt.microsSinceUnixEpoch <= ctx.timestamp.microsSinceUnixEpoch) {
+    ctx.db.emailOtpSession.sessionKey.delete(key);
+    throw new SenderError("驗證已過期，請重新獲取驗證碼");
+  }
+}
+
+function consumeOtpSessionForRegister(ctx: { db: any; sender: Identity }, email: string) {
+  const key = makeOtpSessionKey(ctx.sender, "register", email);
+  ctx.db.emailOtpSession.sessionKey.delete(key);
+}
+
+function consumeOtpChallengeForRegister(ctx: { db: any }, email: string) {
+  const key = makeOtpChallengeKey("register", email);
+  const row = ctx.db.emailOtpChallenge.challengeKey.find(key);
+  if (row) ctx.db.emailOtpChallenge.challengeKey.delete(key);
+}
+
+function registerAccountCore(
+  ctx: { db: any; sender: Identity; random: Random; timestamp: Timestamp },
+  input: {
+    email: string;
+    password: string;
+    displayName: string;
+    gender: string;
+    birthDate: number | undefined;
+    profileNote: string;
+  },
+) {
+  const { email, password, displayName, gender, birthDate, profileNote } = input;
+  const em = normalizeEmail(email);
+  if (!em || !password) throw new SenderError("請提供信箱與密碼");
+  if (password.length < 6) throw new SenderError("密碼至少 6 字元");
+  if (ctx.db.accountProfile.ownerIdentity.find(ctx.sender)) {
+    throw new SenderError("此連線已有帳號，請先登出");
+  }
+  if (ctx.db.accountProfile.email.find(em)) {
+    throw new SenderError("該信箱已被註冊");
+  }
+  if (ctx.db.accountSecret.email.find(em)) {
+    throw new SenderError("該信箱已被註冊");
+  }
+  const { dn, g, note } = validateProfileFieldsRegister(
+    displayName,
+    gender,
+    birthDate,
+    profileNote,
+  );
+  const hash = hashPassword(password, ctx.random);
+  const accountId = accountIdForEmail(em);
+  ctx.db.accountSecret.insert({ email: em, passwordHash: hash });
+  ctx.db.accountProfile.insert({
+    email: em,
+    accountId,
+    ownerIdentity: ctx.sender,
+    displayName: dn,
+    gender: g,
+    birthDate: undefined,
+    profileNote: note,
+  });
+  ctx.db.accountProfileCreatedAt.insert({
+    email: em,
+    accountId,
+    createdAt: ctx.timestamp,
+  });
 }
 
 function isAdminIdentity(ctx: { db: any }, sender: Identity): boolean {
@@ -977,42 +1168,202 @@ export const register_account = spacetimedb.reducer(
     profileNote: t.string(),
   },
   (ctx, { email, password, displayName, gender, birthDate, profileNote }) => {
-    const em = normalizeEmail(email);
-    if (!em || !password) throw new SenderError("請提供信箱與密碼");
-    if (password.length < 6) throw new SenderError("密碼至少 6 字元");
-    if (ctx.db.accountProfile.ownerIdentity.find(ctx.sender)) {
-      throw new SenderError("此連線已有帳號，請先登出");
-    }
-
-    if (ctx.db.accountProfile.email.find(em)) {
-      throw new SenderError("該信箱已被註冊");
-    }
-    if (ctx.db.accountSecret.email.find(em)) {
-      throw new SenderError("該信箱已被註冊");
-    }
-    const { dn, g, note, age } = validateProfileFieldsRegister(
+    const em = assertEmailForOtp(email);
+    assertOtpSessionForRegister(ctx, em);
+    registerAccountCore(ctx, {
+      email: em,
+      password,
       displayName,
       gender,
       birthDate,
       profileNote,
-    );
-    const hash = hashPassword(password, ctx.random);
-    const accountId = accountIdForEmail(em); // 產生穩定 ID
-    ctx.db.accountSecret.insert({ email: em, passwordHash: hash });
-    ctx.db.accountProfile.insert({
-      email: em,
-      accountId: accountId, // 存入 ID
-      ownerIdentity: ctx.sender,
-      displayName: dn,
-      gender: g,
-      birthDate: undefined,
-      profileNote: note,
     });
-    ctx.db.accountProfileCreatedAt.insert({
+    consumeOtpSessionForRegister(ctx, em);
+    consumeOtpChallengeForRegister(ctx, em);
+  },
+);
+
+/** 申請註冊用 Email OTP（目前用途：register） */
+export const request_email_otp = spacetimedb.reducer(
+  { email: t.string(), purpose: t.string(), code: t.string().optional() },
+  (ctx, { email, purpose, code }) => {
+    const em = assertEmailForOtp(email);
+    const p = normalizeOtpPurpose(purpose);
+    const providedCode = (code ?? "").trim();
+    if (providedCode && !/^\d{6}$/.test(providedCode)) {
+      throw new SenderError("驗證碼格式不正確");
+    }
+    const key = makeOtpChallengeKey(p, em);
+    const now = ctx.timestamp.microsSinceUnixEpoch;
+    const row = ctx.db.emailOtpChallenge.challengeKey.find(key);
+
+    if (row?.lockedUntil && row.lockedUntil.microsSinceUnixEpoch > now) {
+      throw new SenderError("驗證碼嘗試過多，請稍後再試");
+    }
+    if (row && row.resendAfter.microsSinceUnixEpoch > now) {
+      throw new SenderError("發送過於頻繁，請稍後再試");
+    }
+
+    const otpCode = providedCode || randomOtpCode(ctx.random);
+    const saltBuf = new Uint8Array(16);
+    ctx.random.fill(saltBuf);
+    const otpSalt = bytesToHex(saltBuf);
+    const otpHash = hashOtpCode(em, p, otpSalt, otpCode);
+    const expiresAt = new Timestamp(now + EMAIL_OTP_EXPIRE_MICROS);
+    const resendAfter = new Timestamp(now + EMAIL_OTP_RESEND_MICROS);
+    const sendCount = Math.min((row?.sendCount ?? 0) + 1, 65535);
+
+    if (row) {
+      ctx.db.emailOtpChallenge.challengeKey.update({
+        ...row,
+        otpSalt,
+        otpHash,
+        attemptCount: 0,
+        sendCount,
+        expiresAt,
+        resendAfter,
+        lockedUntil: undefined,
+        lastRequestedBy: ctx.sender,
+        updatedAt: ctx.timestamp,
+      });
+    } else {
+      ctx.db.emailOtpChallenge.insert({
+        challengeKey: key,
+        purpose: p,
+        email: em,
+        otpSalt,
+        otpHash,
+        attemptCount: 0,
+        sendCount,
+        expiresAt,
+        resendAfter,
+        lockedUntil: undefined,
+        lastRequestedBy: ctx.sender,
+        updatedAt: ctx.timestamp,
+      });
+    }
+
+    writeOtpAudit(ctx, {
+      challengeKey: key,
+      purpose: p,
       email: em,
-      accountId,
-      createdAt: ctx.timestamp,
+      action: "request",
+      status: "queued",
+      detail: "issued",
     });
+  },
+);
+
+/** 驗證 Email OTP，成功後建立短期會話（供註冊消耗） */
+export const verify_email_otp = spacetimedb.reducer(
+  { email: t.string(), purpose: t.string(), code: t.string() },
+  (ctx, { email, purpose, code }) => {
+    const em = assertEmailForOtp(email);
+    const p = normalizeOtpPurpose(purpose);
+    const otp = (code ?? "").trim();
+    if (!/^\d{6}$/.test(otp)) {
+      throw new SenderError("驗證碼格式不正確");
+    }
+
+    const key = makeOtpChallengeKey(p, em);
+    const now = ctx.timestamp.microsSinceUnixEpoch;
+    const row = ctx.db.emailOtpChallenge.challengeKey.find(key);
+    if (!row) throw new SenderError("請先獲取驗證碼");
+    if (row.lockedUntil && row.lockedUntil.microsSinceUnixEpoch > now) {
+      throw new SenderError("驗證碼嘗試過多，請稍後再試");
+    }
+    if (row.expiresAt.microsSinceUnixEpoch <= now) {
+      ctx.db.emailOtpChallenge.challengeKey.delete(key);
+      throw new SenderError("驗證碼已過期，請重新獲取");
+    }
+
+    const want = hashOtpCode(em, p, row.otpSalt, otp);
+    if (!hexEqConstTime(want, row.otpHash)) {
+      const nextAttempts = row.attemptCount + 1;
+      const lock =
+        nextAttempts >= EMAIL_OTP_MAX_ATTEMPTS
+          ? new Timestamp(now + EMAIL_OTP_LOCK_MICROS)
+          : undefined;
+      ctx.db.emailOtpChallenge.challengeKey.update({
+        ...row,
+        attemptCount: nextAttempts,
+        lockedUntil: lock,
+        updatedAt: ctx.timestamp,
+      });
+      writeOtpAudit(ctx, {
+        challengeKey: key,
+        purpose: p,
+        email: em,
+        action: "verify",
+        status: "fail",
+        detail: nextAttempts >= EMAIL_OTP_MAX_ATTEMPTS ? "locked" : "wrong_code",
+      });
+      throw new SenderError(
+        nextAttempts >= EMAIL_OTP_MAX_ATTEMPTS
+          ? "驗證失敗次數過多，請稍後再試"
+          : "驗證碼錯誤",
+      );
+    }
+
+    const sessionKey = makeOtpSessionKey(ctx.sender, p, em);
+    const session = ctx.db.emailOtpSession.sessionKey.find(sessionKey);
+    const expiresAt = new Timestamp(now + EMAIL_OTP_SESSION_MICROS);
+    if (session) {
+      ctx.db.emailOtpSession.sessionKey.update({
+        ...session,
+        expiresAt,
+        createdAt: ctx.timestamp,
+      });
+    } else {
+      ctx.db.emailOtpSession.insert({
+        sessionKey,
+        purpose: p,
+        email: em,
+        ownerIdentity: ctx.sender,
+        expiresAt,
+        createdAt: ctx.timestamp,
+      });
+    }
+
+    ctx.db.emailOtpChallenge.challengeKey.update({
+      ...row,
+      attemptCount: 0,
+      lockedUntil: undefined,
+      updatedAt: ctx.timestamp,
+    });
+    writeOtpAudit(ctx, {
+      challengeKey: key,
+      purpose: p,
+      email: em,
+      action: "verify",
+      status: "ok",
+    });
+  },
+);
+
+/** 嚴格註冊：需先 verify_email_otp 成功 */
+export const register_account_with_email_otp = spacetimedb.reducer(
+  {
+    email: t.string(),
+    password: t.string(),
+    displayName: t.string(),
+    gender: t.string(),
+    birthDate: t.u32().optional(),
+    profileNote: t.string(),
+  },
+  (ctx, { email, password, displayName, gender, birthDate, profileNote }) => {
+    const em = assertEmailForOtp(email);
+    assertOtpSessionForRegister(ctx, em);
+    registerAccountCore(ctx, {
+      email: em,
+      password,
+      displayName,
+      gender,
+      birthDate,
+      profileNote,
+    });
+    consumeOtpSessionForRegister(ctx, em);
+    consumeOtpChallengeForRegister(ctx, em);
   },
 );
 

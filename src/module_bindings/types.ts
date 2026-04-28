@@ -123,6 +123,45 @@ export const CapsulePrivateMessage = __t.object("CapsulePrivateMessage", {
 });
 export type CapsulePrivateMessage = __Infer<typeof CapsulePrivateMessage>;
 
+export const EmailOtpAuditLog = __t.object("EmailOtpAuditLog", {
+  id: __t.string(),
+  challengeKey: __t.string(),
+  purpose: __t.string(),
+  email: __t.string(),
+  action: __t.string(),
+  status: __t.string(),
+  detail: __t.string(),
+  operatorIdentity: __t.identity(),
+  createdAt: __t.timestamp(),
+});
+export type EmailOtpAuditLog = __Infer<typeof EmailOtpAuditLog>;
+
+export const EmailOtpChallenge = __t.object("EmailOtpChallenge", {
+  challengeKey: __t.string(),
+  purpose: __t.string(),
+  email: __t.string(),
+  otpSalt: __t.string(),
+  otpHash: __t.string(),
+  attemptCount: __t.u16(),
+  sendCount: __t.u16(),
+  expiresAt: __t.timestamp(),
+  resendAfter: __t.timestamp(),
+  lockedUntil: __t.option(__t.timestamp()),
+  lastRequestedBy: __t.identity(),
+  updatedAt: __t.timestamp(),
+});
+export type EmailOtpChallenge = __Infer<typeof EmailOtpChallenge>;
+
+export const EmailOtpSession = __t.object("EmailOtpSession", {
+  sessionKey: __t.string(),
+  purpose: __t.string(),
+  email: __t.string(),
+  ownerIdentity: __t.identity(),
+  expiresAt: __t.timestamp(),
+  createdAt: __t.timestamp(),
+});
+export type EmailOtpSession = __Infer<typeof EmailOtpSession>;
+
 export const ModerationActionLog = __t.object("ModerationActionLog", {
   id: __t.string(),
   actionType: __t.string(),

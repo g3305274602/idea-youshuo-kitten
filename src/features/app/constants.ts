@@ -5,6 +5,8 @@ export const AUTH_HOST =
     : "wss://maincloud.spacetimedb.com");
 
 export const AUTH_DB = import.meta.env.VITE_SPACETIMEDB_DB_NAME ?? "idea-jd2zx";
+export const EMAIL_OTP_GATEWAY_URL =
+  import.meta.env.VITE_EMAIL_OTP_GATEWAY_URL ?? "http://localhost:8787";
 
 export const SPACETIME_TOKEN_KEY = `${AUTH_HOST}/${AUTH_DB}/auth_token`;
 

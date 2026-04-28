@@ -151,6 +151,11 @@ export default function SpacetimeMailboxApp({
   }, []);
 
   const registerAccount = useReducer(reducers.registerAccount);
+  const registerAccountWithEmailOtp = useReducer(
+    reducers.registerAccountWithEmailOtp,
+  );
+  const requestEmailOtp = useReducer(reducers.requestEmailOtp);
+  const verifyEmailOtp = useReducer(reducers.verifyEmailOtp);
   const updateAccountProfile = useReducer(reducers.updateAccountProfile);
   const setAgeYears = useReducer(reducers.setAgeYears);
   const loginAccount = useReducer(reducers.loginAccount);
@@ -1471,6 +1476,13 @@ export default function SpacetimeMailboxApp({
 
   const {
     handleAuth,
+    registerOtpCode,
+    setRegisterOtpCode,
+    registerOtpBusy,
+    registerOtpMessage,
+    registerOtpCooldownUntilMs,
+    registerOtpVerified,
+    requestRegisterEmailOtp,
     openProfileModal,
     openProfileActionMenu,
     openAccountProfile,
@@ -1496,6 +1508,9 @@ export default function SpacetimeMailboxApp({
     setPassword,
     loginAccount,
     registerAccount,
+    registerAccountWithEmailOtp,
+    requestEmailOtp,
+    verifyEmailOtp,
     myProfile,
     user,
     setBirthYear,
@@ -2257,6 +2272,11 @@ export default function SpacetimeMailboxApp({
         registerDisplayName={registerDisplayName}
         registerGender={registerGender}
         registerProfileNote={registerProfileNote}
+        registerOtpCode={registerOtpCode}
+        registerOtpBusy={registerOtpBusy}
+        registerOtpMessage={registerOtpMessage}
+        registerOtpCooldownUntilMs={registerOtpCooldownUntilMs}
+        registerOtpVerified={registerOtpVerified}
         loading={loading}
         error={error}
         onSubmit={() => void handleAuth(view !== "register")}
@@ -2267,6 +2287,8 @@ export default function SpacetimeMailboxApp({
         onRegisterDisplayNameChange={setRegisterDisplayName}
         onRegisterGenderChange={setRegisterGender}
         onRegisterProfileNoteChange={setRegisterProfileNote}
+        onRegisterOtpCodeChange={setRegisterOtpCode}
+        onRequestRegisterOtp={() => void requestRegisterEmailOtp()}
         onClearTransientState={() => {
           setError("");
           setConfirmPassword("");

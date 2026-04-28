@@ -60,6 +60,8 @@ import FavoriteSquarePostReducer from "./favorite_square_post_reducer";
 import LoginAccountReducer from "./login_account_reducer";
 import PublishToSquareReducer from "./publish_to_square_reducer";
 import RegisterAccountReducer from "./register_account_reducer";
+import RegisterAccountWithEmailOtpReducer from "./register_account_with_email_otp_reducer";
+import RequestEmailOtpReducer from "./request_email_otp_reducer";
 import RestoreCapsuleMessageReducer from "./restore_capsule_message_reducer";
 import SendCapsuleMessageReducer from "./send_capsule_message_reducer";
 import SendDirectMessageReducer from "./send_direct_message_reducer";
@@ -72,6 +74,7 @@ import UnfavoriteSquarePostReducer from "./unfavorite_square_post_reducer";
 import UnpublishFromSquareReducer from "./unpublish_from_square_reducer";
 import UpdateAccountProfileReducer from "./update_account_profile_reducer";
 import UpdateScheduledMessageReducer from "./update_scheduled_message_reducer";
+import VerifyEmailOtpReducer from "./verify_email_otp_reducer";
 
 // Import all procedure arg schemas
 
@@ -424,6 +427,8 @@ const reducersSchema = __reducers(
   __reducerSchema("login_account", LoginAccountReducer),
   __reducerSchema("publish_to_square", PublishToSquareReducer),
   __reducerSchema("register_account", RegisterAccountReducer),
+  __reducerSchema("register_account_with_email_otp", RegisterAccountWithEmailOtpReducer),
+  __reducerSchema("request_email_otp", RequestEmailOtpReducer),
   __reducerSchema("restore_capsule_message", RestoreCapsuleMessageReducer),
   __reducerSchema("send_capsule_message", SendCapsuleMessageReducer),
   __reducerSchema("send_direct_message", SendDirectMessageReducer),
@@ -436,6 +441,7 @@ const reducersSchema = __reducers(
   __reducerSchema("unpublish_from_square", UnpublishFromSquareReducer),
   __reducerSchema("update_account_profile", UpdateAccountProfileReducer),
   __reducerSchema("update_scheduled_message", UpdateScheduledMessageReducer),
+  __reducerSchema("verify_email_otp", VerifyEmailOtpReducer),
 );
 
 /** The schema information for all procedures in this module. This is defined the same way as the procedures would have been defined in the server. */

@@ -17,7 +17,8 @@
     "spacetime:publish:break": "spacetime publish idea-jd2zx -y --module-path spacetimedb --server maincloud --delete-data=on-conflict",
     "spacetime:seed-demo": "spacetime call -y idea-jd2zx dev_seed_demo_users",
     "spacetime:seed-capsules": "node spacetimedb/scripts/run-seed-capsule-slots.mjs",
-    "deploy:cloud": "npm run spacetime:generate && npm run spacetime:publish && npm run build"
+    "deploy:cloud": "npm run spacetime:generate && npm run spacetime:publish && npm run build",
+    "email:gateway": "node email-gateway/server.mjs"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.2.2",
