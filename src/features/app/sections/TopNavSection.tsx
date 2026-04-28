@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import { ChevronDown, ChevronRight, Lock, LogOut, User } from "lucide-react";
 import { cn } from "../../../lib/utils";
 import type { AppTab } from "../types";
@@ -46,6 +47,28 @@ export function TopNavSection({
   onOpenPasswordModal,
   onLogout,
 }: TopNavSectionProps) {
+  const [desktopMenuOpen, setDesktopMenuOpen] = useState(false);
+  const desktopMenuRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!desktopMenuOpen) return;
+    const onDocDown = (e: MouseEvent) => {
+      const target = e.target as Node | null;
+      if (!target) return;
+      if (!desktopMenuRef.current?.contains(target)) setDesktopMenuOpen(false);
+    };
+    const onEsc = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      setDesktopMenuOpen(false);
+    };
+    window.addEventListener("mousedown", onDocDown);
+    window.addEventListener("keydown", onEsc);
+    return () => {
+      window.removeEventListener("mousedown", onDocDown);
+      window.removeEventListener("keydown", onEsc);
+    };
+  }, [desktopMenuOpen]);
+
   return (
     <nav
       className={cn(
@@ -147,18 +170,28 @@ export function TopNavSection({
           <ChevronDown className="h-3.5 w-3.5 shrink-0 text-white/70" />
         </button>
 
-        <div className="group relative hidden md:block">
+        <div ref={desktopMenuRef} className="relative hidden md:block">
           <button
             type="button"
+            onClick={() => setDesktopMenuOpen((v) => !v)}
+            aria-expanded={desktopMenuOpen}
+            aria-haspopup="menu"
             className="ys-topnav-user-pill max-w-[min(100%,11rem)] items-center gap-1.5 px-2.5 py-1.5 text-left text-[11px]"
           >
             <span className="inline-flex min-w-0 max-w-[6rem] truncate rounded-full border border-white/12 bg-white/[0.07] px-2 py-0.5 font-semibold text-white/95">
               {userDisplayName}
             </span>
-            <ChevronDown className="h-4 w-4 shrink-0 text-white/70" />
+            <ChevronDown
+              className={cn("h-4 w-4 shrink-0 text-white/70 transition-transform", desktopMenuOpen && "rotate-180")}
+            />
           </button>
 
-          <div className="pointer-events-none absolute right-0 top-full z-50 w-44 pt-2 opacity-0 transition-all duration-150 group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100">
+          <div
+            className={cn(
+              "absolute right-0 top-full z-50 w-44 pt-2 transition-all duration-150",
+              desktopMenuOpen ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0",
+            )}
+          >
             <div className="glass-effect rounded-2xl p-2 shadow-lg shadow-black/30">
               <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-left backdrop-blur-sm">
                 <p className="truncate text-[12px] font-black text-white">
@@ -171,7 +204,10 @@ export function TopNavSection({
               {!hasAnyAdmin && (
                 <button
                   type="button"
-                  onClick={() => void onBootstrapAdminSelf()}
+                  onClick={() => {
+                    setDesktopMenuOpen(false);
+                    void onBootstrapAdminSelf();
+                  }}
                   disabled={adminActionLoading}
                   className="w-full rounded-[16px] my-1 border border-white/10 bg-rose-500/20 px-4 py-3 text-left text-[14px] font-black text-rose-100 backdrop-blur-sm transition-all active:scale-[0.98] disabled:opacity-50"
                 >
@@ -181,7 +217,10 @@ export function TopNavSection({
               {auth.isAdmin && (
                 <button
                   type="button"
-                  onClick={onEnterAdmin}
+                  onClick={() => {
+                    setDesktopMenuOpen(false);
+                    onEnterAdmin();
+                  }}
                   className="ys-gold-glow w-full rounded-[16px] my-1 border border-white/20 bg-[#F4DC3A] px-3 py-2 text-left text-[13px] font-black text-stone-900 transition-all active:scale-[0.98]"
                 >
                   進入管理中心
@@ -189,7 +228,10 @@ export function TopNavSection({
               )}
               <button
                 type="button"
-                onClick={onOpenAccountProfile}
+                onClick={() => {
+                  setDesktopMenuOpen(false);
+                  onOpenAccountProfile();
+                }}
                 className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-[13px] font-black text-white/90 transition-colors hover:bg-white/10"
               >
                 <span>基本資料</span>
@@ -197,7 +239,10 @@ export function TopNavSection({
               </button>
               <button
                 type="button"
-                onClick={onOpenPasswordModal}
+                onClick={() => {
+                  setDesktopMenuOpen(false);
+                  onOpenPasswordModal();
+                }}
                 className="mt-1 flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-[13px] font-black text-white/90 transition-colors hover:bg-white/10"
               >
                 <span>修改密碼</span>
@@ -205,7 +250,10 @@ export function TopNavSection({
               </button>
               <button
                 type="button"
-                onClick={onLogout}
+                onClick={() => {
+                  setDesktopMenuOpen(false);
+                  onLogout();
+                }}
                 className="mt-1 flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-[13px] font-black text-rose-300 transition-colors hover:bg-red-500/20"
               >
                 <span>登出</span>

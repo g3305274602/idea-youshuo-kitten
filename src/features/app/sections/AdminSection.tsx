@@ -26,37 +26,28 @@ import {
   resolveReportTargetIdentityHex,
   snapshotAuthorEmail,
   snapshotIdentityHints,
-} from "../adminReportDisplay";
+} from "../adminReportDisplay.ts";
+import {
+  SuperAdminTrendChartsPanel,
+  type SuperAdminTrendsBundle,
+} from "../../admin/superAdminTrendCharts";
+import { CdSelect } from "../components/CdSelect";
+import { useEscapeClose } from "../hooks/useEscapeClose";
 
-function ReportCopyValueRow({
-  label,
-  value,
-  mono,
-}: {
-  label: string;
-  value: string;
-  mono?: boolean;
-}) {
+function ReportCopyRow({ label, value }: { label: string; value: string }) {
   const [copied, setCopied] = useState(false);
   const v = value.trim();
   if (!v) return null;
   return (
     <div className="flex min-w-0 items-start gap-1.5">
-      <span className="shrink-0 pt-0.5 text-[9px] text-white/40">{label}</span>
-      <span
-        className={cn(
-          "min-w-0 flex-1 break-all text-[10px] leading-snug text-white/75",
-          mono && "font-mono text-[9px] text-white/85",
-        )}
-      >
-        {v}
-      </span>
+      <span className="shrink-0 text-[10px] text-white/40 min-w-10">{label}</span>
+      <span className="min-w-0 flex-1 break-all font-mono text-[12px] leading-snug text-white/85">{v}</span>
       <button
         type="button"
         onClick={() => {
           void navigator.clipboard.writeText(v).then(() => {
             setCopied(true);
-            window.setTimeout(() => setCopied(false), 2000);
+            window.setTimeout(() => setCopied(false), 1500);
           });
         }}
         className="shrink-0 rounded-md border border-white/12 bg-white/[0.06] px-1.5 py-0.5 text-[9px] font-bold text-[#FFD54F] hover:bg-white/10"
@@ -67,18 +58,69 @@ function ReportCopyValueRow({
   );
 }
 
-function ReportPartyCopyBlock({ party }: { party: PartyDisplay }) {
-  const hasAny =
-    party.emailForCopy.trim() ||
-    party.accountIdForCopy.trim() ||
-    party.identityHex.trim();
-  if (!hasAny) return null;
+function PartyCopyBlock({ party }: { party: PartyDisplay }) {
+  const email = party.emailForCopy.trim();
+  const accountId = party.accountIdForCopy.trim();
+  if (!email && !accountId) return null;
   return (
     <div className="mt-1.5 space-y-1 border-t border-white/10 pt-1.5">
-      <p className="text-[9px] font-bold text-white/35">一鍵複製（帳務／搜尋）</p>
-      <ReportCopyValueRow label="信箱" value={party.emailForCopy} />
-      <ReportCopyValueRow label="帳號 ID" value={party.accountIdForCopy} mono />
-      <ReportCopyValueRow label="Identity" value={party.identityHex} mono />
+      <ReportCopyRow label="信箱" value={email} />
+      <ReportCopyRow label="帳號 ID" value={accountId} />
+    </div>
+  );
+}
+
+/** 超管總覽：堆疊比例條（依各段 value 用 flex 比例分配，避免單一段時寬度異常） */
+function SuperOpsStackedBar({
+  segments,
+}: {
+  segments: readonly { value: number; className: string; title: string }[];
+}) {
+  const total = segments.reduce((a, s) => a + s.value, 0);
+  if (total <= 0) {
+    return <div className="h-4 w-full rounded-full bg-white/[0.08]" aria-hidden />;
+  }
+  return (
+    <div
+      className="flex h-4 w-full min-h-4 overflow-hidden rounded-full border border-white/15"
+      role="img"
+      aria-label="比例分佈"
+    >
+      {segments.map((s, i) =>
+        s.value > 0 ? (
+          <div
+            key={i}
+            title={`${s.title}：${s.value}`}
+            className={cn("min-h-4 min-w-0", s.className)}
+            style={{ flex: `${s.value} 1 0%` }}
+          />
+        ) : null,
+      )}
+    </div>
+  );
+}
+
+function SuperOpsBarRow({
+  label,
+  value,
+  max,
+  barClass,
+}: {
+  label: string;
+  value: number;
+  max: number;
+  barClass: string;
+}) {
+  const pct = max > 0 ? Math.min(100, (value / max) * 100) : value > 0 ? 100 : 0;
+  return (
+    <div className="space-y-1">
+      <div className="flex justify-between gap-2 text-[10px] text-white/75">
+        <span>{label}</span>
+        <span className="font-semibold tabular-nums text-white">{value}</span>
+      </div>
+      <div className="h-2 w-full rounded-full bg-white/10">
+        <div className={cn("h-2 rounded-full", barClass)} style={{ width: `${pct}%` }} />
+      </div>
     </div>
   );
 }
@@ -285,11 +327,20 @@ type AdminContentProps = {
     capsules: number;
     squarePosts: number;
     reportsNonResolved: number;
+    reportsOpen: number;
+    reportsInReview: number;
+    reportsClosed: number;
     sanctionsActive: number;
     appeals: number;
     modQueue: number;
+    modQueueDone: number;
     admins: number;
+    adminRoleSuper: number;
+    adminRoleMod: number;
+    adminRoleReview: number;
+    adminRoleOther: number;
   };
+  superAdminTrends: SuperAdminTrendsBundle;
   adminAccountSearch: string;
   adminSearchRows: readonly AccountProfile[];
   adminTargetIdentityHex: string;
@@ -361,6 +412,7 @@ export function AdminContent(props: AdminContentProps) {
     capsuleMessageRows,
     squarePostRows,
     superOpsStats,
+    superAdminTrends,
     adminAccountSearch,
     adminSearchRows,
     adminTargetIdentityHex,
@@ -685,12 +737,7 @@ export function AdminContent(props: AdminContentProps) {
                         <p className="text-white/60 text-[10px] break-all">
                           {reporterParty.secondary}
                         </p>
-                        {reporterParty.accountIdLine ? (
-                          <p className="text-[10px] text-[#FFD54F]/90 break-all">
-                            {reporterParty.accountIdLine}
-                          </p>
-                        ) : null}
-                        <ReportPartyCopyBlock party={reporterParty} />
+                        <PartyCopyBlock party={reporterParty} />
                       </div>
                       <div className="rounded-xl border border-rose-300/30 bg-rose-500/12 px-3 py-2 text-[11px] space-y-1">
                         <p className="text-[10px] font-bold tracking-wide text-rose-200">
@@ -704,21 +751,13 @@ export function AdminContent(props: AdminContentProps) {
                             ? targetParty.secondary
                             : `目標類型：${reportTargetTypeLabel(r.targetType)} · ID：${r.targetId}`}
                         </p>
-                        {targetParty.accountIdLine ? (
-                          <p className="text-[10px] text-[#FFD54F]/90 break-all">
-                            {targetParty.accountIdLine}
-                          </p>
-                        ) : null}
                         {targetAccountHex ? (
-                          <ReportPartyCopyBlock party={targetParty} />
-                        ) : r.targetId.trim() ? (
+                          <PartyCopyBlock party={targetParty} />
+                        ) : (
                           <div className="mt-1.5 space-y-1 border-t border-rose-400/20 pt-1.5">
-                            <p className="text-[9px] font-bold text-rose-200/80">
-                              一鍵複製（目標定位）
-                            </p>
-                            <ReportCopyValueRow label="目標 ID" value={r.targetId} mono />
+                            <ReportCopyRow label="目標 ID" value={r.targetId} />
                           </div>
-                        ) : null}
+                        )}
                       </div>
                     </div>
                     <p className="text-[9px] leading-relaxed text-white/40">
@@ -808,8 +847,8 @@ export function AdminContent(props: AdminContentProps) {
                         })}
                       </p>
                       {r.assignedAdminIdentity ? (
-                        <div className="space-y-0.5">
-                          <p>處理人（管理員）</p>
+                        <div className="space-y-0.5 flex align-center gap-1">
+                          <p>處理人</p>
                           {(() => {
                             const h = r.assignedAdminIdentity!.toHexString();
                             const p = formatReportParty(
@@ -821,16 +860,19 @@ export function AdminContent(props: AdminContentProps) {
                               <>
                                 <p className="text-white/70">{p.primary}</p>
                                 <p className="break-all text-white/55">{p.secondary}</p>
-                                {p.accountIdLine ? (
-                                  <p className="break-all text-[#FFD54F]/85">{p.accountIdLine}</p>
-                                ) : null}
-                                <ReportPartyCopyBlock party={p} />
                               </>
                             );
                           })()}
                         </div>
                       ) : null}
-                      {r.resolutionNote ? <p>說明：{r.resolutionNote}</p> : null}
+                      {r.resolutionNote ? (
+                        <div className="pt-1.5">
+                          <p className="text-[11px] font-bold text-white/65">處理說明</p>
+                          <p className="mt-1 whitespace-pre-wrap text-[13px] leading-relaxed text-white/90">
+                            {r.resolutionNote}
+                          </p>
+                        </div>
+                      ) : null}
                     </div>
                   </div>
 
@@ -839,17 +881,19 @@ export function AdminContent(props: AdminContentProps) {
                     <div className="grid grid-cols-2 gap-2">
                       <label className="text-[11px] font-bold text-white/70">
                         狀態
-                        <select
+                        <CdSelect
                           value={adminReportStatus}
-                          onChange={(e) => onSetAdminReportStatus(e.target.value)}
-                          className="cd-field mt-1 text-[13px]"
-                        >
-                          <option value="open">待審核</option>
-                          <option value="in_review">審核中</option>
-                          <option value="resolved">已結案</option>
-                          <option value="dismissed">不予處理</option>
-                          <option value="rejected">已駁回</option>
-                        </select>
+                          onChange={onSetAdminReportStatus}
+                          className="mt-1"
+                          buttonClassName="text-[13px]"
+                          options={[
+                            { value: "open", label: "待審核" },
+                            { value: "in_review", label: "審核中" },
+                            { value: "resolved", label: "已結案" },
+                            { value: "dismissed", label: "不予處理" },
+                            { value: "rejected", label: "已駁回" },
+                          ]}
+                        />
                       </label>
                       <label className="text-[11px] font-bold text-white/70">
                         優先級（0-9）
@@ -1049,62 +1093,193 @@ export function AdminContent(props: AdminContentProps) {
 
   if (activeTab === "admin_ops") {
     return (
-      <div className="w-full max-w-5xl mx-auto space-y-4 px-2 py-2 md:px-5 md:py-4 overflow-y-auto apple-scroll max-h-full">
-        <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-slate-950 via-slate-900 to-emerald-950 p-4 text-white shadow-xl md:p-6">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+      <div className="apple-scroll max-h-full w-full max-w-7xl space-y-3 overflow-y-auto px-2 py-2 md:space-y-4 md:px-5 md:py-4">
+        <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-slate-950 via-slate-900 to-emerald-950 p-3 text-white shadow-xl md:p-5">
+          <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
             <div className="min-w-0">
               <p className="text-[10px] font-black uppercase tracking-[0.18em] text-emerald-300/90">
                 超管指揮台
               </p>
-              <p className="mt-1 text-[20px] font-black leading-tight md:text-2xl">
+              <p className="mt-0.5 text-[18px] font-black leading-tight md:text-xl lg:text-2xl">
                 即時稼動總覽
               </p>
             </div>
           </div>
-          <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+          <div className="mt-3 grid min-w-0 grid-cols-2 gap-1.5 sm:grid-cols-3 md:gap-2 lg:grid-cols-5">
             {(
               [
                 ["註冊帳號", superOpsStats.profiles, "profiles"],
                 ["活躍膠囊", superOpsStats.capsules, "cap"],
                 ["廣場貼文", superOpsStats.squarePosts, "sq"],
-                ["未結舉報", superOpsStats.reportsNonResolved, "rp"],
                 ["生效處分", superOpsStats.sanctionsActive, "sn"],
                 ["申訴單", superOpsStats.appeals, "ap"],
-                ["審核佇列", superOpsStats.modQueue, "mq"],
-                ["啟用管理員", superOpsStats.admins, "ad"],
               ] as const
             ).map(([label, n, key]) => (
               <div
                 key={key}
-                className="rounded-xl border border-white/10 bg-white/5 px-3 py-3 backdrop-blur-sm flex flex-row items-cemter justify-between"
+                className="flex min-w-0 flex-col items-stretch gap-1 rounded-lg border border-white/10 bg-white/5 px-2 py-2 backdrop-blur-sm sm:rounded-xl sm:px-2.5 sm:py-2.5 xl:gap-1.5"
               >
-                <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-emerald-200/80">
-                  <Activity className="h-3.5 w-3.5 shrink-0 opacity-80" aria-hidden />
-                  {label}
+                <div className="flex min-w-0 items-center gap-1 text-[9px] font-bold uppercase leading-tight tracking-wide text-emerald-200/85 sm:text-[10px]">
+                  <Activity className="h-3 w-3 shrink-0 opacity-80 xl:h-3.5 xl:w-3.5" aria-hidden />
+                  <span className="min-w-0 truncate">{label}</span>
                 </div>
-                <p className="mt-2 text-[22px] font-black tabular-nums md:text-3xl">{n}</p>
+                <p className="text-lg font-black tabular-nums leading-none sm:text-xl xl:text-2xl">
+                  {n}
+                </p>
               </div>
             ))}
           </div>
-        </div>
 
-        <div className="cd-card-raised space-y-3 rounded-2xl p-4 text-white md:p-5">
-          <div className="flex items-center justify-between gap-2">
-            <p className="text-[13px] font-bold text-white">
-              管理帳號（啟用 {activeAdminRows.length} / 已移除 {inactiveAdminRows.length}）
-            </p>
-            <button
-              type="button"
-              onClick={onOpenAdminAddModal}
-              className="shrink-0 rounded-xl border-2 border-rose-400 bg-rose-500 px-3 py-1.5 text-[12px] font-bold text-white hover:bg-rose-600"
-            >
-              + 新增管理員
-            </button>
-          </div>
+          <SuperAdminTrendChartsPanel trends={superAdminTrends} className="mt-4" />
+
+          <div className="mt-4 grid grid-cols-1 gap-4 border-t border-white/10 pt-4 lg:mt-5 lg:grid-cols-12 lg:items-stretch lg:gap-4 lg:pt-5">
+            <div className="min-w-0 lg:col-span-7">
+              
+              <div className="grid gap-3 lg:grid-cols-2 lg:items-stretch">
+              <div className="flex h-full min-h-0 flex-col rounded-xl border border-white/10 bg-white/[0.04] p-3 md:p-4">
+                <p className="text-[12px] font-bold text-white">舉報 / 審核佇列</p>
+                <p className="mt-0.5 text-[10px] text-white/50">
+                  舉報單狀態與審核佇列合併顯示（未結、待辦、已結）
+                </p>
+                <div className="mt-3 flex flex-1 flex-col gap-3">
+                  <div>
+                    <p className="text-[10px] font-bold text-white/70">舉報單狀態</p>
+                    <SuperOpsStackedBar
+                      segments={[
+                        {
+                          value: superOpsStats.reportsOpen,
+                          className: "bg-[#FFD54F]",
+                          title: "待審核",
+                        },
+                        {
+                          value: superOpsStats.reportsInReview,
+                          className: "bg-[#F06292]",
+                          title: "審核中",
+                        },
+                        {
+                          value: superOpsStats.reportsClosed,
+                          className: "bg-[#64748b]",
+                          title: "已結案等",
+                        },
+                      ]}
+                    />
+                    <ul className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-white/65">
+                      <li>
+                        <span className="mr-1 inline-block h-2 w-2 rounded-full bg-[#FFD54F]" /> 待審核{" "}
+                        {superOpsStats.reportsOpen}
+                      </li>
+                      <li>
+                        <span className="mr-1 inline-block h-2 w-2 rounded-full bg-[#F06292]" /> 審核中{" "}
+                        {superOpsStats.reportsInReview}
+                      </li>
+                      <li>
+                        <span className="mr-1 inline-block h-2 w-2 rounded-full bg-[#64748b]" /> 已結{" "}
+                        {superOpsStats.reportsClosed}
+                      </li>
+                    </ul>
+                  </div>
+                  <div className="border-t border-white/10 pt-2.5">
+                    <p className="text-[10px] font-bold text-white/70">審核佇列</p>
+                    <SuperOpsStackedBar
+                      segments={[
+                        {
+                          value: superOpsStats.modQueue,
+                          className: "bg-emerald-400",
+                          title: "待辦",
+                        },
+                        {
+                          value: superOpsStats.modQueueDone,
+                          className: "bg-[#64748b]",
+                          title: "已結",
+                        },
+                      ]}
+                    />
+                    <ul className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-white/65">
+                      <li>
+                        <span className="mr-1 inline-block h-2 w-2 rounded-full bg-emerald-400" /> 待辦{" "}
+                        {superOpsStats.modQueue}
+                      </li>
+                      <li>
+                        <span className="mr-1 inline-block h-2 w-2 rounded-full bg-[#64748b]" /> 已結{" "}
+                        {superOpsStats.modQueueDone}
+                      </li>
+                    </ul>
+                  </div>
+                  <div className="flex-1" aria-hidden />
+                </div>
+              </div>
+
+              <div className="flex h-full min-h-0 flex-col rounded-xl border border-white/10 bg-white/[0.04] p-3 md:p-4">
+                <p className="text-[12px] font-bold text-white">啟用管理員角色</p>
+                <p className="mt-0.5 text-[10px] text-white/50">僅開啓的管理員角色</p>
+                <div className="mt-3 flex flex-1 flex-col gap-2">
+                  {(() => {
+                    const maxRole = Math.max(
+                      superOpsStats.adminRoleSuper,
+                      superOpsStats.adminRoleMod,
+                      superOpsStats.adminRoleReview,
+                      superOpsStats.adminRoleOther,
+                      1,
+                    );
+                    return (
+                      <>
+                        <div className="space-y-2">
+                          <SuperOpsBarRow
+                            label="超級管理員"
+                            value={superOpsStats.adminRoleSuper}
+                            max={maxRole}
+                            barClass="bg-[#FFD54F]"
+                          />
+                          <SuperOpsBarRow
+                            label="管理員"
+                            value={superOpsStats.adminRoleMod}
+                            max={maxRole}
+                            barClass="bg-[#F06292]"
+                          />
+                          <SuperOpsBarRow
+                            label="審核員"
+                            value={superOpsStats.adminRoleReview}
+                            max={maxRole}
+                            barClass="bg-sky-400"
+                          />
+                          {superOpsStats.adminRoleOther > 0 ? (
+                            <SuperOpsBarRow
+                              label="其他角色"
+                              value={superOpsStats.adminRoleOther}
+                              max={maxRole}
+                              barClass="bg-white/40"
+                            />
+                          ) : null}
+                        </div>
+                        <div className="flex-1" aria-hidden />
+                      </>
+                    );
+                  })()}
+                </div>
+              </div>
+              </div>
+            </div>
+
+            <div className="flex min-h-[min(16rem,42vh)] flex-col rounded-xl border border-white/10 bg-white/[0.06] p-3 text-white shadow-inner md:p-4 lg:col-span-5 lg:h-full lg:min-h-0">
+              <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-white/45 lg:hidden">
+                管理帳號
+              </p>
+              <div className="flex flex-shrink-0 items-start justify-between gap-2 lg:items-center">
+                <p className="min-w-0 text-[12px] font-bold leading-snug text-white md:text-[13px]">
+                  管理帳號（啟用 {activeAdminRows.length} / 已移除 {inactiveAdminRows.length}）
+                </p>
+                <button
+                  type="button"
+                  onClick={onOpenAdminAddModal}
+                  className="shrink-0 rounded-xl border-2 border-rose-400 bg-rose-500 px-2.5 py-1.5 text-[11px] font-bold text-white hover:bg-rose-600 md:px-3 md:text-[12px]"
+                >
+                  + 新增管理員
+                </button>
+              </div>
           {activeAdminRows.length === 0 ? (
-            <p className="text-[12px] text-[#8E8E93]">目前還沒有管理帳號。</p>
+            <p className="mt-2 text-[12px] text-[#8E8E93]">目前還沒有管理帳號。</p>
           ) : (
-            <ul className="max-h-36 space-y-1.5 overflow-y-auto rounded-lg border border-white/10 bg-white/[0.04] p-2 md:max-h-48">
+            <ul className="mt-2 min-h-0 flex-1 space-y-1.5 overflow-y-auto rounded-lg border border-white/10 bg-white/[0.04] p-2 lg:max-h-none lg:flex-1">
               {activeAdminRows.map((r) => {
                 const hex = r.adminIdentity.toHexString();
                 const em = adminEmailByHex.get(hex);
@@ -1269,8 +1444,10 @@ export function AdminContent(props: AdminContentProps) {
             </div>
           ) : null}
           {adminActionError ? (
-            <p className="text-[12px] font-semibold text-red-600">{adminActionError}</p>
+            <p className="mt-2 text-[12px] font-semibold text-red-600">{adminActionError}</p>
           ) : null}
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -1457,6 +1634,13 @@ export function AdminModals({
   onSetAdminEditActive,
   onSubmitAdminEdit,
 }: AdminModalsProps) {
+  useEscapeClose(
+    adminReportModalOpen && !!selectedAdminReport && !adminActionLoading,
+    () => onSetAdminReportModalOpen(false),
+  );
+  useEscapeClose(adminAddOpen && !adminActionLoading, () => onSetAdminAddOpen(false));
+  useEscapeClose(adminEditOpen && !adminActionLoading, () => onSetAdminEditOpen(false));
+
   return (
     <>
       <AnimatePresence>
@@ -1521,17 +1705,19 @@ export function AdminModals({
                 <div className="grid grid-cols-2 gap-2">
                   <label className="text-[11px] font-bold text-[#8E8E93]">
                     狀態
-                    <select
+                    <CdSelect
                       value={adminReportStatus}
-                      onChange={(e) => onSetAdminReportStatus(e.target.value)}
-                      className="cd-field mt-1 text-[13px]"
-                    >
-                      <option value="open">待審核</option>
-                      <option value="in_review">審核中</option>
-                      <option value="resolved">已結案</option>
-                      <option value="dismissed">不予處理</option>
-                      <option value="rejected">已駁回</option>
-                    </select>
+                      onChange={onSetAdminReportStatus}
+                      className="mt-1"
+                      buttonClassName="text-[13px]"
+                      options={[
+                        { value: "open", label: "待審核" },
+                        { value: "in_review", label: "審核中" },
+                        { value: "resolved", label: "已結案" },
+                        { value: "dismissed", label: "不予處理" },
+                        { value: "rejected", label: "已駁回" },
+                      ]}
+                    />
                   </label>
                   <label className="text-[11px] font-bold text-stone-600">
                     優先級（0-9）
@@ -1726,15 +1912,17 @@ export function AdminModals({
                 <div>
                   <p className="mb-1 text-[11px] font-bold text-[#8E8E93]">權限</p>
                   <div className="flex items-center gap-2">
-                    <select
+                    <CdSelect
                       value={adminGrantRole}
-                      onChange={(e) => onSetAdminGrantRole(e.target.value)}
-                      className="cd-field min-w-0 flex-1 text-[13px]"
-                    >
-                      <option value="moderator">管理員</option>
-                      <option value="reviewer">審核員</option>
-                      <option value="super_admin">超級管理員</option>
-                    </select>
+                      onChange={onSetAdminGrantRole}
+                      className="min-w-0 flex-1"
+                      buttonClassName="text-[13px]"
+                      options={[
+                        { value: "moderator", label: "管理員" },
+                        { value: "reviewer", label: "審核員" },
+                        { value: "super_admin", label: "超級管理員" },
+                      ]}
+                    />
                     <button
                       type="button"
                       onClick={() => onSetAdminGrantActive((v) => !v)}
@@ -1828,15 +2016,17 @@ export function AdminModals({
               <div className="mt-3">
                 <p className="mb-1 text-[11px] font-bold text-[#8E8E93]">權限</p>
                 <div className="flex items-center gap-2">
-                  <select
+                  <CdSelect
                     value={adminEditRole}
-                    onChange={(e) => onSetAdminEditRole(e.target.value)}
-                    className="cd-field min-w-0 flex-1 text-[13px]"
-                  >
-                    <option value="moderator">管理員</option>
-                    <option value="reviewer">審核員</option>
-                    <option value="super_admin">超級管理員</option>
-                  </select>
+                    onChange={onSetAdminEditRole}
+                    className="min-w-0 flex-1"
+                    buttonClassName="text-[13px]"
+                    options={[
+                      { value: "moderator", label: "管理員" },
+                      { value: "reviewer", label: "審核員" },
+                      { value: "super_admin", label: "超級管理員" },
+                    ]}
+                  />
                   <button
                     type="button"
                     onClick={() =>

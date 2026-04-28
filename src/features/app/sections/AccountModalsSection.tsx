@@ -1,4 +1,5 @@
 import { AnimatePresence, motion } from "motion/react";
+import { useEscapeClose } from "../hooks/useEscapeClose";
 import type { User } from "../types";
 
 type AccountModalsSectionProps = {
@@ -44,6 +45,9 @@ export function AccountModalsSection({
   onSetPasswordConfirm,
   onSubmitPasswordChange,
 }: AccountModalsSectionProps) {
+  useEscapeClose(isIntroEditModalVisible && !!user && !introEditSaving, onCloseIntroEdit);
+  useEscapeClose(isPasswordModalVisible && !passwordSaving, onClosePasswordModal);
+
   return (
     <>
       <AnimatePresence>

@@ -5,18 +5,44 @@ import { useTable } from "spacetimedb/react";
 import { tables } from "../../module_bindings";
 import type {
   AccountProfile,
+  AccountProfileCreatedAt,
   AdminRole,
+  AppealTicket,
   CapsuleMessage,
   CapsuleMessageSpaceState,
   ModerationQueue,
   ReportTargetSnapshot,
   ReportTicket,
+  SquareComment,
   SquarePost,
   UserSanction,
-  AppealTicket,
 } from "../../module_bindings/types";
+import { isReportClosedStatus } from "../app/adminReportDisplay";
 import { isAdminTab } from "../app/shell/navigation";
+import type { SuperAdminTrendsBundle } from "./superAdminTrendCharts";
 import { useAdminWorkbenchStore } from "./adminWorkbenchStore";
+
+const SUPER_ADMIN_TREND_WINDOW = 366;
+
+function localDayKeyFromMicros(micros: bigint): string {
+  const d = new Date(Number(micros / 1000n));
+  const y = d.getFullYear();
+  const mo = String(d.getMonth() + 1).padStart(2, "0");
+  const da = String(d.getDate()).padStart(2, "0");
+  return `${y}-${mo}-${da}`;
+}
+
+function rollingLocalDayKeys(n: number): string[] {
+  const keys: string[] = [];
+  const base = new Date();
+  base.setHours(0, 0, 0, 0);
+  for (let i = n - 1; i >= 0; i--) {
+    const d = new Date(base);
+    d.setDate(d.getDate() - i);
+    keys.push(localDayKeyFromMicros(BigInt(d.getTime()) * 1000n));
+  }
+  return keys;
+}
 
 export function useAdminWorkbenchState() {
   return useAdminWorkbenchStore();
@@ -79,6 +105,11 @@ export function useAdminWorkbenchTables({
       ? tables.userSanction
       : tables.userSanction.where((r) => r.id.eq("__stop__")),
   );
+  const [accountProfileCreatedAtRows] = useTable(
+    rawIsAdmin && isAdminTabActive
+      ? tables.accountProfileCreatedAt
+      : tables.accountProfileCreatedAt.where((r) => r.email.eq("__stop__")),
+  );
 
   const hasAnyAdmin = useMemo(
     () => adminRoleRows.some((r) => r.isActive),
@@ -96,6 +127,7 @@ export function useAdminWorkbenchTables({
     moderationQueueRows,
     appealTicketRows,
     userSanctionRows,
+    accountProfileCreatedAtRows,
     hasAnyAdmin,
   };
 }
@@ -105,11 +137,13 @@ type UseAdminWorkbenchDerivedParams = {
   adminRoleRows: readonly AdminRole[];
   reportTicketRows: readonly ReportTicket[];
   reportSnapshotRows: readonly ReportTargetSnapshot[];
+  accountProfileCreatedAtRows: readonly AccountProfileCreatedAt[];
   userSanctionRows: readonly UserSanction[];
   appealTicketRows: readonly AppealTicket[];
   moderationQueueRows: readonly ModerationQueue[];
   capsuleMessageRows: readonly CapsuleMessage[];
   squarePostRows: readonly SquarePost[];
+  squareCommentRows: readonly SquareComment[];
   capsuleStateById: Map<string, { isDeleted?: boolean }>;
   selectedAdminReportId: string | null;
   adminAccountSearch: string;
@@ -122,11 +156,13 @@ export function useAdminWorkbenchDerived({
   adminRoleRows,
   reportTicketRows,
   reportSnapshotRows,
+  accountProfileCreatedAtRows,
   userSanctionRows,
   appealTicketRows,
   moderationQueueRows,
   capsuleMessageRows,
   squarePostRows,
+  squareCommentRows,
   capsuleStateById,
   selectedAdminReportId,
   adminAccountSearch,
@@ -170,22 +206,143 @@ export function useAdminWorkbenchDerived({
   );
   const hasAnyAdmin = activeAdminRows.length > 0;
 
+  const superAdminTrends = useMemo((): SuperAdminTrendsBundle => {
+    const dayKeys = rollingLocalDayKeys(SUPER_ADMIN_TREND_WINDOW);
+    const daySet = new Set(dayKeys);
+    const reg = new Map<string, number>();
+    const cap = new Map<string, number>();
+    const post = new Map<string, number>();
+    const cmt = new Map<string, number>();
+    for (const k of dayKeys) {
+      reg.set(k, 0);
+      cap.set(k, 0);
+      post.set(k, 0);
+      cmt.set(k, 0);
+    }
+
+    const profileCreatedByAccountId = new Map<string, bigint>();
+    const profileCreatedByEmail = new Map<string, bigint>();
+    for (const row of accountProfileCreatedAtRows) {
+      const micros = row.createdAt.microsSinceUnixEpoch;
+      profileCreatedByAccountId.set(row.accountId, micros);
+      profileCreatedByEmail.set(row.email.trim().toLowerCase(), micros);
+      const key = localDayKeyFromMicros(micros);
+      if (!daySet.has(key)) continue;
+      reg.set(key, (reg.get(key) ?? 0) + 1);
+    }
+    let profilesWithoutCreatedAt = 0;
+    for (const p of allProfiles) {
+      const accountId = (p.accountId ?? "").trim();
+      const em = (p.email ?? "").trim().toLowerCase();
+      if (profileCreatedByAccountId.has(accountId) || profileCreatedByEmail.has(em)) {
+        continue;
+      }
+      profilesWithoutCreatedAt += 1;
+    }
+
+    for (const c of capsuleMessageRows) {
+      if (capsuleStateById.get(c.id)?.isDeleted) continue;
+      const key = localDayKeyFromMicros(c.createdAt.microsSinceUnixEpoch);
+      if (!daySet.has(key)) continue;
+      cap.set(key, (cap.get(key) ?? 0) + 1);
+    }
+
+    for (const sp of squarePostRows) {
+      const key = localDayKeyFromMicros(sp.createdAt.microsSinceUnixEpoch);
+      if (!daySet.has(key)) continue;
+      post.set(key, (post.get(key) ?? 0) + 1);
+    }
+
+    for (const sc of squareCommentRows) {
+      const key = localDayKeyFromMicros(sc.createdAt.microsSinceUnixEpoch);
+      if (!daySet.has(key)) continue;
+      cmt.set(key, (cmt.get(key) ?? 0) + 1);
+    }
+
+    const days = dayKeys.map((dayKey) => ({
+      dayKey,
+      dayShort: dayKey.slice(5),
+      registrations: reg.get(dayKey) ?? 0,
+      capsules: cap.get(dayKey) ?? 0,
+      squarePosts: post.get(dayKey) ?? 0,
+      comments: cmt.get(dayKey) ?? 0,
+    }));
+
+    const maxRegistrations = Math.max(1, ...days.map((d) => d.registrations));
+    const maxActivityStack = Math.max(
+      1,
+      ...days.map((d) => d.capsules + d.squarePosts + d.comments),
+    );
+
+    return {
+      days,
+      maxRegistrations,
+      maxActivityStack,
+      profilesWithoutCreatedAt,
+      windowDays: SUPER_ADMIN_TREND_WINDOW,
+    };
+  }, [
+    allProfiles,
+    accountProfileCreatedAtRows,
+    capsuleMessageRows,
+    squarePostRows,
+    squareCommentRows,
+    capsuleStateById,
+  ]);
+
   const superOpsStats = useMemo(() => {
     const aliveCapsules = capsuleMessageRows.filter(
       (m) => !(capsuleStateById.get(m.id)?.isDeleted ?? false),
     ).length;
-    const reportsNonResolved = reportTicketRows.filter(
-      (r) => String(r.status ?? "").toLowerCase() !== "resolved",
-    ).length;
+
+    let reportsOpen = 0;
+    let reportsInReview = 0;
+    let reportsClosed = 0;
+    for (const r of reportTicketRows) {
+      const s = String(r.status ?? "").trim().toLowerCase();
+      if (isReportClosedStatus(s)) reportsClosed += 1;
+      else if (s === "in_review") reportsInReview += 1;
+      else reportsOpen += 1;
+    }
+    const reportsNonResolved = reportsOpen + reportsInReview;
+
+    let modPending = 0;
+    let modDone = 0;
+    for (const m of moderationQueueRows) {
+      const s = String(m.status ?? "").trim().toLowerCase();
+      if (isReportClosedStatus(s)) modDone += 1;
+      else modPending += 1;
+    }
+
+    let adminRoleSuper = 0;
+    let adminRoleMod = 0;
+    let adminRoleReview = 0;
+    let adminRoleOther = 0;
+    for (const r of activeAdminRows) {
+      const k = String(r.role ?? "").trim().toLowerCase();
+      if (k === "super_admin") adminRoleSuper += 1;
+      else if (k === "moderator") adminRoleMod += 1;
+      else if (k === "reviewer") adminRoleReview += 1;
+      else adminRoleOther += 1;
+    }
+
     return {
       profiles: allProfiles.length,
       capsules: aliveCapsules,
       squarePosts: squarePostRows.length,
       reportsNonResolved,
+      reportsOpen,
+      reportsInReview,
+      reportsClosed,
       sanctionsActive: userSanctionRows.filter((s) => s.status === "active").length,
       appeals: appealTicketRows.length,
-      modQueue: moderationQueueRows.length,
+      modQueue: modPending,
+      modQueueDone: modDone,
       admins: activeAdminRows.length,
+      adminRoleSuper,
+      adminRoleMod,
+      adminRoleReview,
+      adminRoleOther,
     };
   }, [
     allProfiles,
@@ -304,6 +461,7 @@ export function useAdminWorkbenchDerived({
     adminGrantEmailCandidates,
     selectedAdminTargetProfile,
     adminRoleLabel,
+    superAdminTrends,
   };
 }
 
@@ -708,6 +866,7 @@ type UseAdminWorkbenchRuntimeParams = {
   capsuleMessageSpaceStateRows: readonly CapsuleMessageSpaceState[];
   capsuleMessageRows: readonly CapsuleMessage[];
   squarePostRows: readonly SquarePost[];
+  squareCommentRows: readonly SquareComment[];
   sanctionTypeDraft: "mute" | "ban" | "warn" | "limit";
   sanctionReasonDraft: string;
   sanctionDetailDraft: string;
@@ -778,11 +937,13 @@ export function useAdminWorkbenchRuntime(params: UseAdminWorkbenchRuntimeParams)
     adminRoleRows: tables.adminRoleRows,
     reportTicketRows: tables.reportTicketRows,
     reportSnapshotRows: tables.reportSnapshotRows,
+    accountProfileCreatedAtRows: tables.accountProfileCreatedAtRows,
     userSanctionRows: tables.userSanctionRows,
     appealTicketRows: tables.appealTicketRows,
     moderationQueueRows: tables.moderationQueueRows,
     capsuleMessageRows: params.capsuleMessageRows,
     squarePostRows: params.squarePostRows,
+    squareCommentRows: params.squareCommentRows,
     capsuleStateById,
     selectedAdminReportId: params.selectedAdminReportId,
     adminAccountSearch: params.adminAccountSearch,

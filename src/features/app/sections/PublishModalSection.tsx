@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from "motion/react";
 import { cn } from "../../../lib/utils";
+import { useEscapeClose } from "../hooks/useEscapeClose";
 
 type PublishModalSectionProps = {
   isPublishModalVisible: boolean;
@@ -42,6 +43,8 @@ export function PublishModalSection({
   onSetPublishShowSender,
   onSetPublishShowRecipient,
 }: PublishModalSectionProps) {
+  useEscapeClose(isPublishModalVisible && canRenderPublishModal && !loading, onClosePublishModal);
+
   return (
     <AnimatePresence>
       {isPublishModalVisible && canRenderPublishModal ? (

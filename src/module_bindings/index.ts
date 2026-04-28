@@ -77,6 +77,7 @@ import UpdateScheduledMessageReducer from "./update_scheduled_message_reducer";
 
 // Import all table schema definitions
 import AccountProfileRow from "./account_profile_table";
+import AccountProfileCreatedAtRow from "./account_profile_created_at_table";
 import AdminAuditLogRow from "./admin_audit_log_table";
 import AdminRoleRow from "./admin_role_table";
 import AppealTicketRow from "./appeal_ticket_table";
@@ -119,6 +120,20 @@ const tablesSchema = __schema({
       { name: 'account_profile_owner_identity_key', constraint: 'unique', columns: ['ownerIdentity'] },
     ],
   }, AccountProfileRow),
+  accountProfileCreatedAt: __table({
+    name: 'account_profile_created_at',
+    indexes: [
+      { accessor: 'accountId', name: 'account_profile_created_at_account_id_idx_btree', algorithm: 'btree', columns: [
+        'accountId',
+      ] },
+      { accessor: 'email', name: 'account_profile_created_at_email_idx_btree', algorithm: 'btree', columns: [
+        'email',
+      ] },
+    ],
+    constraints: [
+      { name: 'account_profile_created_at_email_key', constraint: 'unique', columns: ['email'] },
+    ],
+  }, AccountProfileCreatedAtRow),
   adminAuditLog: __table({
     name: 'admin_audit_log',
     indexes: [

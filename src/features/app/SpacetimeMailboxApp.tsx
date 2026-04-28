@@ -658,6 +658,7 @@ export default function SpacetimeMailboxApp({
     inactiveAdminRows,
     hasAnyAdmin,
     superOpsStats,
+    superAdminTrends,
     selectedAdminReport,
     selectedAdminSnapshot,
     canClaimOrphanSuperAdmin,
@@ -693,6 +694,7 @@ export default function SpacetimeMailboxApp({
     capsuleMessageSpaceStateRows,
     capsuleMessageRows,
     squarePostRows,
+    squareCommentRows,
     sanctionTypeDraft,
     sanctionReasonDraft,
     sanctionDetailDraft,
@@ -2244,6 +2246,7 @@ export default function SpacetimeMailboxApp({
       </div>
     );
   }
+  // 無 profile 時畫面仍是「登入表單」，但 view 可能是 loading/dashboard；提交須用 view !== "register" 當 isLogin，勿用 view === "login"
   if (view === "login" || view === "register" || !myProfile) {
     return (
       <AuthSection
@@ -2256,7 +2259,7 @@ export default function SpacetimeMailboxApp({
         registerProfileNote={registerProfileNote}
         loading={loading}
         error={error}
-        onSubmit={() => void handleAuth(view === "login")}
+        onSubmit={() => void handleAuth(view !== "register")}
         onViewChange={setView}
         onEmailChange={setEmail}
         onPasswordChange={setPassword}
@@ -2540,6 +2543,7 @@ export default function SpacetimeMailboxApp({
     capsuleMessageRows,
     squarePostRows,
     superOpsStats,
+    superAdminTrends,
     adminAccountSearch,
     adminSearchRows,
     adminTargetIdentityHex,

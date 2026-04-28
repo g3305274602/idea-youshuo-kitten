@@ -1,4 +1,5 @@
 import { AnimatePresence, motion } from "motion/react";
+import { useEscapeClose } from "../hooks/useEscapeClose";
 
 type ProfileActionMenuSectionProps = {
   open: boolean;
@@ -27,6 +28,8 @@ export function ProfileActionMenuSection({
   onOpenPassword,
   onLogout,
 }: ProfileActionMenuSectionProps) {
+  useEscapeClose(open, onClose);
+
   return (
     <AnimatePresence>
       {open ? (
@@ -54,7 +57,10 @@ export function ProfileActionMenuSection({
               {!hasAnyAdmin && (
                 <button
                   type="button"
-                  onClick={() => void onBootstrapAdminSelf()}
+                  onClick={() => {
+                    onClose();
+                    void onBootstrapAdminSelf();
+                  }}
                   disabled={adminActionLoading}
                   className="w-full rounded-xl border border-rose-500/35 bg-rose-500/15 px-4 py-3 text-left text-[14px] font-bold text-rose-200 transition-all active:translate-y-px disabled:opacity-50"
                 >
@@ -64,7 +70,10 @@ export function ProfileActionMenuSection({
               {isAdmin && (
                 <button
                   type="button"
-                  onClick={onEnterAdmin}
+                  onClick={() => {
+                    onClose();
+                    onEnterAdmin();
+                  }}
                   className="cd-btn-primary w-full py-3 text-left text-[14px] font-bold"
                 >
                   {isSuperAdmin ? "進入超級管理中心" : "進入管理中心"}
@@ -72,21 +81,30 @@ export function ProfileActionMenuSection({
               )}
               <button
                 type="button"
-                onClick={onOpenProfile}
+                onClick={() => {
+                  onClose();
+                  onOpenProfile();
+                }}
                 className="cd-btn-ghost w-full py-3 text-left text-[14px] font-bold"
               >
                 基本資料
               </button>
               <button
                 type="button"
-                onClick={onOpenPassword}
+                onClick={() => {
+                  onClose();
+                  onOpenPassword();
+                }}
                 className="cd-btn-ghost w-full py-3 text-left text-[14px] font-bold"
               >
                 修改秘密
               </button>
               <button
                 type="button"
-                onClick={onLogout}
+                onClick={() => {
+                  onClose();
+                  onLogout();
+                }}
                 className="w-full rounded-xl border border-red-500/30 bg-red-500/12 px-4 py-3 text-left text-[14px] font-bold text-red-300 active:translate-y-px"
               >
                 登出

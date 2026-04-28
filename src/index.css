@@ -49,18 +49,11 @@
     letter-spacing: -0.02em;
   }
 
-  button,
-  button:hover,
-  button:focus,
-  button:active {
-    border: none !important;
-  }
 
   button:focus,
   button:focus-visible,
   button:active {
     outline: none !important;
-    box-shadow: none !important;
   }
 
   button {

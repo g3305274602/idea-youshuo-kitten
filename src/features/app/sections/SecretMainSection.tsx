@@ -87,7 +87,7 @@ export function SecretMainSection({
           </div>
         </div>
         <p className="max-w-sm text-center text-[11px] font-bold leading-relaxed text-[#8E8E93]">
-          小紙條牆請從底列「廣場牆」跳轉；在秘密頁只揀朋友膠囊。
+          抽出一個陌生人膠囊吧~
         </p>
       </div>
     );

@@ -12,6 +12,8 @@ import {
 } from "lucide-react";
 import { cn } from "../../../lib/utils";
 import { anonPaperNoteLabel } from "../helpers";
+import { CdSelect } from "../components/CdSelect";
+import { useEscapeClose } from "../hooks/useEscapeClose";
 import { GenderIcon } from "./PickerControls";
 
 type CapsuleOverlaySectionProps = {
@@ -102,6 +104,7 @@ export function CapsuleOverlaySection(props: CapsuleOverlaySectionProps) {
     canViewPreviousCapsule,
     canShuffleCapsule,
   } = props;
+  useEscapeClose(capsuleOpen, closeCapsuleDrawer);
 
   return (
     <AnimatePresence>
@@ -291,17 +294,16 @@ export function CapsuleOverlaySection(props: CapsuleOverlaySectionProps) {
                     {isCapsuleParticipantUi && uniqueCapsuleGuestHexes.length > 0 ? (
                       <label className="block text-[10px] font-black text-[#8E8E93]">
                         訪客線（回覆對象）
-                        <select
-                          className="mt-1 w-full rounded-lg px-2 py-1.5 text-[12px] font-bold ys-night-input"
+                        <CdSelect
+                          className="mt-1 w-full"
+                          buttonClassName="h-9 rounded-lg px-2 py-1.5 text-[12px] font-bold ys-night-input"
                           value={capsuleThreadGuestHex ?? ""}
-                          onChange={(e) => onSetCapsuleThreadGuestHex?.(e.target.value || null)}
-                        >
-                          {uniqueCapsuleGuestHexes.map((hx) => (
-                            <option key={hx} value={hx}>
-                              {hx.slice(0, 14)}…
-                            </option>
-                          ))}
-                        </select>
+                          onChange={(next) => onSetCapsuleThreadGuestHex?.(next || null)}
+                          options={uniqueCapsuleGuestHexes.map((hx) => ({
+                            value: hx,
+                            label: `${hx.slice(0, 14)}…`,
+                          }))}
+                        />
                       </label>
                     ) : isCapsuleParticipantUi ? (
                       <p className="text-[11px] font-bold text-[#8E8E93]">尚無訪客開線，等有人抽到這則再回覆。</p>

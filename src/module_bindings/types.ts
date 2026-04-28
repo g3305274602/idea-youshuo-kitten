@@ -21,6 +21,13 @@ export const AccountProfile = __t.object("AccountProfile", {
 });
 export type AccountProfile = __Infer<typeof AccountProfile>;
 
+export const AccountProfileCreatedAt = __t.object("AccountProfileCreatedAt", {
+  email: __t.string(),
+  accountId: __t.string(),
+  createdAt: __t.timestamp(),
+});
+export type AccountProfileCreatedAt = __Infer<typeof AccountProfileCreatedAt>;
+
 export const AccountSecret = __t.object("AccountSecret", {
   email: __t.string(),
   passwordHash: __t.string(),

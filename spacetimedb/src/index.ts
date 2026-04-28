@@ -133,6 +133,16 @@ const accountProfile = table(
   },
 );
 
+/** 帳號建立時間（獨立表，避免既有 account_profile 的遷移衝突） */
+const accountProfileCreatedAt = table(
+  { name: "account_profile_created_at", public: true },
+  {
+    email: t.string().primaryKey(),
+    accountId: t.string().index("btree"),
+    createdAt: t.timestamp(),
+  },
+);
+
 const accountSecret = table(
   { name: "account_secret", public: false },
   {
@@ -441,6 +451,7 @@ const appealTicket = table(
 
 const spacetimedb = schema({
   accountProfile,
+  accountProfileCreatedAt,
   accountSecret,
   scheduledMessage,
   capsuleMessage,
@@ -997,6 +1008,11 @@ export const register_account = spacetimedb.reducer(
       birthDate: undefined,
       profileNote: note,
     });
+    ctx.db.accountProfileCreatedAt.insert({
+      email: em,
+      accountId,
+      createdAt: ctx.timestamp,
+    });
   },
 );
 
@@ -1089,6 +1105,14 @@ export const dev_seed_demo_users = spacetimedb.reducer({}, (ctx) => {
         birthDate: birthDate, // 修正這裡
         profileNote: note,
       });
+      const created = ctx.db.accountProfileCreatedAt.email.find(em);
+      if (!created) {
+        ctx.db.accountProfileCreatedAt.insert({
+          email: em,
+          accountId: profile.accountId,
+          createdAt: ctx.timestamp,
+        });
+      }
       continue;
     }
 
@@ -1104,6 +1128,11 @@ export const dev_seed_demo_users = spacetimedb.reducer({}, (ctx) => {
       gender: g,
       birthDate: birthDate, // 修正這裡，不要用 ageYears
       profileNote: note,
+    });
+    ctx.db.accountProfileCreatedAt.insert({
+      email: em,
+      accountId: accountIdForEmail(em),
+      createdAt: ctx.timestamp,
     });
   }
   ctx.db.moduleMigrationDone.insert({

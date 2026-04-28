@@ -1,6 +1,8 @@
 import { AnimatePresence, motion } from "motion/react";
 import { Lock } from "lucide-react";
 import { reportTargetTypeLabel } from "../adminReportDisplay";
+import { CdSelect } from "../components/CdSelect";
+import { useEscapeClose } from "../hooks/useEscapeClose";
 import type { Message } from "../types";
 
 type ChatPeerProfile = {
@@ -91,6 +93,21 @@ export function OverlayModalsSection({
   onSetReportDetail,
   onSubmitReport,
 }: OverlayModalsSectionProps) {
+  useEscapeClose(
+    isChatPeerProfileVisible && !!selectedChatPeerProfile,
+    onCloseChatPeerProfile,
+  );
+  useEscapeClose(
+    isOutboxDeleteConfirmVisible &&
+      !!currentMessage &&
+      activeTab === "outbox" &&
+      !currentMessage.isDue &&
+      !outboxEditLoading,
+    onCancelOutboxDeleteConfirm,
+  );
+  useEscapeClose(isBanNoticeModalVisible, onCloseBanNotice);
+  useEscapeClose(isReportModalVisible && !reportSaving, onCloseReportModal);
+
   return (
     <>
       <AnimatePresence>
@@ -306,21 +323,20 @@ export function OverlayModalsSection({
                   <label className="text-[11px] font-bold uppercase tracking-wider text-[#8E8E93]">
                     舉報原因
                   </label>
-                  <select
+                  <CdSelect
                     value={reportReasonCode}
-                    onChange={(e) => onSetReportReasonCode(e.target.value)}
-                    className="cd-field"
-                  >
-                    <option value="abuse">辱罵 / 騷擾</option>
-                    <option value="spam">垃圾廣告 / 詐騙</option>
-                    <option value="inappropriate_content">
-                      不當內容 / 色情
-                    </option>
-                    <option value="impersonation">冒充他人</option>
-                    <option value="underage">疑似未成年</option>
-                    <option value="hate_speech">仇恨言論</option>
-                    <option value="other">其他</option>
-                  </select>
+                    onChange={onSetReportReasonCode}
+                    options={[
+                      { value: "abuse", label: "辱罵 / 騷擾" },
+                      { value: "spam", label: "垃圾廣告 / 詐騙" },
+                      { value: "inappropriate_content", label: "不當內容 / 色情" },
+                      { value: "impersonation", label: "冒充他人" },
+                      { value: "underage", label: "疑似未成年" },
+                      { value: "hate_speech", label: "仇恨言論" },
+                      { value: "other", label: "其他" },
+                    ]}
+                    buttonClassName="h-10"
+                  />
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-[11px] font-bold uppercase tracking-wider text-[#8E8E93]">

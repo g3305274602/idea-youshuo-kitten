@@ -1,4 +1,6 @@
 import { AnimatePresence, motion } from "motion/react";
+import { CdSelect } from "../components/CdSelect";
+import { useEscapeClose } from "../hooks/useEscapeClose";
 import type { User } from "../types";
 
 type WheelPickerProps = {
@@ -61,6 +63,8 @@ export function ProfileModalSection({
   onSetBirthMonth,
   onSetBirthDay,
 }: ProfileModalSectionProps) {
+  useEscapeClose(isProfileModalVisible && !!user && !profileSaving, onCloseProfileModal);
+
   return (
     <AnimatePresence>
       {isProfileModalVisible && user ? (
@@ -115,15 +119,15 @@ export function ProfileModalSection({
                 <label className="text-[11px] font-bold uppercase tracking-wider text-[#8E8E93]">
                   性別
                 </label>
-                <select
+                <CdSelect
                   value={ageGateGender}
-                  onChange={(e) => onSetAgeGateGender(e.target.value)}
-                  required
-                  className="cd-field"
-                >
-                  <option value="male">男</option>
-                  <option value="female">女</option>
-                </select>
+                  onChange={onSetAgeGateGender}
+                  buttonClassName="h-10"
+                  options={[
+                    { value: "male", label: "男" },
+                    { value: "female", label: "女" },
+                  ]}
+                />
               </div>
               <div className="space-y-1.5">
                 <div className="space-y-2">

@@ -84,6 +84,7 @@ type CreateAdminViewPropsParams = {
   capsuleMessageRows: readonly any[];
   squarePostRows: readonly any[];
   superOpsStats: any;
+  superAdminTrends: any;
   adminAccountSearch: string;
   adminSearchRows: readonly any[];
   adminTargetIdentityHex: string;
@@ -196,6 +197,7 @@ export function createAdminViewProps(params: CreateAdminViewPropsParams) {
       capsuleMessageRows: params.capsuleMessageRows,
       squarePostRows: params.squarePostRows,
       superOpsStats: params.superOpsStats,
+      superAdminTrends: params.superAdminTrends,
       adminAccountSearch: params.adminAccountSearch,
       adminSearchRows: params.adminSearchRows,
       adminTargetIdentityHex: params.adminTargetIdentityHex,
