@@ -20,4 +20,5 @@ export default __t.row({
   sortOrder: __t.u32().name("sort_order"),
   createdAt: __t.timestamp().name("created_at"),
   updatedAt: __t.timestamp().name("updated_at"),
+  seriesDisplayName: __t.string().name("series_display_name"),
 });

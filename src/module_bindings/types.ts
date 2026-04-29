@@ -120,6 +120,7 @@ export const AvatarCatalogItem = __t.object("AvatarCatalogItem", {
   sortOrder: __t.u32(),
   createdAt: __t.timestamp(),
   updatedAt: __t.timestamp(),
+  seriesDisplayName: __t.string(),
 });
 export type AvatarCatalogItem = __Infer<typeof AvatarCatalogItem>;
 

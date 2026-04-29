@@ -536,6 +536,7 @@ type UseAdminWorkbenchActionsParams = {
   adminDeleteAvatarCatalogItem: (args: { avatarKey: string }) => Promise<unknown>;
   adminCreateAvatarSeriesBatch: (args: {
     seriesKey: string;
+    seriesDisplayName: string;
     basePath: string;
     defaultPricePoints: number;
     sortOrderBase: number;
@@ -880,6 +881,7 @@ export function useAdminWorkbenchActions({
 
   const createAvatarSeriesBatch = async (args: {
     seriesKey: string;
+    seriesDisplayName: string;
     basePath: string;
     defaultPricePoints: number;
     sortOrderBase: number;
@@ -897,7 +899,6 @@ export function useAdminWorkbenchActions({
   };
 
   const deleteAvatarCatalogItem = async (avatarKey: string) => {
-    if (!window.confirm(`確定刪除 ${avatarKey}？`)) return;
     setAdminActionLoading(true);
     setAdminActionError("");
     try {
@@ -998,6 +999,7 @@ type UseAdminWorkbenchRuntimeParams = {
   adminDeleteAvatarCatalogItem: (args: { avatarKey: string }) => Promise<unknown>;
   adminCreateAvatarSeriesBatch: (args: {
     seriesKey: string;
+    seriesDisplayName: string;
     basePath: string;
     defaultPricePoints: number;
     sortOrderBase: number;

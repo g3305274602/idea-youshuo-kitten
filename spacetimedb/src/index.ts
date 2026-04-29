@@ -411,6 +411,7 @@ const avatarCatalogItem = table(
     sortOrder: t.u32().default(0),
     createdAt: t.timestamp(),
     updatedAt: t.timestamp(),
+    seriesDisplayName: t.string().default(" "),
   },
 );
 
@@ -938,6 +939,7 @@ const EMAIL_OTP_SESSION_MICROS = 15n * 60n * 1_000_000n;
 const EMAIL_OTP_MAX_ATTEMPTS = 5;
 const AVATAR_KEY_MAX = 80;
 const AVATAR_SERIES_KEY_MAX = 32;
+const AVATAR_SERIES_NAME_MAX = 32;
 const AVATAR_FILE_NAME_MAX = 160;
 const AVATAR_BASE_PATH_MAX = 200;
 const AVATAR_PRICE_MIN = 0;
@@ -964,6 +966,13 @@ function normalizeSeriesKey(raw: string): string {
   if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(v)) {
     throw new SenderError("系列代號僅允許 a-z、0-9、-");
   }
+  return v;
+}
+
+function normalizeSeriesDisplayName(raw: string): string {
+  const v = String(raw ?? "").trim();
+  if (!v) throw new SenderError("系列中文名不可為空");
+  if (v.length > AVATAR_SERIES_NAME_MAX) throw new SenderError("系列中文名過長");
   return v;
 }
 
@@ -1685,6 +1694,7 @@ export const admin_upsert_avatar_catalog_item = spacetimedb.reducer(
   {
     avatarKey: t.string(),
     seriesKey: t.string(),
+    seriesDisplayName: t.string(),
     basePath: t.string(),
     fileName: t.string(),
     pricePoints: t.u32(),
@@ -1695,6 +1705,7 @@ export const admin_upsert_avatar_catalog_item = spacetimedb.reducer(
     requireSuperAdmin(ctx);
     const avatarKey = normalizeAvatarKey(input.avatarKey);
     const seriesKey = normalizeSeriesKey(input.seriesKey);
+    const seriesDisplayName = normalizeSeriesDisplayName(input.seriesDisplayName);
     const basePath = normalizeBasePath(input.basePath);
     const fileName = normalizeFileName(input.fileName);
     const pricePoints = assertAvatarPrice(Number(input.pricePoints));
@@ -1703,6 +1714,7 @@ export const admin_upsert_avatar_catalog_item = spacetimedb.reducer(
       ctx.db.avatarCatalogItem.avatarKey.update({
         ...existing,
         seriesKey,
+        seriesDisplayName,
         basePath,
         fileName,
         pricePoints,
@@ -1722,6 +1734,7 @@ export const admin_upsert_avatar_catalog_item = spacetimedb.reducer(
     ctx.db.avatarCatalogItem.insert({
       avatarKey,
       seriesKey,
+      seriesDisplayName,
       basePath,
       fileName,
       pricePoints,
@@ -1743,14 +1756,19 @@ export const admin_upsert_avatar_catalog_item = spacetimedb.reducer(
 export const admin_create_avatar_series_batch = spacetimedb.reducer(
   {
     seriesKey: t.string(),
+    seriesDisplayName: t.string(),
     basePath: t.string(),
     defaultPricePoints: t.u32(),
     sortOrderBase: t.u32(),
     generateCount: t.u32(),
   },
-  (ctx, { seriesKey, basePath, defaultPricePoints, sortOrderBase, generateCount }) => {
+  (
+    ctx,
+    { seriesKey, seriesDisplayName, basePath, defaultPricePoints, sortOrderBase, generateCount },
+  ) => {
     requireSuperAdmin(ctx);
     const series = normalizeSeriesKey(seriesKey);
+    const displayName = normalizeSeriesDisplayName(seriesDisplayName);
     const base = normalizeBasePath(basePath);
     const price = assertAvatarPrice(Number(defaultPricePoints));
     const total = Math.max(1, Math.min(50, Number(generateCount) || 5));
@@ -1761,8 +1779,9 @@ export const admin_create_avatar_series_batch = spacetimedb.reducer(
         ctx.db.avatarCatalogItem.avatarKey.update({
           ...existing,
           seriesKey: series,
+          seriesDisplayName: displayName,
           basePath: base,
-          fileName: `${series}(${i}).png`,
+          fileName: `${series}-${i}.png`,
           pricePoints: price,
           sortOrder: Number(sortOrderBase) + (i - 1),
           updatedAt: ctx.timestamp,
@@ -1771,8 +1790,9 @@ export const admin_create_avatar_series_batch = spacetimedb.reducer(
         ctx.db.avatarCatalogItem.insert({
           avatarKey,
           seriesKey: series,
+          seriesDisplayName: displayName,
           basePath: base,
-          fileName: `${series}(${i}).png`,
+          fileName: `${series}-${i}.png`,
           pricePoints: price,
           isPublished: false,
           sortOrder: Number(sortOrderBase) + (i - 1),

@@ -12,6 +12,7 @@ import {
 
 export default {
   seriesKey: __t.string(),
+  seriesDisplayName: __t.string(),
   basePath: __t.string(),
   defaultPricePoints: __t.u32(),
   sortOrderBase: __t.u32(),

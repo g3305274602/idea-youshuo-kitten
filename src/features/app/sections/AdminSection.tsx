@@ -402,6 +402,7 @@ type AdminContentProps = {
   avatarCatalogRows: readonly {
     avatarKey: string;
     seriesKey: string;
+    seriesDisplayName: string;
     basePath: string;
     fileName: string;
     pricePoints: number;
@@ -420,6 +421,7 @@ type AdminContentProps = {
   onAvatarDeleteItem: (avatarKey: string) => void | Promise<void>;
   onAvatarCreateItem: (args: {
     seriesKey: string;
+    seriesDisplayName: string;
     basePath: string;
     defaultPricePoints: number;
     sortOrderBase: number;
@@ -507,11 +509,32 @@ export function AdminContent(props: AdminContentProps) {
   } = props;
   const [avatarCreateOpen, setAvatarCreateOpen] = useState(false);
   const [newSeriesPrefix, setNewSeriesPrefix] = useState("");
+  const [newSeriesDisplayName, setNewSeriesDisplayName] = useState("");
   const [newBasePath, setNewBasePath] = useState("/avatars/");
   const [newChargePoints, setNewChargePoints] = useState(false);
   const [newDefaultPricePointsInput, setNewDefaultPricePointsInput] = useState("");
   const [newSortOrderBaseInput, setNewSortOrderBaseInput] = useState("");
   const [newGenerateCountInput, setNewGenerateCountInput] = useState("5");
+  const [avatarPreviewBroken, setAvatarPreviewBroken] = useState<Record<string, boolean>>({});
+  const [seriesEditOpen, setSeriesEditOpen] = useState(false);
+  const [seriesEditKey, setSeriesEditKey] = useState("");
+  const [seriesEditDisplayName, setSeriesEditDisplayName] = useState("");
+  const [seriesEditBasePath, setSeriesEditBasePath] = useState("/avatars/");
+  const [seriesEditChargePoints, setSeriesEditChargePoints] = useState(false);
+  const [seriesEditPriceInput, setSeriesEditPriceInput] = useState("");
+  const [seriesEditSortOrderBaseInput, setSeriesEditSortOrderBaseInput] = useState("");
+  const [seriesEditGenerateCountInput, setSeriesEditGenerateCountInput] = useState("5");
+  const [avatarDeleteConfirmOpen, setAvatarDeleteConfirmOpen] = useState(false);
+  const [avatarDeleteTargetKey, setAvatarDeleteTargetKey] = useState("");
+
+  const toPublicAssetUrl = (basePath: string, fileName: string) => {
+    const normalizedBase = String(basePath || "").trim();
+    const normalizedFile = String(fileName || "").trim();
+    const joined = `${normalizedBase.endsWith("/") ? normalizedBase : `${normalizedBase}/`}${normalizedFile}`
+      .replace(/\/{2,}/g, "/")
+      .replace(/^\//, "");
+    return `${import.meta.env.BASE_URL}${joined}`;
+  };
 
   if (!isAdmin) {
     return (
@@ -1172,120 +1195,284 @@ export function AdminContent(props: AdminContentProps) {
               </button>
             ) : null}
           </div>
-          <div className="mt-3 space-y-2">
+          <div className="mt-3 space-y-3">
             {avatarCatalogRows.length === 0 ? (
               <p className="text-[12px] text-white/60">尚無頭像設定資料</p>
             ) : (
-              avatarCatalogRows.map((row) => (
-                <div
-                  key={row.avatarKey}
-                  className="rounded-xl border border-white/10 bg-white/[0.04] p-3"
-                >
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-[13px] font-bold text-white">{row.avatarKey}</p>
-                    <span className="rounded-full border border-white/15 px-2 py-0.5 text-[10px] text-white/70">
-                      {row.seriesKey}
-                    </span>
-                    <span className="rounded-full border border-white/15 px-2 py-0.5 text-[10px] text-white/70">
-                      {row.basePath}
-                      {row.fileName}
-                    </span>
-                  </div>
-                  <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-4">
-                    <label className="text-[11px] text-white/70">
-                      <span className="flex items-center justify-between gap-2">
-                        <span>價格</span>
-                        <label className="flex items-center gap-1.5 text-[10px] text-white/70">
-                          <input
-                            type="checkbox"
-                            checked={row.pricePoints > 0}
-                            onChange={(e) =>
-                              void onAvatarUpdateItem({
-                                avatarKey: row.avatarKey,
-                                pricePoints: e.target.checked
-                                  ? Math.max(1, row.pricePoints || 1)
-                                  : 0,
-                                isPublished: row.isPublished,
-                                sortOrder: row.sortOrder,
-                              })
-                            }
-                            disabled={avatarCatalogEditBusy}
-                          />
-                          收積分
-                        </label>
-                      </span>
-                      <input
-                        type="number"
-                        min={0}
-                        max={99999}
-                        defaultValue={row.pricePoints}
-                        disabled={row.pricePoints <= 0}
-                        className="cd-field mt-1 text-[12px]"
-                        onBlur={(e) =>
-                          void onAvatarUpdateItem({
-                            avatarKey: row.avatarKey,
-                            pricePoints: Math.max(0, Math.min(99999, Number(e.target.value) || 0)),
-                            isPublished: row.isPublished,
-                            sortOrder: row.sortOrder,
-                          })
-                        }
-                      />
-                    </label>
-                    <label className="text-[11px] text-white/70">
-                      排序
-                      <input
-                        type="number"
-                        min={0}
-                        max={99999}
-                        defaultValue={row.sortOrder}
-                        className="cd-field mt-1 text-[12px]"
-                        onBlur={(e) =>
-                          void onAvatarUpdateItem({
-                            avatarKey: row.avatarKey,
-                            pricePoints: row.pricePoints,
-                            isPublished: row.isPublished,
-                            sortOrder: Math.max(0, Math.min(99999, Number(e.target.value) || 0)),
-                          })
-                        }
-                      />
-                    </label>
-                    <div className="flex items-end">
-                      <button
-                        type="button"
-                        className={cn(
-                          "rounded-xl border px-3 py-2 text-[11px] font-bold",
-                          row.isPublished
-                            ? "border-emerald-400 bg-emerald-500/20 text-emerald-100"
-                            : "border-white/20 bg-white/10 text-white/70",
-                        )}
-                        onClick={() =>
-                          void onAvatarUpdateItem({
-                            avatarKey: row.avatarKey,
-                            pricePoints: row.pricePoints,
-                            isPublished: !row.isPublished,
-                            sortOrder: row.sortOrder,
-                          })
-                        }
-                        disabled={avatarCatalogEditBusy}
-                      >
-                        {row.isPublished ? "已上架" : "已下架"}
-                      </button>
-                    </div>
-                    <div className="flex items-end justify-end">
-                      {isSuperAdmin ? (
+              Object.entries(
+                avatarCatalogRows.reduce<
+                  Record<
+                    string,
+                    {
+                      avatarKey: string;
+                      seriesKey: string;
+                      seriesDisplayName: string;
+                      basePath: string;
+                      fileName: string;
+                      pricePoints: number;
+                      isPublished: boolean;
+                      sortOrder: number;
+                    }[]
+                  >
+                >((acc, row) => {
+                  const key = row.seriesKey || "未分組";
+                  const list = acc[key] ?? [];
+                  acc[key] = [...list, row];
+                  return acc;
+                }, {}),
+              ).map(([seriesKey, rows]) => {
+                const allPublished = rows.every((r) => r.isPublished);
+                const seriesDisplayName =
+                  rows.find((r) => r.seriesDisplayName?.trim())?.seriesDisplayName?.trim() ||
+                  seriesKey;
+                return (
+                  <div
+                    key={seriesKey}
+                    className="rounded-2xl border border-white/10 bg-white/[0.04] p-3 sm:p-4"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <p className="text-[13px] font-bold text-white">
+                          系列：{seriesDisplayName || "未命名"}
+                        </p>
+                        <span className="rounded-full border border-white/15 px-2 py-0.5 text-[10px] text-white/70">
+                          {seriesKey}
+                        </span>
+                        <span className="rounded-full border border-white/15 px-2 py-0.5 text-[10px] text-white/70">
+                          共 {rows.length} 張
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
                         <button
                           type="button"
-                          className="rounded-xl border border-red-300/60 bg-red-500/15 px-3 py-2 text-[11px] font-bold text-red-200"
-                          onClick={() => void onAvatarDeleteItem(row.avatarKey)}
+                          className="rounded-full border border-white/25 bg-white/10 px-3 py-1.5 text-[11px] font-bold text-white/80"
                           disabled={avatarCatalogEditBusy}
+                          onClick={async () => {
+                            const sorted = rows.slice().sort((a, b) => a.sortOrder - b.sortOrder);
+                            const first = sorted[0];
+                            const last = sorted[sorted.length - 1];
+                            const match = last?.avatarKey.match(/-(\d+)$/);
+                            const currentCount = match ? Number(match[1]) : sorted.length;
+                            const nextCount = Math.max(1, Math.min(50, currentCount + 1));
+                            await onAvatarCreateItem({
+                              seriesKey,
+                              seriesDisplayName,
+                              basePath: first?.basePath || "/avatars/",
+                              defaultPricePoints: first?.pricePoints || 0,
+                              sortOrderBase: first?.sortOrder || 0,
+                              generateCount: nextCount,
+                            });
+                          }}
                         >
-                          刪除
+                          + 加一張
                         </button>
-                      ) : null}
+                        <button
+                          type="button"
+                          className="rounded-full border border-white/25 bg-white/10 px-3 py-1.5 text-[11px] font-bold text-white/80"
+                          disabled={avatarCatalogEditBusy}
+                          onClick={() => {
+                            const sorted = rows.slice().sort((a, b) => a.sortOrder - b.sortOrder);
+                            const first = sorted[0];
+                            const last = sorted[sorted.length - 1];
+                            const match = last?.avatarKey.match(/-(\d+)$/);
+                            const maxCount = match ? Number(match[1]) : sorted.length;
+                            setSeriesEditKey(seriesKey);
+                            setSeriesEditDisplayName(seriesDisplayName);
+                            setSeriesEditBasePath(first?.basePath || "/avatars/");
+                            setSeriesEditChargePoints((first?.pricePoints || 0) > 0);
+                            setSeriesEditPriceInput(
+                              (first?.pricePoints || 0) > 0 ? String(first?.pricePoints || 0) : "",
+                            );
+                            setSeriesEditSortOrderBaseInput(String(first?.sortOrder || 0));
+                            setSeriesEditGenerateCountInput(String(Math.max(1, maxCount)));
+                            setSeriesEditOpen(true);
+                          }}
+                        >
+                          整組編輯
+                        </button>
+                        <button
+                          type="button"
+                          className={cn(
+                            "rounded-full px-3 py-1.5 text-[11px] font-bold",
+                            allPublished
+                              ? "border border-emerald-400 bg-emerald-500/20 text-emerald-100"
+                              : "border border-white/25 bg-white/10 text-white/75",
+                          )}
+                          disabled={avatarCatalogEditBusy}
+                          onClick={() => {
+                            void Promise.all(
+                              rows.map((r) =>
+                                onAvatarUpdateItem({
+                                  avatarKey: r.avatarKey,
+                                  pricePoints: r.pricePoints,
+                                  isPublished: !allPublished,
+                                  sortOrder: r.sortOrder,
+                                }),
+                              ),
+                            );
+                          }}
+                        >
+                          {allPublished ? "整組下架" : "整組上架"}
+                        </button>
+                      </div>
+                    </div>
+                    <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-5">
+                      {rows
+                        .slice()
+                        .sort((a, b) => a.sortOrder - b.sortOrder)
+                        .map((row) => (
+                          <div
+                            key={row.avatarKey}
+                            className="rounded-xl border border-white/10 bg-black/20 p-2.5 space-y-1.5"
+                          >
+                            {(() => {
+                              const previewSrc = toPublicAssetUrl(row.basePath, row.fileName);
+                              const previewKey = `${row.avatarKey}:${previewSrc}`;
+                              const broken = !!avatarPreviewBroken[previewKey];
+                              return (
+                                <div className="overflow-hidden rounded-lg border border-white/10 bg-black/30">
+                                  {broken ? (
+                                    <div className="flex h-20 items-center justify-center text-[10px] text-white/45">
+                                      圖片不存在
+                                    </div>
+                                  ) : (
+                                    <img
+                                      src={previewSrc}
+                                      alt=""
+                                      className="h-20 w-full object-cover"
+                                      loading="lazy"
+                                      decoding="async"
+                                      onError={() =>
+                                        setAvatarPreviewBroken((prev) => ({
+                                          ...prev,
+                                          [previewKey]: true,
+                                        }))
+                                      }
+                                      onLoad={() =>
+                                        setAvatarPreviewBroken((prev) => ({
+                                          ...prev,
+                                          [previewKey]: false,
+                                        }))
+                                      }
+                                    />
+                                  )}
+                                </div>
+                              );
+                            })()}
+                            <div className="flex items-center justify-between gap-1">
+                              <p className="text-[12px] font-bold text-white truncate">
+                                {row.avatarKey}
+                              </p>
+                              <span className="rounded-full border border-white/20 px-1.5 py-0.5 text-[9px] text-white/60">
+                                {row.basePath}
+                                {row.fileName}
+                              </span>
+                            </div>
+                            <div className="space-y-1.5">
+                              <div className="flex items-center gap-1.5">
+                                <input
+                                  type="number"
+                                  min={0}
+                                  max={99999}
+                                  defaultValue={row.pricePoints > 0 ? row.pricePoints : ""}
+                                  disabled={row.pricePoints <= 0}
+                                  placeholder="價格"
+                                  className="cd-field min-w-0 flex-1 text-[12px]"
+                                  onBlur={(e) =>
+                                    void onAvatarUpdateItem({
+                                      avatarKey: row.avatarKey,
+                                      pricePoints: Math.max(
+                                        0,
+                                        Math.min(99999, Number(e.target.value) || 0),
+                                      ),
+                                      isPublished: row.isPublished,
+                                      sortOrder: row.sortOrder,
+                                    })
+                                  }
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    void onAvatarUpdateItem({
+                                      avatarKey: row.avatarKey,
+                                      pricePoints:
+                                        row.pricePoints > 0 ? 0 : Math.max(1, row.pricePoints || 1),
+                                      isPublished: row.isPublished,
+                                      sortOrder: row.sortOrder,
+                                    })
+                                  }
+                                  className="relative shrink-0 flex items-center"
+                                  aria-checked={row.pricePoints > 0}
+                                  role="switch"
+                                  title="是否收積分"
+                                >
+                                  <span
+                                    className={cn(
+                                      "relative flex h-6 w-12 items-center rounded-full transition-colors duration-200",
+                                      row.pricePoints > 0 ? "bg-emerald-500" : "bg-stone-500",
+                                    )}
+                                  >
+                                    <span
+                                      className={cn(
+                                        "absolute top-1/2 z-10 -translate-y-1/2 text-[9px] font-extrabold select-none drop-shadow-sm",
+                                        row.pricePoints > 0
+                                          ? "left-1.5 text-white"
+                                          : "right-1.5 text-white",
+                                      )}
+                                    >
+                                      {row.pricePoints > 0 ? "收費" : "免費"}
+                                    </span>
+                                    <span
+                                      className={cn(
+                                        "absolute top-1/2 h-4 w-4 -translate-y-1/2 rounded-full bg-white shadow transition-all duration-200",
+                                        row.pricePoints > 0 ? "right-0.5" : "left-0.5",
+                                      )}
+                                    />
+                                  </span>
+                                </button>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <input
+                                  type="number"
+                                  min={0}
+                                  max={99999}
+                                  defaultValue={row.sortOrder}
+                                  placeholder="排序"
+                                  className="cd-field min-w-0 flex-1 text-[12px]"
+                                  onBlur={(e) =>
+                                    void onAvatarUpdateItem({
+                                      avatarKey: row.avatarKey,
+                                      pricePoints: row.pricePoints,
+                                      isPublished: row.isPublished,
+                                      sortOrder: Math.max(
+                                        0,
+                                        Math.min(99999, Number(e.target.value) || 0),
+                                      ),
+                                    })
+                                  }
+                                />
+                                {isSuperAdmin ? (
+                                  <button
+                                    type="button"
+                                    className="shrink-0 rounded-xl border border-red-300/60 bg-red-500/15 p-1.5 text-red-200"
+                                    onClick={() => {
+                                      setAvatarDeleteTargetKey(row.avatarKey);
+                                      setAvatarDeleteConfirmOpen(true);
+                                    }}
+                                    disabled={avatarCatalogEditBusy}
+                                    aria-label={`刪除 ${row.avatarKey}`}
+                                  >
+                                    <X className="h-3.5 w-3.5" aria-hidden />
+                                  </button>
+                                ) : null}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
                     </div>
                   </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
           {avatarCatalogError ? (
@@ -1321,6 +1508,12 @@ export function AdminContent(props: AdminContentProps) {
                     className="cd-field text-[13px]"
                   />
                   <input
+                    value={newSeriesDisplayName}
+                    onChange={(e) => setNewSeriesDisplayName(e.target.value)}
+                    placeholder="系列中文名，例如 黑貓"
+                    className="cd-field text-[13px]"
+                  />
+                  <input
                     value={newBasePath}
                     onChange={(e) => setNewBasePath(e.target.value)}
                     placeholder="basePath，例如 /avatars/"
@@ -1352,7 +1545,13 @@ export function AdminContent(props: AdminContentProps) {
                         />
                         <button
                           type="button"
-                          onClick={() => setNewChargePoints((v) => !v)}
+                          onClick={() =>
+                            setNewChargePoints((v) => {
+                              const next = !v;
+                              if (!next) setNewDefaultPricePointsInput("");
+                              return next;
+                            })
+                          }
                           className="relative shrink-0 flex items-center"
                           aria-checked={newChargePoints}
                           role="switch"
@@ -1448,6 +1647,7 @@ export function AdminContent(props: AdminContentProps) {
                       );
                       await onAvatarCreateItem({
                         seriesKey: newSeriesPrefix,
+                        seriesDisplayName: newSeriesDisplayName,
                         basePath: newBasePath,
                         defaultPricePoints,
                         sortOrderBase,
@@ -1459,6 +1659,233 @@ export function AdminContent(props: AdminContentProps) {
                     產生
                     {` ${Math.max(1, Math.min(50, Number(newGenerateCountInput) || 5))} `}
                     張
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
+        <AnimatePresence>
+          {avatarDeleteConfirmOpen ? (
+            <motion.div
+              key="avatar-delete-confirm-modal"
+              role="presentation"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[256] flex items-end justify-center bg-black/45 p-4 sm:items-center"
+              onClick={() => !avatarCatalogEditBusy && setAvatarDeleteConfirmOpen(false)}
+            >
+              <motion.div
+                role="dialog"
+                aria-modal="true"
+                initial={{ opacity: 0, y: 18 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 10 }}
+                onClick={(e) => e.stopPropagation()}
+                className="cd-modal-panel w-full max-w-sm p-4"
+              >
+                <p className="text-[16px] font-bold text-white">確認刪除頭像</p>
+                <p className="mt-2 text-[12px] text-white/70">
+                  確定要刪除
+                  <span className="mx-1 font-bold text-white">{avatarDeleteTargetKey}</span>
+                  嗎？
+                </p>
+                <p className="mt-1 text-[11px] text-white/45">
+                  刪除後不會影響已購買紀錄，但該頭像設定會從清單移除。
+                </p>
+                <div className="mt-4 flex gap-2">
+                  <button
+                    type="button"
+                    className="cd-btn-ghost flex-1 py-2 text-[13px]"
+                    onClick={() => setAvatarDeleteConfirmOpen(false)}
+                    disabled={avatarCatalogEditBusy}
+                  >
+                    取消
+                  </button>
+                  <button
+                    type="button"
+                    className="flex-1 rounded-xl border border-red-400/60 bg-red-500/20 py-2 text-[13px] font-bold text-red-100 disabled:opacity-60"
+                    disabled={avatarCatalogEditBusy || !avatarDeleteTargetKey}
+                    onClick={async () => {
+                      await onAvatarDeleteItem(avatarDeleteTargetKey);
+                      setAvatarDeleteConfirmOpen(false);
+                      setAvatarDeleteTargetKey("");
+                    }}
+                  >
+                    確認刪除
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
+        <AnimatePresence>
+          {seriesEditOpen ? (
+            <motion.div
+              key="avatar-series-edit-modal"
+              role="presentation"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[255] flex items-end justify-center bg-black/45 p-4 sm:items-center"
+              onClick={() => !avatarCatalogEditBusy && setSeriesEditOpen(false)}
+            >
+              <motion.div
+                role="dialog"
+                aria-modal="true"
+                initial={{ opacity: 0, y: 18 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 10 }}
+                onClick={(e) => e.stopPropagation()}
+                className="cd-modal-panel w-full max-w-md p-4"
+              >
+                <p className="text-[16px] font-bold text-white">整組編輯：{seriesEditKey}</p>
+                <div className="mt-3 space-y-2">
+                  <input
+                    value={seriesEditDisplayName}
+                    onChange={(e) => setSeriesEditDisplayName(e.target.value)}
+                    placeholder="系列中文名"
+                    className="cd-field text-[13px]"
+                  />
+                  <input
+                    value={seriesEditBasePath}
+                    onChange={(e) => setSeriesEditBasePath(e.target.value)}
+                    placeholder="basePath，例如 /avatars/"
+                    className="cd-field text-[13px]"
+                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min={0}
+                        max={99999}
+                        value={seriesEditPriceInput}
+                        disabled={!seriesEditChargePoints}
+                        onChange={(e) => {
+                          const raw = e.target.value;
+                          if (!raw) {
+                            setSeriesEditPriceInput("");
+                            return;
+                          }
+                          setSeriesEditPriceInput(
+                            String(Math.max(0, Math.min(99999, Number(raw) || 0))),
+                          );
+                        }}
+                        placeholder="預設積分"
+                        className="cd-field min-w-0 flex-1 text-[13px]"
+                      />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setSeriesEditChargePoints((v) => {
+                            const next = !v;
+                            if (!next) setSeriesEditPriceInput("");
+                            return next;
+                          })
+                        }
+                        className="relative shrink-0 flex items-center"
+                        aria-checked={seriesEditChargePoints}
+                        role="switch"
+                      >
+                        <span
+                          className={cn(
+                            "relative flex h-7 w-14 items-center rounded-full transition-colors duration-200",
+                            seriesEditChargePoints ? "bg-emerald-500" : "bg-stone-500",
+                          )}
+                        >
+                          <span
+                            className={cn(
+                              "absolute top-1/2 z-10 -translate-y-1/2 text-[10px] font-extrabold select-none drop-shadow-sm",
+                              seriesEditChargePoints ? "left-1.5 text-white" : "right-1.5 text-white",
+                            )}
+                          >
+                            {seriesEditChargePoints ? "收費" : "免費"}
+                          </span>
+                          <span
+                            className={cn(
+                              "absolute top-1/2 h-5 w-5 -translate-y-1/2 rounded-full bg-white shadow transition-all duration-200",
+                              seriesEditChargePoints ? "right-0.5" : "left-0.5",
+                            )}
+                          />
+                        </span>
+                      </button>
+                    </div>
+                    <input
+                      type="number"
+                      min={0}
+                      max={99999}
+                      value={seriesEditSortOrderBaseInput}
+                      onChange={(e) => {
+                        const raw = e.target.value;
+                        if (!raw) {
+                          setSeriesEditSortOrderBaseInput("");
+                          return;
+                        }
+                        setSeriesEditSortOrderBaseInput(
+                          String(Math.max(0, Math.min(99999, Number(raw) || 0))),
+                        );
+                      }}
+                      placeholder="本組排序起點"
+                      className="cd-field text-[13px]"
+                    />
+                  </div>
+                  <input
+                    type="number"
+                    min={1}
+                    max={50}
+                    value={seriesEditGenerateCountInput}
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      if (!raw) {
+                        setSeriesEditGenerateCountInput("");
+                        return;
+                      }
+                      setSeriesEditGenerateCountInput(
+                        String(Math.max(1, Math.min(50, Number(raw) || 5))),
+                      );
+                    }}
+                    placeholder="總張數（可用於插入新圖）"
+                    className="cd-field text-[13px]"
+                  />
+                </div>
+                <div className="mt-4 flex gap-2">
+                  <button
+                    type="button"
+                    className="cd-btn-ghost flex-1 py-2 text-[13px]"
+                    onClick={() => setSeriesEditOpen(false)}
+                    disabled={avatarCatalogEditBusy}
+                  >
+                    取消
+                  </button>
+                  <button
+                    type="button"
+                    className="cd-btn-primary flex-1 py-2 text-[13px] disabled:opacity-60"
+                    disabled={avatarCatalogEditBusy}
+                    onClick={async () => {
+                      const defaultPricePoints = seriesEditChargePoints
+                        ? Math.max(0, Math.min(99999, Number(seriesEditPriceInput) || 0))
+                        : 0;
+                      const sortOrderBase = Math.max(
+                        0,
+                        Math.min(99999, Number(seriesEditSortOrderBaseInput) || 0),
+                      );
+                      const generateCount = Math.max(
+                        1,
+                        Math.min(50, Number(seriesEditGenerateCountInput) || 5),
+                      );
+                      await onAvatarCreateItem({
+                        seriesKey: seriesEditKey,
+                        seriesDisplayName: seriesEditDisplayName,
+                        basePath: seriesEditBasePath,
+                        defaultPricePoints,
+                        sortOrderBase,
+                        generateCount,
+                      });
+                      setSeriesEditOpen(false);
+                    }}
+                  >
+                    套用整組
                   </button>
                 </div>
               </motion.div>

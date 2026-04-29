@@ -13,6 +13,7 @@ import {
 export default {
   avatarKey: __t.string(),
   seriesKey: __t.string(),
+  seriesDisplayName: __t.string(),
   basePath: __t.string(),
   fileName: __t.string(),
   pricePoints: __t.u32(),

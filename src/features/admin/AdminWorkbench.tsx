@@ -148,6 +148,7 @@ type CreateAdminViewPropsParams = {
   }) => void;
   createAvatarSeriesBatch: (args: {
     seriesKey: string;
+    seriesDisplayName: string;
     basePath: string;
     defaultPricePoints: number;
     sortOrderBase: number;
