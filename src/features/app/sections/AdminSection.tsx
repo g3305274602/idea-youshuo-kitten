@@ -1329,7 +1329,6 @@ export function AdminContent(props: AdminContentProps) {
                   <div className="grid grid-cols-2 gap-2">
                     <div className="space-y-1">
                       <div className="flex items-center justify-between gap-2 px-1 text-[11px] text-white/70">
-                        <span>預設積分</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <input
