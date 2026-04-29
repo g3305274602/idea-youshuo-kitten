@@ -311,12 +311,20 @@
     box-shadow: inset 0 0 10px rgba(255, 255, 255, 0.02);
   }
 
+  .ys-mine-profile-card-row {
+    @apply flex min-w-0 w-full items-start gap-1;
+  }
+
   .ys-mine-profile-hitbox {
-    @apply flex w-full items-start gap-3 text-left;
+    @apply flex min-w-0 flex-1 items-start gap-3 text-left;
+  }
+
+  .ys-mine-profile-gear {
+    @apply mt-0.5 inline-flex shrink-0 rounded-full p-2 text-white/65 transition-colors hover:bg-white/[0.08] hover:text-white;
   }
 
   .ys-mine-avatar-slot {
-    @apply h-14 w-14 shrink-0 rounded-[24px] border border-white/15 bg-white/10;
+    @apply h-14 w-14 shrink-0 overflow-hidden rounded-[24px] border border-white/15 bg-white/10;
     box-shadow:
       0 0 0 1px rgba(255, 255, 255, 0.06),
       0 8px 28px rgba(240, 98, 146, 0.22),
@@ -332,19 +340,31 @@
   }
 
   .ys-mine-name {
-    @apply truncate text-[24px] font-bold leading-tight text-white;
+    @apply truncate text-[17px] font-bold leading-tight text-white sm:text-[18px];
+  }
+
+  .ys-mine-level-row {
+    @apply mt-1 flex min-w-0 w-full flex-nowrap items-center gap-2 pr-0.5;
   }
 
   .ys-mine-level-chip {
-    @apply mt-1 inline-flex items-center gap-1 rounded-full border border-[#FFD54F]/55 bg-[#121319] px-2 py-0.5 text-[12px] font-bold text-[#FFD54F];
+    @apply inline-flex items-center gap-0.5 rounded-full border border-[#FFD54F]/50 bg-[#121319] px-1.5 py-px text-[10px] font-bold leading-none text-[#FFD54F] sm:text-[11px];
   }
 
-  .ys-mine-email {
-    @apply mt-2 truncate text-[14px] font-semibold text-white/90;
+  .ys-mine-points-chip {
+    @apply inline-flex items-center gap-0.5 rounded-full border border-[#FFD54F]/50 bg-[#121319] px-1.5 py-px text-[10px] font-bold leading-none text-[#FFD54F] sm:text-[11px];
   }
 
-  .ys-mine-note {
-    @apply mt-2 text-[13px] font-medium text-[#8E8E93];
+  .ys-mine-claim-chip {
+    @apply inline-flex items-center rounded-full border border-emerald-300/50 bg-emerald-500/15 px-2 py-px text-[10px] font-bold leading-none text-emerald-100 transition-colors disabled:cursor-not-allowed disabled:opacity-60 sm:text-[11px];
+  }
+
+  .ys-mine-shuoshuo-row {
+    @apply mt-2 flex min-w-0 items-baseline gap-1.5 text-[13px] leading-snug;
+  }
+
+  .ys-mine-shuoshuo-label {
+    @apply shrink-0 text-[11px] font-bold text-white/45;
   }
 
   .ys-mine-stats-row {

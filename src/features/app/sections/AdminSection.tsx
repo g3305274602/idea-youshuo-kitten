@@ -1,7 +1,7 @@
 import type React from "react";
 import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { Activity, ChevronRight, LayoutGrid, Lock, ShieldAlert, UserCog, X } from "lucide-react";
+import { Activity, ChevronRight, Image, LayoutGrid, Lock, ShieldAlert, UserCog, X } from "lucide-react";
 import { Identity } from "spacetimedb";
 import { cn } from "../../../lib/utils";
 import type {
@@ -140,6 +140,7 @@ type AdminSidebarProps = {
   onSelectAdminOpsMain: () => void;
   onSelectReports: () => void;
   onSelectReview: () => void;
+  onSelectAvatar: () => void;
 };
 
 export function AdminSidebar({
@@ -157,6 +158,7 @@ export function AdminSidebar({
   onSelectAdminOpsMain,
   onSelectReports,
   onSelectReview,
+  onSelectAvatar,
 }: AdminSidebarProps) {
   const unresolvedReportCount = adminReportsSorted.filter(
     (r) => !isReportClosedStatus(r.status),
@@ -292,6 +294,21 @@ export function AdminSidebar({
         </span>
         <ChevronRight className="h-[18px] w-[18px] text-slate-400" aria-hidden />
       </button>
+      <button
+        type="button"
+        onClick={onSelectAvatar}
+        className={cn(rowBaseClass, adminSection === "avatar" && rowActiveClass)}
+        aria-current={adminSection === "avatar" ? "page" : undefined}
+      >
+        <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#38bdf8]">
+          <Image className="h-4 w-4 text-white" strokeWidth={2.6} aria-hidden />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-[15px] font-semibold leading-tight text-white">頭像設定</span>
+          <span className="mt-0.5 block text-[11px] font-normal text-[#8E8E93]">價格、排序、上下架</span>
+        </span>
+        <ChevronRight className="h-[18px] w-[18px] text-slate-400" aria-hidden />
+      </button>
     </div>
   );
 }
@@ -382,6 +399,32 @@ type AdminContentProps = {
   onSetAdminTargetIdentityHex: (value: string) => void;
   onQuickBanTargetAccount: () => void | Promise<void>;
   onQuickUnbanTargetAccount: () => void | Promise<void>;
+  avatarCatalogRows: readonly {
+    avatarKey: string;
+    seriesKey: string;
+    basePath: string;
+    fileName: string;
+    pricePoints: number;
+    isPublished: boolean;
+    sortOrder: number;
+  }[];
+  avatarCatalogEditBusy: boolean;
+  avatarCatalogError: string;
+  onAvatarUpdateItem: (args: {
+    avatarKey: string;
+    pricePoints: number;
+    isPublished: boolean;
+    sortOrder: number;
+  }) => void | Promise<void>;
+  onAvatarOpenCreateModal: () => void;
+  onAvatarDeleteItem: (avatarKey: string) => void | Promise<void>;
+  onAvatarCreateItem: (args: {
+    seriesKey: string;
+    basePath: string;
+    defaultPricePoints: number;
+    sortOrderBase: number;
+    generateCount: number;
+  }) => void | Promise<void>;
 };
 
 export function AdminContent(props: AdminContentProps) {
@@ -454,7 +497,21 @@ export function AdminContent(props: AdminContentProps) {
     onSetAdminTargetIdentityHex,
     onQuickBanTargetAccount,
     onQuickUnbanTargetAccount,
+    avatarCatalogRows,
+    avatarCatalogEditBusy,
+    avatarCatalogError,
+    onAvatarUpdateItem,
+    onAvatarOpenCreateModal,
+    onAvatarDeleteItem,
+    onAvatarCreateItem,
   } = props;
+  const [avatarCreateOpen, setAvatarCreateOpen] = useState(false);
+  const [newSeriesPrefix, setNewSeriesPrefix] = useState("");
+  const [newBasePath, setNewBasePath] = useState("/avatars/");
+  const [newChargePoints, setNewChargePoints] = useState(false);
+  const [newDefaultPricePointsInput, setNewDefaultPricePointsInput] = useState("");
+  const [newSortOrderBaseInput, setNewSortOrderBaseInput] = useState("");
+  const [newGenerateCountInput, setNewGenerateCountInput] = useState("5");
 
   if (!isAdmin) {
     return (
@@ -1091,10 +1148,332 @@ export function AdminContent(props: AdminContentProps) {
     );
   }
 
+  if (adminSection === "avatar") {
+    return (
+      <div className="mx-auto w-full max-w-4xl space-y-3">
+        <div className="cd-card-raised rounded-2xl p-4">
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              <p className="text-[15px] font-black text-white">頭像設定</p>
+              <p className="mt-0.5 text-[11px] text-white/60">
+                管理員可改價與上下架，超級管理員可新增/刪除。
+              </p>
+            </div>
+            {isSuperAdmin ? (
+              <button
+                type="button"
+                onClick={() => {
+                  onAvatarOpenCreateModal();
+                  setAvatarCreateOpen(true);
+                }}
+                className="rounded-xl border-2 border-rose-400 bg-rose-500 px-3 py-1.5 text-[12px] font-bold text-white"
+              >
+                + 新增頭像
+              </button>
+            ) : null}
+          </div>
+          <div className="mt-3 space-y-2">
+            {avatarCatalogRows.length === 0 ? (
+              <p className="text-[12px] text-white/60">尚無頭像設定資料</p>
+            ) : (
+              avatarCatalogRows.map((row) => (
+                <div
+                  key={row.avatarKey}
+                  className="rounded-xl border border-white/10 bg-white/[0.04] p-3"
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-[13px] font-bold text-white">{row.avatarKey}</p>
+                    <span className="rounded-full border border-white/15 px-2 py-0.5 text-[10px] text-white/70">
+                      {row.seriesKey}
+                    </span>
+                    <span className="rounded-full border border-white/15 px-2 py-0.5 text-[10px] text-white/70">
+                      {row.basePath}
+                      {row.fileName}
+                    </span>
+                  </div>
+                  <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-4">
+                    <label className="text-[11px] text-white/70">
+                      <span className="flex items-center justify-between gap-2">
+                        <span>價格</span>
+                        <label className="flex items-center gap-1.5 text-[10px] text-white/70">
+                          <input
+                            type="checkbox"
+                            checked={row.pricePoints > 0}
+                            onChange={(e) =>
+                              void onAvatarUpdateItem({
+                                avatarKey: row.avatarKey,
+                                pricePoints: e.target.checked
+                                  ? Math.max(1, row.pricePoints || 1)
+                                  : 0,
+                                isPublished: row.isPublished,
+                                sortOrder: row.sortOrder,
+                              })
+                            }
+                            disabled={avatarCatalogEditBusy}
+                          />
+                          收積分
+                        </label>
+                      </span>
+                      <input
+                        type="number"
+                        min={0}
+                        max={99999}
+                        defaultValue={row.pricePoints}
+                        disabled={row.pricePoints <= 0}
+                        className="cd-field mt-1 text-[12px]"
+                        onBlur={(e) =>
+                          void onAvatarUpdateItem({
+                            avatarKey: row.avatarKey,
+                            pricePoints: Math.max(0, Math.min(99999, Number(e.target.value) || 0)),
+                            isPublished: row.isPublished,
+                            sortOrder: row.sortOrder,
+                          })
+                        }
+                      />
+                    </label>
+                    <label className="text-[11px] text-white/70">
+                      排序
+                      <input
+                        type="number"
+                        min={0}
+                        max={99999}
+                        defaultValue={row.sortOrder}
+                        className="cd-field mt-1 text-[12px]"
+                        onBlur={(e) =>
+                          void onAvatarUpdateItem({
+                            avatarKey: row.avatarKey,
+                            pricePoints: row.pricePoints,
+                            isPublished: row.isPublished,
+                            sortOrder: Math.max(0, Math.min(99999, Number(e.target.value) || 0)),
+                          })
+                        }
+                      />
+                    </label>
+                    <div className="flex items-end">
+                      <button
+                        type="button"
+                        className={cn(
+                          "rounded-xl border px-3 py-2 text-[11px] font-bold",
+                          row.isPublished
+                            ? "border-emerald-400 bg-emerald-500/20 text-emerald-100"
+                            : "border-white/20 bg-white/10 text-white/70",
+                        )}
+                        onClick={() =>
+                          void onAvatarUpdateItem({
+                            avatarKey: row.avatarKey,
+                            pricePoints: row.pricePoints,
+                            isPublished: !row.isPublished,
+                            sortOrder: row.sortOrder,
+                          })
+                        }
+                        disabled={avatarCatalogEditBusy}
+                      >
+                        {row.isPublished ? "已上架" : "已下架"}
+                      </button>
+                    </div>
+                    <div className="flex items-end justify-end">
+                      {isSuperAdmin ? (
+                        <button
+                          type="button"
+                          className="rounded-xl border border-red-300/60 bg-red-500/15 px-3 py-2 text-[11px] font-bold text-red-200"
+                          onClick={() => void onAvatarDeleteItem(row.avatarKey)}
+                          disabled={avatarCatalogEditBusy}
+                        >
+                          刪除
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+          {avatarCatalogError ? (
+            <p className="mt-2 text-[12px] font-semibold text-red-300">{avatarCatalogError}</p>
+          ) : null}
+        </div>
+        <AnimatePresence>
+          {avatarCreateOpen ? (
+            <motion.div
+              key="avatar-create-modal"
+              role="presentation"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[250] flex items-end justify-center bg-black/45 p-4 sm:items-center"
+              onClick={() => !avatarCatalogEditBusy && setAvatarCreateOpen(false)}
+            >
+              <motion.div
+                role="dialog"
+                aria-modal="true"
+                initial={{ opacity: 0, y: 18 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 10 }}
+                onClick={(e) => e.stopPropagation()}
+                className="cd-modal-panel w-full max-w-md p-4"
+              >
+                <p className="text-[16px] font-bold text-white">新增頭像系列</p>
+                <div className="mt-3 space-y-2">
+                  <input
+                    value={newSeriesPrefix}
+                    onChange={(e) => setNewSeriesPrefix(e.target.value)}
+                    placeholder="系列前綴，例如 zt（會產生 zt-1 ~ zt-5）"
+                    className="cd-field text-[13px]"
+                  />
+                  <input
+                    value={newBasePath}
+                    onChange={(e) => setNewBasePath(e.target.value)}
+                    placeholder="basePath，例如 /avatars/"
+                    className="cd-field text-[13px]"
+                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between gap-2 px-1 text-[11px] text-white/70">
+                        <span>預設積分</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          min={0}
+                          max={99999}
+                          value={newDefaultPricePointsInput}
+                          disabled={!newChargePoints}
+                          onChange={(e) => {
+                            const raw = e.target.value;
+                            if (!raw) {
+                              setNewDefaultPricePointsInput("");
+                              return;
+                            }
+                            setNewDefaultPricePointsInput(
+                              String(Math.max(0, Math.min(99999, Number(raw) || 0))),
+                            );
+                          }}
+                          placeholder="預設積分"
+                          className="cd-field min-w-0 flex-1 text-[13px]"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setNewChargePoints((v) => !v)}
+                          className="relative shrink-0 flex items-center"
+                          aria-checked={newChargePoints}
+                          role="switch"
+                          title="是否收積分"
+                        >
+                          <span
+                            className={cn(
+                              "relative flex h-7 w-14 items-center rounded-full transition-colors duration-200",
+                              newChargePoints ? "bg-emerald-500" : "bg-stone-500",
+                            )}
+                          >
+                            <span
+                              className={cn(
+                                "absolute top-1/2 z-10 -translate-y-1/2 text-[10px] font-extrabold select-none drop-shadow-sm",
+                                newChargePoints ? "left-1.5 text-white" : "right-1.5 text-white",
+                              )}
+                            >
+                              {newChargePoints ? "收費" : "免費"}
+                            </span>
+                            <span
+                              className={cn(
+                                "absolute top-1/2 h-5 w-5 -translate-y-1/2 rounded-full bg-white shadow transition-all duration-200",
+                                newChargePoints ? "right-0.5" : "left-0.5",
+                              )}
+                            />
+                          </span>
+                        </button>
+                      </div>
+                    </div>
+                    <input
+                      type="number"
+                      min={0}
+                      max={99999}
+                      value={newSortOrderBaseInput}
+                      onChange={(e) => {
+                        const raw = e.target.value;
+                        if (!raw) {
+                          setNewSortOrderBaseInput("");
+                          return;
+                        }
+                        setNewSortOrderBaseInput(
+                          String(Math.max(0, Math.min(99999, Number(raw) || 0))),
+                        );
+                      }}
+                      placeholder="本組排序起點"
+                      className="cd-field text-[13px]"
+                    />
+                  </div>
+                  <input
+                    type="number"
+                    min={1}
+                    max={50}
+                    value={newGenerateCountInput}
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      if (!raw) {
+                        setNewGenerateCountInput("");
+                        return;
+                      }
+                      setNewGenerateCountInput(String(Math.max(1, Math.min(50, Number(raw) || 5))));
+                    }}
+                    placeholder="生成張數（預設 5）"
+                    className="cd-field text-[13px]"
+                  />
+                  <p className="text-[12px] text-white/60">
+                    建立後預設先下架，你可在列表逐張上架/下架、改價、改排序。
+                  </p>
+                </div>
+                <div className="mt-4 flex gap-2">
+                  <button
+                    type="button"
+                    className="cd-btn-ghost flex-1 py-2 text-[13px]"
+                    onClick={() => setAvatarCreateOpen(false)}
+                    disabled={avatarCatalogEditBusy}
+                  >
+                    取消
+                  </button>
+                  <button
+                    type="button"
+                    className="cd-btn-primary flex-1 py-2 text-[13px] disabled:opacity-60"
+                    disabled={avatarCatalogEditBusy}
+                    onClick={async () => {
+                      const defaultPricePoints = newChargePoints
+                        ? Math.max(0, Math.min(99999, Number(newDefaultPricePointsInput) || 0))
+                        : 0;
+                      const sortOrderBase = Math.max(
+                        0,
+                        Math.min(99999, Number(newSortOrderBaseInput) || 0),
+                      );
+                      const generateCount = Math.max(
+                        1,
+                        Math.min(50, Number(newGenerateCountInput) || 5),
+                      );
+                      await onAvatarCreateItem({
+                        seriesKey: newSeriesPrefix,
+                        basePath: newBasePath,
+                        defaultPricePoints,
+                        sortOrderBase,
+                        generateCount,
+                      });
+                      setAvatarCreateOpen(false);
+                    }}
+                  >
+                    產生
+                    {` ${Math.max(1, Math.min(50, Number(newGenerateCountInput) || 5))} `}
+                    張
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
+      </div>
+    );
+  }
+
   if (activeTab === "admin_ops") {
     return (
-      <div className="apple-scroll max-h-full w-full max-w-7xl space-y-3 overflow-y-auto px-2 py-2 md:space-y-4 md:px-5 md:py-4">
-        <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-slate-950 via-slate-900 to-emerald-950 p-3 text-white shadow-xl md:p-5">
+      <div className="apple-scroll max-h-full min-w-0 w-full max-w-7xl space-y-3 overflow-y-auto overflow-x-hidden px-2 py-2 md:space-y-4 md:px-5 md:py-4">
+        <div className="min-w-0 overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-slate-950 via-slate-900 to-emerald-950 p-3 text-white shadow-xl md:p-5">
           <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
             <div className="min-w-0">
               <p className="text-[10px] font-black uppercase tracking-[0.18em] text-emerald-300/90">

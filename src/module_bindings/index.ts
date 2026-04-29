@@ -37,6 +37,8 @@ import {
 import AddCapsulePrivateMessageReducer from "./add_capsule_private_message_reducer";
 import AddSquareCommentReducer from "./add_square_comment_reducer";
 import AdminApplyUserSanctionReducer from "./admin_apply_user_sanction_reducer";
+import AdminCreateAvatarSeriesBatchReducer from "./admin_create_avatar_series_batch_reducer";
+import AdminDeleteAvatarCatalogItemReducer from "./admin_delete_avatar_catalog_item_reducer";
 import AdminDeleteCapsuleReducer from "./admin_delete_capsule_reducer";
 import AdminDeleteRoleRecordReducer from "./admin_delete_role_record_reducer";
 import AdminDeleteSquarePostReducer from "./admin_delete_square_post_reducer";
@@ -44,9 +46,12 @@ import AdminPurgeAllRolesReducer from "./admin_purge_all_roles_reducer";
 import AdminResetPasswordByEmailReducer from "./admin_reset_password_by_email_reducer";
 import AdminSetUserSanctionStatusReducer from "./admin_set_user_sanction_status_reducer";
 import AdminUpdateAppealTicketReducer from "./admin_update_appeal_ticket_reducer";
+import AdminUpdateAvatarCatalogItemReducer from "./admin_update_avatar_catalog_item_reducer";
 import AdminUpdateReportTicketReducer from "./admin_update_report_ticket_reducer";
+import AdminUpsertAvatarCatalogItemReducer from "./admin_upsert_avatar_catalog_item_reducer";
 import AppendLetterExchangeReducer from "./append_letter_exchange_reducer";
 import ChangePasswordReducer from "./change_password_reducer";
+import ClaimNewcomerDailyPointsReducer from "./claim_newcomer_daily_points_reducer";
 import ClaimOrphanSuperAdminReducer from "./claim_orphan_super_admin_reducer";
 import CreateAppealTicketReducer from "./create_appeal_ticket_reducer";
 import CreateReportTicketReducer from "./create_report_ticket_reducer";
@@ -68,9 +73,11 @@ import SendDirectMessageReducer from "./send_direct_message_reducer";
 import SendScheduledMessageReducer from "./send_scheduled_message_reducer";
 import SetAdminRoleReducer from "./set_admin_role_reducer";
 import SetAgeYearsReducer from "./set_age_years_reducer";
+import SetAvatarKeyReducer from "./set_avatar_key_reducer";
 import SetSquareReactionReducer from "./set_square_reaction_reducer";
 import UnfavoriteCapsuleReducer from "./unfavorite_capsule_reducer";
 import UnfavoriteSquarePostReducer from "./unfavorite_square_post_reducer";
+import UnlockAvatarItemReducer from "./unlock_avatar_item_reducer";
 import UnpublishFromSquareReducer from "./unpublish_from_square_reducer";
 import UpdateAccountProfileReducer from "./update_account_profile_reducer";
 import UpdateScheduledMessageReducer from "./update_scheduled_message_reducer";
@@ -79,11 +86,16 @@ import VerifyEmailOtpReducer from "./verify_email_otp_reducer";
 // Import all procedure arg schemas
 
 // Import all table schema definitions
+import AccountAvatarUnlockRow from "./account_avatar_unlock_table";
+import AccountDailyRewardClaimRow from "./account_daily_reward_claim_table";
+import AccountPointsLedgerRow from "./account_points_ledger_table";
+import AccountPointsWalletRow from "./account_points_wallet_table";
 import AccountProfileRow from "./account_profile_table";
 import AccountProfileCreatedAtRow from "./account_profile_created_at_table";
 import AdminAuditLogRow from "./admin_audit_log_table";
 import AdminRoleRow from "./admin_role_table";
 import AppealTicketRow from "./appeal_ticket_table";
+import AvatarCatalogItemRow from "./avatar_catalog_item_table";
 import CapsuleFavoriteRow from "./capsule_favorite_table";
 import CapsuleMessageRow from "./capsule_message_table";
 import CapsuleMessageSpaceStateRow from "./capsule_message_space_state_table";
@@ -104,6 +116,75 @@ import UserSanctionRow from "./user_sanction_table";
 
 /** The schema information for all tables in this module. This is defined the same was as the tables would have been defined in the server. */
 const tablesSchema = __schema({
+  accountAvatarUnlock: __table({
+    name: 'account_avatar_unlock',
+    indexes: [
+      { accessor: 'accountId', name: 'account_avatar_unlock_account_id_idx_btree', algorithm: 'btree', columns: [
+        'accountId',
+      ] },
+      { accessor: 'avatarKey', name: 'account_avatar_unlock_avatar_key_idx_btree', algorithm: 'btree', columns: [
+        'avatarKey',
+      ] },
+      { accessor: 'id', name: 'account_avatar_unlock_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { accessor: 'ownerIdentity', name: 'account_avatar_unlock_owner_identity_idx_btree', algorithm: 'btree', columns: [
+        'ownerIdentity',
+      ] },
+    ],
+    constraints: [
+      { name: 'account_avatar_unlock_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, AccountAvatarUnlockRow),
+  accountDailyRewardClaim: __table({
+    name: 'account_daily_reward_claim',
+    indexes: [
+      { accessor: 'accountId', name: 'account_daily_reward_claim_account_id_idx_btree', algorithm: 'btree', columns: [
+        'accountId',
+      ] },
+      { accessor: 'claimKey', name: 'account_daily_reward_claim_claim_key_idx_btree', algorithm: 'btree', columns: [
+        'claimKey',
+      ] },
+      { accessor: 'ownerIdentity', name: 'account_daily_reward_claim_owner_identity_idx_btree', algorithm: 'btree', columns: [
+        'ownerIdentity',
+      ] },
+    ],
+    constraints: [
+      { name: 'account_daily_reward_claim_claim_key_key', constraint: 'unique', columns: ['claimKey'] },
+    ],
+  }, AccountDailyRewardClaimRow),
+  accountPointsLedger: __table({
+    name: 'account_points_ledger',
+    indexes: [
+      { accessor: 'accountId', name: 'account_points_ledger_account_id_idx_btree', algorithm: 'btree', columns: [
+        'accountId',
+      ] },
+      { accessor: 'id', name: 'account_points_ledger_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { accessor: 'ownerIdentity', name: 'account_points_ledger_owner_identity_idx_btree', algorithm: 'btree', columns: [
+        'ownerIdentity',
+      ] },
+    ],
+    constraints: [
+      { name: 'account_points_ledger_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, AccountPointsLedgerRow),
+  accountPointsWallet: __table({
+    name: 'account_points_wallet',
+    indexes: [
+      { accessor: 'accountId', name: 'account_points_wallet_account_id_idx_btree', algorithm: 'btree', columns: [
+        'accountId',
+      ] },
+      { accessor: 'ownerIdentity', name: 'account_points_wallet_owner_identity_idx_btree', algorithm: 'btree', columns: [
+        'ownerIdentity',
+      ] },
+    ],
+    constraints: [
+      { name: 'account_points_wallet_account_id_key', constraint: 'unique', columns: ['accountId'] },
+      { name: 'account_points_wallet_owner_identity_key', constraint: 'unique', columns: ['ownerIdentity'] },
+    ],
+  }, AccountPointsWalletRow),
   accountProfile: __table({
     name: 'account_profile',
     indexes: [
@@ -180,6 +261,20 @@ const tablesSchema = __schema({
       { name: 'appeal_ticket_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, AppealTicketRow),
+  avatarCatalogItem: __table({
+    name: 'avatar_catalog_item',
+    indexes: [
+      { accessor: 'avatarKey', name: 'avatar_catalog_item_avatar_key_idx_btree', algorithm: 'btree', columns: [
+        'avatarKey',
+      ] },
+      { accessor: 'seriesKey', name: 'avatar_catalog_item_series_key_idx_btree', algorithm: 'btree', columns: [
+        'seriesKey',
+      ] },
+    ],
+    constraints: [
+      { name: 'avatar_catalog_item_avatar_key_key', constraint: 'unique', columns: ['avatarKey'] },
+    ],
+  }, AvatarCatalogItemRow),
   capsuleFavorite: __table({
     name: 'capsule_favorite',
     indexes: [
@@ -404,6 +499,8 @@ const reducersSchema = __reducers(
   __reducerSchema("add_capsule_private_message", AddCapsulePrivateMessageReducer),
   __reducerSchema("add_square_comment", AddSquareCommentReducer),
   __reducerSchema("admin_apply_user_sanction", AdminApplyUserSanctionReducer),
+  __reducerSchema("admin_create_avatar_series_batch", AdminCreateAvatarSeriesBatchReducer),
+  __reducerSchema("admin_delete_avatar_catalog_item", AdminDeleteAvatarCatalogItemReducer),
   __reducerSchema("admin_delete_capsule", AdminDeleteCapsuleReducer),
   __reducerSchema("admin_delete_role_record", AdminDeleteRoleRecordReducer),
   __reducerSchema("admin_delete_square_post", AdminDeleteSquarePostReducer),
@@ -411,9 +508,12 @@ const reducersSchema = __reducers(
   __reducerSchema("admin_reset_password_by_email", AdminResetPasswordByEmailReducer),
   __reducerSchema("admin_set_user_sanction_status", AdminSetUserSanctionStatusReducer),
   __reducerSchema("admin_update_appeal_ticket", AdminUpdateAppealTicketReducer),
+  __reducerSchema("admin_update_avatar_catalog_item", AdminUpdateAvatarCatalogItemReducer),
   __reducerSchema("admin_update_report_ticket", AdminUpdateReportTicketReducer),
+  __reducerSchema("admin_upsert_avatar_catalog_item", AdminUpsertAvatarCatalogItemReducer),
   __reducerSchema("append_letter_exchange", AppendLetterExchangeReducer),
   __reducerSchema("change_password", ChangePasswordReducer),
+  __reducerSchema("claim_newcomer_daily_points", ClaimNewcomerDailyPointsReducer),
   __reducerSchema("claim_orphan_super_admin", ClaimOrphanSuperAdminReducer),
   __reducerSchema("create_appeal_ticket", CreateAppealTicketReducer),
   __reducerSchema("create_report_ticket", CreateReportTicketReducer),
@@ -435,9 +535,11 @@ const reducersSchema = __reducers(
   __reducerSchema("send_scheduled_message", SendScheduledMessageReducer),
   __reducerSchema("set_admin_role", SetAdminRoleReducer),
   __reducerSchema("set_age_years", SetAgeYearsReducer),
+  __reducerSchema("set_avatar_key", SetAvatarKeyReducer),
   __reducerSchema("set_square_reaction", SetSquareReactionReducer),
   __reducerSchema("unfavorite_capsule", UnfavoriteCapsuleReducer),
   __reducerSchema("unfavorite_square_post", UnfavoriteSquarePostReducer),
+  __reducerSchema("unlock_avatar_item", UnlockAvatarItemReducer),
   __reducerSchema("unpublish_from_square", UnpublishFromSquareReducer),
   __reducerSchema("update_account_profile", UpdateAccountProfileReducer),
   __reducerSchema("update_scheduled_message", UpdateScheduledMessageReducer),

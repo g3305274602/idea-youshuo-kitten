@@ -10,6 +10,47 @@ import {
   type Infer as __Infer,
 } from "spacetimedb";
 
+export const AccountAvatarUnlock = __t.object("AccountAvatarUnlock", {
+  id: __t.string(),
+  accountId: __t.string(),
+  ownerIdentity: __t.identity(),
+  avatarKey: __t.string(),
+  pricePaid: __t.u32(),
+  unlockedAt: __t.timestamp(),
+});
+export type AccountAvatarUnlock = __Infer<typeof AccountAvatarUnlock>;
+
+export const AccountDailyRewardClaim = __t.object("AccountDailyRewardClaim", {
+  claimKey: __t.string(),
+  accountId: __t.string(),
+  ownerIdentity: __t.identity(),
+  dayIndex: __t.u8(),
+  pointsGranted: __t.u32(),
+  claimedAt: __t.timestamp(),
+});
+export type AccountDailyRewardClaim = __Infer<typeof AccountDailyRewardClaim>;
+
+export const AccountPointsLedger = __t.object("AccountPointsLedger", {
+  id: __t.string(),
+  accountId: __t.string(),
+  ownerIdentity: __t.identity(),
+  delta: __t.i64(),
+  balanceAfter: __t.i64(),
+  reason: __t.string(),
+  detail: __t.string(),
+  createdAt: __t.timestamp(),
+});
+export type AccountPointsLedger = __Infer<typeof AccountPointsLedger>;
+
+export const AccountPointsWallet = __t.object("AccountPointsWallet", {
+  accountId: __t.string(),
+  ownerIdentity: __t.identity(),
+  balance: __t.i64(),
+  createdAt: __t.timestamp(),
+  updatedAt: __t.timestamp(),
+});
+export type AccountPointsWallet = __Infer<typeof AccountPointsWallet>;
+
 export const AccountProfile = __t.object("AccountProfile", {
   email: __t.string(),
   accountId: __t.string(),
@@ -18,6 +59,7 @@ export const AccountProfile = __t.object("AccountProfile", {
   gender: __t.string(),
   birthDate: __t.option(__t.timestamp()),
   profileNote: __t.string(),
+  avatarKey: __t.string(),
 });
 export type AccountProfile = __Infer<typeof AccountProfile>;
 
@@ -67,6 +109,19 @@ export const AppealTicket = __t.object("AppealTicket", {
   resolvedAt: __t.option(__t.timestamp()),
 });
 export type AppealTicket = __Infer<typeof AppealTicket>;
+
+export const AvatarCatalogItem = __t.object("AvatarCatalogItem", {
+  avatarKey: __t.string(),
+  seriesKey: __t.string(),
+  basePath: __t.string(),
+  fileName: __t.string(),
+  pricePoints: __t.u32(),
+  isPublished: __t.bool(),
+  sortOrder: __t.u32(),
+  createdAt: __t.timestamp(),
+  updatedAt: __t.timestamp(),
+});
+export type AvatarCatalogItem = __Infer<typeof AvatarCatalogItem>;
 
 export const CapsuleFavorite = __t.object("CapsuleFavorite", {
   id: __t.string(),

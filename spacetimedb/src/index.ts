@@ -130,6 +130,7 @@ const accountProfile = table(
     gender: t.string().default(""),
     birthDate: t.timestamp().optional(),
     profileNote: t.string().default(""),
+    avatarKey: t.string().default(" "),
   },
 );
 
@@ -397,6 +398,75 @@ const adminAuditLog = table(
   },
 );
 
+/** 頭像目錄（由後台維護；前端以 basePath + fileName 組 URL） */
+const avatarCatalogItem = table(
+  { name: "avatar_catalog_item", public: true },
+  {
+    avatarKey: t.string().primaryKey(),
+    seriesKey: t.string().index("btree"),
+    basePath: t.string(),
+    fileName: t.string(),
+    pricePoints: t.u32().default(0),
+    isPublished: t.bool().default(false),
+    sortOrder: t.u32().default(0),
+    createdAt: t.timestamp(),
+    updatedAt: t.timestamp(),
+  },
+);
+
+/** 已購買的單張頭像（唯一路徑採 deterministic id） */
+const accountAvatarUnlock = table(
+  { name: "account_avatar_unlock", public: true },
+  {
+    id: t.string().primaryKey(),
+    accountId: t.string().index("btree"),
+    ownerIdentity: t.identity().index("btree"),
+    avatarKey: t.string().index("btree"),
+    pricePaid: t.u32().default(0),
+    unlockedAt: t.timestamp(),
+  },
+);
+
+/** 帳號積分錢包 */
+const accountPointsWallet = table(
+  { name: "account_points_wallet", public: true },
+  {
+    accountId: t.string().primaryKey(),
+    ownerIdentity: t.identity().unique(),
+    balance: t.i64().default(0n),
+    createdAt: t.timestamp(),
+    updatedAt: t.timestamp(),
+  },
+);
+
+/** 積分流水（扣款/發放） */
+const accountPointsLedger = table(
+  { name: "account_points_ledger", public: true },
+  {
+    id: t.string().primaryKey(),
+    accountId: t.string().index("btree"),
+    ownerIdentity: t.identity().index("btree"),
+    delta: t.i64(),
+    balanceAfter: t.i64(),
+    reason: t.string(),
+    detail: t.string().default(""),
+    createdAt: t.timestamp(),
+  },
+);
+
+/** 新手每日積分領取記錄（UTC+8，每日一次） */
+const accountDailyRewardClaim = table(
+  { name: "account_daily_reward_claim", public: true },
+  {
+    claimKey: t.string().primaryKey(),
+    accountId: t.string().index("btree"),
+    ownerIdentity: t.identity().index("btree"),
+    dayIndex: t.u8(),
+    pointsGranted: t.u32(),
+    claimedAt: t.timestamp(),
+  },
+);
+
 /** 用戶舉報單 */
 const reportTicket = table(
   { name: "report_ticket", public: true },
@@ -515,6 +585,11 @@ const spacetimedb = schema({
   capsulePrivateMessage,
   adminRole,
   adminAuditLog,
+  avatarCatalogItem,
+  accountAvatarUnlock,
+  accountPointsWallet,
+  accountPointsLedger,
+  accountDailyRewardClaim,
   reportTicket,
   reportTargetSnapshot,
   moderationActionLog,
@@ -861,6 +936,104 @@ const EMAIL_OTP_RESEND_MICROS = 60n * 1_000_000n;
 const EMAIL_OTP_LOCK_MICROS = 15n * 60n * 1_000_000n;
 const EMAIL_OTP_SESSION_MICROS = 15n * 60n * 1_000_000n;
 const EMAIL_OTP_MAX_ATTEMPTS = 5;
+const AVATAR_KEY_MAX = 80;
+const AVATAR_SERIES_KEY_MAX = 32;
+const AVATAR_FILE_NAME_MAX = 160;
+const AVATAR_BASE_PATH_MAX = 200;
+const AVATAR_PRICE_MIN = 0;
+const AVATAR_PRICE_MAX = 99999;
+const DAILY_REWARD_POINTS = 188n;
+const DAILY_REWARD_DAYS = 3;
+const UTC8_OFFSET_MICROS = 8n * 60n * 60n * 1_000_000n;
+const DAY_MICROS = 24n * 60n * 60n * 1_000_000n;
+
+function normalizeAvatarKey(raw: string): string {
+  const v = String(raw ?? "").trim().toLowerCase();
+  if (!v) throw new SenderError("頭像標識不可為空");
+  if (v.length > AVATAR_KEY_MAX) throw new SenderError("頭像標識過長");
+  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(v)) {
+    throw new SenderError("頭像標識僅允許 a-z、0-9、-");
+  }
+  return v;
+}
+
+function normalizeSeriesKey(raw: string): string {
+  const v = String(raw ?? "").trim().toLowerCase();
+  if (!v) throw new SenderError("系列代號不可為空");
+  if (v.length > AVATAR_SERIES_KEY_MAX) throw new SenderError("系列代號過長");
+  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(v)) {
+    throw new SenderError("系列代號僅允許 a-z、0-9、-");
+  }
+  return v;
+}
+
+function normalizeBasePath(raw: string): string {
+  const p = String(raw ?? "").trim();
+  if (!p) throw new SenderError("圖片路徑前綴不可為空");
+  if (p.length > AVATAR_BASE_PATH_MAX) throw new SenderError("圖片路徑前綴過長");
+  if (!p.startsWith("/")) throw new SenderError("圖片路徑前綴需以 / 開頭");
+  return p.endsWith("/") ? p : `${p}/`;
+}
+
+function normalizeFileName(raw: string): string {
+  const f = String(raw ?? "").trim();
+  if (!f) throw new SenderError("檔名不可為空");
+  if (f.length > AVATAR_FILE_NAME_MAX) throw new SenderError("檔名過長");
+  return f;
+}
+
+function assertAvatarPrice(value: number): number {
+  if (!Number.isInteger(value)) throw new SenderError("頭像價格需為整數");
+  if (value < AVATAR_PRICE_MIN || value > AVATAR_PRICE_MAX) {
+    throw new SenderError(`頭像價格需在 ${AVATAR_PRICE_MIN}-${AVATAR_PRICE_MAX}`);
+  }
+  return value;
+}
+
+function utc8DayOrdinal(micros: bigint): bigint {
+  return (micros + UTC8_OFFSET_MICROS) / DAY_MICROS;
+}
+
+function getOrCreatePointsWallet(
+  ctx: { db: any; timestamp: Timestamp },
+  accountId: string,
+  ownerIdentity: Identity,
+) {
+  const row = ctx.db.accountPointsWallet.accountId.find(accountId);
+  if (row) return row;
+  const created = {
+    accountId,
+    ownerIdentity,
+    balance: 0n,
+    createdAt: ctx.timestamp,
+    updatedAt: ctx.timestamp,
+  };
+  ctx.db.accountPointsWallet.insert(created);
+  return created;
+}
+
+function writePointsLedger(
+  ctx: { db: any; sender: Identity; timestamp: Timestamp; random: Random },
+  params: {
+    accountId: string;
+    ownerIdentity: Identity;
+    delta: bigint;
+    balanceAfter: bigint;
+    reason: string;
+    detail?: string;
+  },
+) {
+  ctx.db.accountPointsLedger.insert({
+    id: newMessageId(ctx.random),
+    accountId: params.accountId,
+    ownerIdentity: params.ownerIdentity,
+    delta: params.delta,
+    balanceAfter: params.balanceAfter,
+    reason: params.reason,
+    detail: (params.detail ?? "").trim(),
+    createdAt: ctx.timestamp,
+  });
+}
 
 function validateProfileFields(
   displayName: string,
@@ -1046,11 +1219,19 @@ function registerAccountCore(
     gender: g,
     birthDate: undefined,
     profileNote: note,
+    avatarKey: "",
   });
   ctx.db.accountProfileCreatedAt.insert({
     email: em,
     accountId,
     createdAt: ctx.timestamp,
+  });
+  ctx.db.accountPointsWallet.insert({
+    accountId,
+    ownerIdentity: ctx.sender,
+    balance: 0n,
+    createdAt: ctx.timestamp,
+    updatedAt: ctx.timestamp,
   });
 }
 
@@ -1388,6 +1569,276 @@ export const update_account_profile = spacetimedb.reducer(
   },
 );
 
+export const set_avatar_key = spacetimedb.reducer(
+  { avatarKey: t.string() },
+  (ctx, { avatarKey }) => {
+    const pf = ctx.db.accountProfile.ownerIdentity.find(ctx.sender);
+    if (!pf) throw new SenderError("尚未登入");
+    const key = normalizeAvatarKey(avatarKey);
+    const item = ctx.db.avatarCatalogItem.avatarKey.find(key);
+    if (!item) throw new SenderError("找不到頭像設定");
+    const unlockId = accountIdForEmail(`${pf.accountId}:avatar:${key}`);
+    const unlocked = ctx.db.accountAvatarUnlock.id.find(unlockId);
+    if (!item.isPublished && !unlocked) {
+      throw new SenderError("此頭像已下架，請先購買或改用其他頭像");
+    }
+    if (!unlocked && item.pricePoints > 0) {
+      throw new SenderError("請先解鎖此頭像");
+    }
+    ctx.db.accountProfile.email.update({
+      ...pf,
+      avatarKey: key,
+    });
+  },
+);
+
+export const unlock_avatar_item = spacetimedb.reducer(
+  { avatarKey: t.string() },
+  (ctx, { avatarKey }) => {
+    const pf = ctx.db.accountProfile.ownerIdentity.find(ctx.sender);
+    if (!pf) throw new SenderError("尚未登入");
+    const key = normalizeAvatarKey(avatarKey);
+    const item = ctx.db.avatarCatalogItem.avatarKey.find(key);
+    if (!item) throw new SenderError("找不到頭像設定");
+    if (!item.isPublished) throw new SenderError("此頭像未上架");
+
+    const unlockId = accountIdForEmail(`${pf.accountId}:avatar:${key}`);
+    const existing = ctx.db.accountAvatarUnlock.id.find(unlockId);
+    if (!existing) {
+      const wallet = getOrCreatePointsWallet(ctx, pf.accountId, pf.ownerIdentity);
+      const cost = BigInt(item.pricePoints);
+      if (wallet.balance < cost) {
+        throw new SenderError("積分不足");
+      }
+      const nextBalance = wallet.balance - cost;
+      ctx.db.accountPointsWallet.accountId.update({
+        ...wallet,
+        balance: nextBalance,
+        updatedAt: ctx.timestamp,
+      });
+      ctx.db.accountAvatarUnlock.insert({
+        id: unlockId,
+        accountId: pf.accountId,
+        ownerIdentity: pf.ownerIdentity,
+        avatarKey: key,
+        pricePaid: item.pricePoints,
+        unlockedAt: ctx.timestamp,
+      });
+      writePointsLedger(ctx, {
+        accountId: pf.accountId,
+        ownerIdentity: pf.ownerIdentity,
+        delta: -cost,
+        balanceAfter: nextBalance,
+        reason: "avatar_unlock",
+        detail: key,
+      });
+    }
+
+    ctx.db.accountProfile.email.update({
+      ...pf,
+      avatarKey: key,
+    });
+  },
+);
+
+export const claim_newcomer_daily_points = spacetimedb.reducer({}, (ctx) => {
+  const pf = ctx.db.accountProfile.ownerIdentity.find(ctx.sender);
+  if (!pf) throw new SenderError("尚未登入");
+  const created = ctx.db.accountProfileCreatedAt.email.find(pf.email);
+  if (!created) throw new SenderError("找不到註冊資訊");
+  const todayOrdinal = utc8DayOrdinal(ctx.timestamp.microsSinceUnixEpoch);
+  const createdOrdinal = utc8DayOrdinal(created.createdAt.microsSinceUnixEpoch);
+  const dayIndex = Number(todayOrdinal - createdOrdinal + 1n);
+  if (dayIndex < 1 || dayIndex > DAILY_REWARD_DAYS) {
+    throw new SenderError("新手每日積分已結束");
+  }
+  const claimKey = `${pf.accountId}:d${dayIndex}`;
+  if (ctx.db.accountDailyRewardClaim.claimKey.find(claimKey)) {
+    throw new SenderError("今日已領取");
+  }
+  const wallet = getOrCreatePointsWallet(ctx, pf.accountId, pf.ownerIdentity);
+  const nextBalance = wallet.balance + DAILY_REWARD_POINTS;
+  ctx.db.accountPointsWallet.accountId.update({
+    ...wallet,
+    balance: nextBalance,
+    updatedAt: ctx.timestamp,
+  });
+  ctx.db.accountDailyRewardClaim.insert({
+    claimKey,
+    accountId: pf.accountId,
+    ownerIdentity: pf.ownerIdentity,
+    dayIndex,
+    pointsGranted: Number(DAILY_REWARD_POINTS),
+    claimedAt: ctx.timestamp,
+  });
+  writePointsLedger(ctx, {
+    accountId: pf.accountId,
+    ownerIdentity: pf.ownerIdentity,
+    delta: DAILY_REWARD_POINTS,
+    balanceAfter: nextBalance,
+    reason: "newcomer_daily_reward",
+    detail: `day${dayIndex}`,
+  });
+});
+
+export const admin_upsert_avatar_catalog_item = spacetimedb.reducer(
+  {
+    avatarKey: t.string(),
+    seriesKey: t.string(),
+    basePath: t.string(),
+    fileName: t.string(),
+    pricePoints: t.u32(),
+    isPublished: t.bool(),
+    sortOrder: t.u32(),
+  },
+  (ctx, input) => {
+    requireSuperAdmin(ctx);
+    const avatarKey = normalizeAvatarKey(input.avatarKey);
+    const seriesKey = normalizeSeriesKey(input.seriesKey);
+    const basePath = normalizeBasePath(input.basePath);
+    const fileName = normalizeFileName(input.fileName);
+    const pricePoints = assertAvatarPrice(Number(input.pricePoints));
+    const existing = ctx.db.avatarCatalogItem.avatarKey.find(avatarKey);
+    if (existing) {
+      ctx.db.avatarCatalogItem.avatarKey.update({
+        ...existing,
+        seriesKey,
+        basePath,
+        fileName,
+        pricePoints,
+        isPublished: input.isPublished,
+        sortOrder: input.sortOrder,
+        updatedAt: ctx.timestamp,
+      });
+      writeAdminAudit(
+        ctx,
+        "avatar_catalog_upsert",
+        "avatar_catalog_item",
+        avatarKey,
+        "update",
+      );
+      return;
+    }
+    ctx.db.avatarCatalogItem.insert({
+      avatarKey,
+      seriesKey,
+      basePath,
+      fileName,
+      pricePoints,
+      isPublished: input.isPublished,
+      sortOrder: input.sortOrder,
+      createdAt: ctx.timestamp,
+      updatedAt: ctx.timestamp,
+    });
+    writeAdminAudit(
+      ctx,
+      "avatar_catalog_upsert",
+      "avatar_catalog_item",
+      avatarKey,
+      "create",
+    );
+  },
+);
+
+export const admin_create_avatar_series_batch = spacetimedb.reducer(
+  {
+    seriesKey: t.string(),
+    basePath: t.string(),
+    defaultPricePoints: t.u32(),
+    sortOrderBase: t.u32(),
+    generateCount: t.u32(),
+  },
+  (ctx, { seriesKey, basePath, defaultPricePoints, sortOrderBase, generateCount }) => {
+    requireSuperAdmin(ctx);
+    const series = normalizeSeriesKey(seriesKey);
+    const base = normalizeBasePath(basePath);
+    const price = assertAvatarPrice(Number(defaultPricePoints));
+    const total = Math.max(1, Math.min(50, Number(generateCount) || 5));
+    for (let i = 1; i <= total; i += 1) {
+      const avatarKey = normalizeAvatarKey(`${series}-${i}`);
+      const existing = ctx.db.avatarCatalogItem.avatarKey.find(avatarKey);
+      if (existing) {
+        ctx.db.avatarCatalogItem.avatarKey.update({
+          ...existing,
+          seriesKey: series,
+          basePath: base,
+          fileName: `${series}(${i}).png`,
+          pricePoints: price,
+          sortOrder: Number(sortOrderBase) + (i - 1),
+          updatedAt: ctx.timestamp,
+        });
+      } else {
+        ctx.db.avatarCatalogItem.insert({
+          avatarKey,
+          seriesKey: series,
+          basePath: base,
+          fileName: `${series}(${i}).png`,
+          pricePoints: price,
+          isPublished: false,
+          sortOrder: Number(sortOrderBase) + (i - 1),
+          createdAt: ctx.timestamp,
+          updatedAt: ctx.timestamp,
+        });
+      }
+    }
+    writeAdminAudit(
+      ctx,
+      "avatar_series_batch_create",
+      "avatar_catalog_item",
+      series,
+      `size:${total}:price:${price}:sort:${sortOrderBase}`,
+    );
+  },
+);
+
+export const admin_update_avatar_catalog_item = spacetimedb.reducer(
+  {
+    avatarKey: t.string(),
+    pricePoints: t.u32(),
+    isPublished: t.bool(),
+    sortOrder: t.u32(),
+  },
+  (ctx, { avatarKey, pricePoints, isPublished, sortOrder }) => {
+    requireAdmin(ctx);
+    const key = normalizeAvatarKey(avatarKey);
+    const row = ctx.db.avatarCatalogItem.avatarKey.find(key);
+    if (!row) throw new SenderError("找不到頭像設定");
+    const price = assertAvatarPrice(Number(pricePoints));
+    ctx.db.avatarCatalogItem.avatarKey.update({
+      ...row,
+      pricePoints: price,
+      isPublished,
+      sortOrder,
+      updatedAt: ctx.timestamp,
+    });
+    writeAdminAudit(
+      ctx,
+      "avatar_catalog_update",
+      "avatar_catalog_item",
+      key,
+      `${price}:${isPublished ? "up" : "down"}`,
+    );
+  },
+);
+
+export const admin_delete_avatar_catalog_item = spacetimedb.reducer(
+  { avatarKey: t.string() },
+  (ctx, { avatarKey }) => {
+    requireSuperAdmin(ctx);
+    const key = normalizeAvatarKey(avatarKey);
+    const row = ctx.db.avatarCatalogItem.avatarKey.find(key);
+    if (!row) throw new SenderError("找不到頭像設定");
+    ctx.db.avatarCatalogItem.avatarKey.delete(key);
+    writeAdminAudit(
+      ctx,
+      "avatar_catalog_delete",
+      "avatar_catalog_item",
+      key,
+      "",
+    );
+  },
+);
+
 /** 登入後強制補齊生日（不可跳過） */
 export const set_age_years = spacetimedb.reducer(
   { birthDate: t.timestamp() }, // 1. 這裡要改為 t.timestamp()
@@ -1464,6 +1915,16 @@ export const dev_seed_demo_users = spacetimedb.reducer({}, (ctx) => {
           createdAt: ctx.timestamp,
         });
       }
+      const wallet = ctx.db.accountPointsWallet.accountId.find(profile.accountId);
+      if (!wallet) {
+        ctx.db.accountPointsWallet.insert({
+          accountId: profile.accountId,
+          ownerIdentity: profile.ownerIdentity,
+          balance: 0n,
+          createdAt: ctx.timestamp,
+          updatedAt: ctx.timestamp,
+        });
+      }
       continue;
     }
 
@@ -1479,11 +1940,19 @@ export const dev_seed_demo_users = spacetimedb.reducer({}, (ctx) => {
       gender: g,
       birthDate: birthDate, // 修正這裡，不要用 ageYears
       profileNote: note,
+      avatarKey: "",
     });
     ctx.db.accountProfileCreatedAt.insert({
       email: em,
       accountId: accountIdForEmail(em),
       createdAt: ctx.timestamp,
+    });
+    ctx.db.accountPointsWallet.insert({
+      accountId: accountIdForEmail(em),
+      ownerIdentity: Identity.fromString(u.identityHex),
+      balance: 0n,
+      createdAt: ctx.timestamp,
+      updatedAt: ctx.timestamp,
     });
   }
   ctx.db.moduleMigrationDone.insert({

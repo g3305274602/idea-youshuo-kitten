@@ -11,12 +11,9 @@ import {
 } from "spacetimedb";
 
 export default __t.row({
-  email: __t.string().primaryKey(),
-  accountId: __t.string().name("account_id"),
+  accountId: __t.string().primaryKey().name("account_id"),
   ownerIdentity: __t.identity().name("owner_identity"),
-  displayName: __t.string().name("display_name"),
-  gender: __t.string(),
-  birthDate: __t.option(__t.timestamp()).name("birth_date"),
-  profileNote: __t.string().name("profile_note"),
-  avatarKey: __t.string().name("avatar_key"),
+  balance: __t.i64(),
+  createdAt: __t.timestamp().name("created_at"),
+  updatedAt: __t.timestamp().name("updated_at"),
 });

@@ -23,9 +23,9 @@ type TrendPreset = "d14" | "d30" | "d180" | "d365" | "custom";
 
 function XAxisLabels({ days }: { days: SuperAdminTrendDay[] }) {
   return (
-    <div className="mt-1 flex justify-between gap-0.5 text-[9px] text-white/40">
+    <div className="mt-1 flex min-w-0 w-full justify-between gap-0.5 text-[9px] text-white/40">
       {days.map((d) => (
-        <span key={d.dayKey} className="min-w-0 flex-1 truncate text-center">
+        <span key={d.dayKey} className="min-w-0 flex-1 basis-0 truncate text-center">
           {d.dayShort}
         </span>
       ))}
@@ -58,10 +58,10 @@ export function SuperAdminRegistrationLineChart({ data }: { data: SuperAdminTren
   const hoverDay = hoverDayKey ? days.find((d) => d.dayKey === hoverDayKey) ?? null : null;
 
   return (
-    <div className="relative min-w-0">
+    <div className="relative min-w-0 w-full max-w-full">
       <svg
         viewBox={`0 0 ${w} ${h}`}
-        className="h-24 w-full text-[#FFD54F]"
+        className="h-24 w-full max-w-full min-w-0 text-[#FFD54F]"
         preserveAspectRatio="none"
         role="img"
         aria-label="每日註冊折線圖"
@@ -124,14 +124,14 @@ export function SuperAdminActivityStackChart({ data }: { data: SuperAdminTrendsB
   const hoverDay = hoverDayKey ? days.find((d) => d.dayKey === hoverDayKey) ?? null : null;
 
   return (
-    <div className="relative min-w-0">
-      <div className="flex h-[5.5rem] min-w-0 items-end gap-0.5 overflow-hidden pb-0.5 pt-0.5">
+    <div className="relative min-w-0 w-full max-w-full">
+      <div className="flex h-[5.5rem] min-w-0 w-full max-w-full items-end gap-0.5 overflow-hidden pb-0.5 pt-0.5">
         {days.map((d) => {
           const sum = d.capsules + d.squarePosts + d.comments;
           return (
             <div
               key={d.dayKey}
-              className="flex h-full min-w-0 flex-1 flex-col items-center gap-1"
+              className="flex h-full min-w-0 flex-1 basis-0 flex-col items-center gap-1"
               onMouseEnter={() => setHoverDayKey(d.dayKey)}
               onMouseLeave={() => setHoverDayKey((k) => (k === d.dayKey ? null : k))}
             >
@@ -258,11 +258,11 @@ export function SuperAdminTrendChartsPanel({
   return (
     <div
       className={cn(
-        "grid gap-3 border-t border-white/10 pt-4 sm:grid-cols-2 lg:gap-4",
+        "grid min-w-0 w-full max-w-full gap-3 border-t border-white/10 pt-4 sm:grid-cols-2 lg:gap-4",
         className,
       )}
     >
-      <div className="sm:col-span-2  ">
+      <div className="min-w-0 sm:col-span-2">
         <div className="flex flex-wrap items-end gap-2">
           <label className="text-[10px] font-bold text-white/65">
             <CdSelect
@@ -304,7 +304,7 @@ export function SuperAdminTrendChartsPanel({
           </p> */}
         </div>
       </div>
-      <div className="rounded-xl border border-white/10 bg-white/[0.04] p-3 md:p-4">
+      <div className="min-w-0 overflow-hidden rounded-xl border border-white/10 bg-white/[0.04] p-3 md:p-4">
         <p className="text-[12px] font-bold text-white">每日註冊（近 {filtered.windowDays} 日）</p>
         <p className="mt-0.5 text-[10px] leading-snug text-white/50">
           僅統計帳號列上具「建立時間」之註冊；舊帳無此欄位者不計入折線。
@@ -316,7 +316,7 @@ export function SuperAdminTrendChartsPanel({
           <SuperAdminRegistrationLineChart data={filtered} />
         </div>
       </div>
-      <div className="rounded-xl border border-white/10 bg-white/[0.04] p-3 md:p-4">
+      <div className="min-w-0 overflow-hidden rounded-xl border border-white/10 bg-white/[0.04] p-3 md:p-4">
         <p className="text-[12px] font-bold text-white">內容量（近 {filtered.windowDays} 日）</p>
         <p className="mt-0.5 text-[10px] leading-snug text-white/50">
           依建立時間分日加總：膠囊主文（未刪）、廣場貼文（目前為「最近貼文」視圖內筆數）、廣場留言。

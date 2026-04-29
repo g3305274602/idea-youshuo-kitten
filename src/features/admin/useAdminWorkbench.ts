@@ -110,6 +110,11 @@ export function useAdminWorkbenchTables({
       ? tables.accountProfileCreatedAt
       : tables.accountProfileCreatedAt.where((r) => r.email.eq("__stop__")),
   );
+  const [avatarCatalogRows] = useTable(
+    rawIsAdmin && isAdminTabActive
+      ? (tables as any).avatarCatalogItem
+      : (tables as any).avatarCatalogItem.where((r: any) => r.avatarKey.eq("__stop__")),
+  );
 
   const hasAnyAdmin = useMemo(
     () => adminRoleRows.some((r) => r.isActive),
@@ -128,6 +133,7 @@ export function useAdminWorkbenchTables({
     appealTicketRows,
     userSanctionRows,
     accountProfileCreatedAtRows,
+    avatarCatalogRows,
     hasAnyAdmin,
   };
 }
@@ -488,6 +494,7 @@ type UseAdminWorkbenchActionsParams = {
   adminEditActive: boolean;
   adminTargetIdentityHex: string;
   activeSanctionsForTarget: readonly UserSanction[];
+  avatarCatalogRows: readonly any[];
   setAdminActionLoading: (value: boolean) => void;
   setAdminActionError: (value: string) => void;
   setAdminGrantEmail: (value: string) => void;
@@ -520,6 +527,20 @@ type UseAdminWorkbenchActionsParams = {
   adminDeleteCapsule: (args: { capsuleId: string }) => Promise<unknown>;
   adminDeleteSquarePost: (args: { sourceMessageId: string }) => Promise<unknown>;
   adminDeleteRoleRecord: (args: { adminIdentity: Identity }) => Promise<unknown>;
+  adminUpdateAvatarCatalogItem: (args: {
+    avatarKey: string;
+    pricePoints: number;
+    isPublished: boolean;
+    sortOrder: number;
+  }) => Promise<unknown>;
+  adminDeleteAvatarCatalogItem: (args: { avatarKey: string }) => Promise<unknown>;
+  adminCreateAvatarSeriesBatch: (args: {
+    seriesKey: string;
+    basePath: string;
+    defaultPricePoints: number;
+    sortOrderBase: number;
+    generateCount: number;
+  }) => Promise<unknown>;
   presetReporterDismiss: string;
 };
 
@@ -546,6 +567,7 @@ export function useAdminWorkbenchActions({
   adminEditActive,
   adminTargetIdentityHex,
   activeSanctionsForTarget,
+  avatarCatalogRows,
   setAdminActionLoading,
   setAdminActionError,
   setAdminGrantEmail,
@@ -562,6 +584,9 @@ export function useAdminWorkbenchActions({
   adminDeleteCapsule,
   adminDeleteSquarePost,
   adminDeleteRoleRecord,
+  adminUpdateAvatarCatalogItem,
+  adminDeleteAvatarCatalogItem,
+  adminCreateAvatarSeriesBatch,
   presetReporterDismiss,
 }: UseAdminWorkbenchActionsParams) {
   const bootstrapAdminSelf = async () => {
@@ -836,6 +861,54 @@ export function useAdminWorkbenchActions({
     }
   };
 
+  const updateAvatarCatalogItem = async (args: {
+    avatarKey: string;
+    pricePoints: number;
+    isPublished: boolean;
+    sortOrder: number;
+  }) => {
+    setAdminActionLoading(true);
+    setAdminActionError("");
+    try {
+      await adminUpdateAvatarCatalogItem(args);
+    } catch (e: unknown) {
+      setAdminActionError(e instanceof Error ? e.message : "更新頭像設定失敗");
+    } finally {
+      setAdminActionLoading(false);
+    }
+  };
+
+  const createAvatarSeriesBatch = async (args: {
+    seriesKey: string;
+    basePath: string;
+    defaultPricePoints: number;
+    sortOrderBase: number;
+    generateCount: number;
+  }) => {
+    setAdminActionLoading(true);
+    setAdminActionError("");
+    try {
+      await adminCreateAvatarSeriesBatch(args);
+    } catch (e: unknown) {
+      setAdminActionError(e instanceof Error ? e.message : "建立系列失敗");
+    } finally {
+      setAdminActionLoading(false);
+    }
+  };
+
+  const deleteAvatarCatalogItem = async (avatarKey: string) => {
+    if (!window.confirm(`確定刪除 ${avatarKey}？`)) return;
+    setAdminActionLoading(true);
+    setAdminActionError("");
+    try {
+      await adminDeleteAvatarCatalogItem({ avatarKey });
+    } catch (e: unknown) {
+      setAdminActionError(e instanceof Error ? e.message : "刪除頭像設定失敗");
+    } finally {
+      setAdminActionLoading(false);
+    }
+  };
+
   return {
     bootstrapAdminSelf,
     recoverOrphanSuperAdmin,
@@ -851,6 +924,10 @@ export function useAdminWorkbenchActions({
     removeCapsuleAsAdmin,
     removeSquarePostAsAdmin,
     removeRoleRecordAsAdmin,
+    updateAvatarCatalogItem,
+    createAvatarSeriesBatch,
+    deleteAvatarCatalogItem,
+    avatarCatalogRows,
   };
 }
 
@@ -912,6 +989,20 @@ type UseAdminWorkbenchRuntimeParams = {
   adminDeleteCapsule: (args: { capsuleId: string }) => Promise<unknown>;
   adminDeleteSquarePost: (args: { sourceMessageId: string }) => Promise<unknown>;
   adminDeleteRoleRecord: (args: { adminIdentity: Identity }) => Promise<unknown>;
+  adminUpdateAvatarCatalogItem: (args: {
+    avatarKey: string;
+    pricePoints: number;
+    isPublished: boolean;
+    sortOrder: number;
+  }) => Promise<unknown>;
+  adminDeleteAvatarCatalogItem: (args: { avatarKey: string }) => Promise<unknown>;
+  adminCreateAvatarSeriesBatch: (args: {
+    seriesKey: string;
+    basePath: string;
+    defaultPricePoints: number;
+    sortOrderBase: number;
+    generateCount: number;
+  }) => Promise<unknown>;
   presetReporterDismiss: string;
 };
 
@@ -974,6 +1065,7 @@ export function useAdminWorkbenchRuntime(params: UseAdminWorkbenchRuntimeParams)
     adminEditActive: params.adminEditActive,
     adminTargetIdentityHex: params.adminTargetIdentityHex,
     activeSanctionsForTarget: derived.activeSanctionsForTarget,
+    avatarCatalogRows: tables.avatarCatalogRows,
     setAdminActionLoading: params.setAdminActionLoading,
     setAdminActionError: params.setAdminActionError,
     setAdminGrantEmail: params.setAdminGrantEmail,
@@ -990,6 +1082,9 @@ export function useAdminWorkbenchRuntime(params: UseAdminWorkbenchRuntimeParams)
     adminDeleteCapsule: params.adminDeleteCapsule,
     adminDeleteSquarePost: params.adminDeleteSquarePost,
     adminDeleteRoleRecord: params.adminDeleteRoleRecord,
+    adminUpdateAvatarCatalogItem: params.adminUpdateAvatarCatalogItem,
+    adminDeleteAvatarCatalogItem: params.adminDeleteAvatarCatalogItem,
+    adminCreateAvatarSeriesBatch: params.adminCreateAvatarSeriesBatch,
     presetReporterDismiss: params.presetReporterDismiss,
   });
 

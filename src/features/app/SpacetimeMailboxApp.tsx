@@ -51,6 +51,7 @@ import { ProfileModalSection } from "./sections/ProfileModalSection";
 import { PublishModalSection } from "./sections/PublishModalSection";
 import { MobileBottomNavSection } from "./sections/MobileBottomNavSection";
 import { ProfileActionMenuSection } from "./sections/ProfileActionMenuSection";
+import { AvatarPickerModalSection } from "./sections/AvatarPickerModalSection";
 import { AgeGateModalSection } from "./sections/AgeGateModalSection";
 import { TopNavSection } from "./sections/TopNavSection";
 import { StatusBannersSection } from "./sections/StatusBannersSection";
@@ -190,6 +191,20 @@ export default function SpacetimeMailboxApp({
   const adminDeleteCapsule = useReducer(reducers.adminDeleteCapsule);
   const adminDeleteSquarePost = useReducer(reducers.adminDeleteSquarePost);
   const adminDeleteRoleRecord = useReducer(reducers.adminDeleteRoleRecord);
+  const adminCreateAvatarSeriesBatch = useReducer(
+    (reducers as any).adminCreateAvatarSeriesBatch,
+  );
+  const adminUpdateAvatarCatalogItem = useReducer(
+    (reducers as any).adminUpdateAvatarCatalogItem,
+  );
+  const adminDeleteAvatarCatalogItem = useReducer(
+    (reducers as any).adminDeleteAvatarCatalogItem,
+  );
+  const unlockAvatarItem = useReducer((reducers as any).unlockAvatarItem);
+  const setAvatarKey = useReducer((reducers as any).setAvatarKey);
+  const claimNewcomerDailyPoints = useReducer(
+    (reducers as any).claimNewcomerDailyPoints,
+  );
 
   const {
     view,
@@ -425,6 +440,11 @@ export default function SpacetimeMailboxApp({
     adminMobileShowContent,
     setAdminMobileShowContent,
   } = adminWorkbenchState;
+  const [avatarPickerOpen, setAvatarPickerOpen] = useState(false);
+  const [avatarActionLoading, setAvatarActionLoading] = useState(false);
+  const [avatarActionError, setAvatarActionError] = useState("");
+  const [dailyRewardLoading, setDailyRewardLoading] = useState(false);
+  const [dailyRewardToast, setDailyRewardToast] = useState("");
 
   /** 給舉報人看的結果通知（存入 resolutionNote） */
   const PRESET_REPORTER: Record<string, string> = {
@@ -645,6 +665,22 @@ export default function SpacetimeMailboxApp({
   const [squareReactionRows] = useTable(tables.squareReaction);
   const [squareCommentRows] = useTable(tables.squareComment);
   const [capsulePrivateRows] = useTable(tables.capsule_private_for_me); // 視圖自動過濾
+  const [pointsWalletRows] = useTable(
+    myAccountId
+      ? (tables as any).accountPointsWallet.where((r: any) => r.accountId.eq(myAccountId))
+      : (tables as any).accountPointsWallet.where((r: any) => r.accountId.eq("__stop__")),
+  );
+  const [avatarCatalogRowsAll] = useTable((tables as any).avatarCatalogItem);
+  const [avatarUnlockRows] = useTable(
+    myAccountId
+      ? (tables as any).accountAvatarUnlock.where((r: any) => r.accountId.eq(myAccountId))
+      : (tables as any).accountAvatarUnlock.where((r: any) => r.accountId.eq("__stop__")),
+  );
+  const [dailyRewardClaimRows] = useTable(
+    myAccountId
+      ? (tables as any).accountDailyRewardClaim.where((r: any) => r.accountId.eq(myAccountId))
+      : (tables as any).accountDailyRewardClaim.where((r: any) => r.accountId.eq("__stop__")),
+  );
 
   const {
     adminRoleRows,
@@ -654,6 +690,8 @@ export default function SpacetimeMailboxApp({
     moderationQueueRows,
     appealTicketRows,
     userSanctionRows,
+    accountProfileCreatedAtRows,
+    avatarCatalogRows: adminAvatarCatalogRows,
     allProfiles,
     displayNameByEmail,
     profileByIdentityHex,
@@ -687,6 +725,9 @@ export default function SpacetimeMailboxApp({
     removeCapsuleAsAdmin,
     removeSquarePostAsAdmin,
     removeRoleRecordAsAdmin,
+    updateAvatarCatalogItem,
+    createAvatarSeriesBatch,
+    deleteAvatarCatalogItem,
   } = useAdminWorkbenchRuntime({
     activeTab,
     identity,
@@ -729,6 +770,9 @@ export default function SpacetimeMailboxApp({
     adminDeleteCapsule,
     adminDeleteSquarePost,
     adminDeleteRoleRecord,
+    adminCreateAvatarSeriesBatch,
+    adminUpdateAvatarCatalogItem,
+    adminDeleteAvatarCatalogItem,
     presetReporterDismiss: PRESET_REPORTER.dismiss,
   });
 
@@ -798,6 +842,7 @@ export default function SpacetimeMailboxApp({
     gender: string;
     ageYears: number;
     profileNote: string;
+    avatarKey?: string;
   }
   // 基礎用戶物件 (供 UI 使用)
   const user: AppUser | null = useMemo(
@@ -812,10 +857,70 @@ export default function SpacetimeMailboxApp({
               myProfile.birthDate?.toDate() || null,
             ),
             profileNote: myProfile.profileNote,
+            avatarKey: (myProfile as any).avatarKey
+              ? String((myProfile as any).avatarKey)
+              : "",
           }
         : null,
     [myProfile],
   );
+
+  const availablePoints = useMemo(() => {
+    const row = pointsWalletRows[0] as any;
+    return row?.balance != null ? Number(row.balance) : 0;
+  }, [pointsWalletRows]);
+
+  const avatarCatalogRows = useMemo(
+    () =>
+      [...(avatarCatalogRowsAll as any[])].sort(
+        (a, b) => Number(a.sortOrder) - Number(b.sortOrder),
+      ),
+    [avatarCatalogRowsAll],
+  );
+
+  const unlockedAvatarKeySet = useMemo(() => {
+    const set = new Set<string>();
+    for (const row of avatarUnlockRows as any[]) {
+      set.add(String(row.avatarKey));
+    }
+    return set;
+  }, [avatarUnlockRows]);
+
+  const currentAvatarKey = (myProfile as any)?.avatarKey
+    ? String((myProfile as any).avatarKey)
+    : "";
+  const currentAvatarRow = avatarCatalogRows.find((row) => row.avatarKey === currentAvatarKey);
+  const currentAvatarUrl = currentAvatarRow
+    ? `${String(currentAvatarRow.basePath).replace(/\/?$/, "/")}${currentAvatarRow.fileName}`
+    : "";
+
+  const dailyRewardStatus = useMemo<
+    "claimable" | "claimed" | "expired" | "hidden"
+  >(() => {
+    if (!myProfile || !myAccountId) return "hidden";
+    const created = accountProfileCreatedAtRows.find((r) => r.accountId === myAccountId);
+    if (!created) return "hidden";
+    const nowLocal = new Date(Date.now() + 8 * 60 * 60 * 1000);
+    const createdLocal = new Date(
+      Number(created.createdAt.microsSinceUnixEpoch / 1000n) + 8 * 60 * 60 * 1000,
+    );
+    const today = new Date(
+      nowLocal.getUTCFullYear(),
+      nowLocal.getUTCMonth(),
+      nowLocal.getUTCDate(),
+    );
+    const start = new Date(
+      createdLocal.getUTCFullYear(),
+      createdLocal.getUTCMonth(),
+      createdLocal.getUTCDate(),
+    );
+    const diff = Math.floor((today.getTime() - start.getTime()) / 86_400_000) + 1;
+    if (diff < 1 || diff > 3) return "expired";
+    const claimed = (dailyRewardClaimRows as any[]).some(
+      (r) => Number(r.dayIndex) === diff,
+    );
+    return claimed ? "claimed" : "claimable";
+  }, [myProfile, myAccountId, accountProfileCreatedAtRows, dailyRewardClaimRows]);
 
   // ==========================================
   // 3. 業務邏輯清單 (Inbox, Outbox, Square)
@@ -2230,6 +2335,12 @@ export default function SpacetimeMailboxApp({
     }
   }, [favoriteSelectedId, unifiedFavoriteItems]);
 
+  useEffect(() => {
+    if (!dailyRewardToast) return;
+    const id = window.setTimeout(() => setDailyRewardToast(""), 2200);
+    return () => window.clearTimeout(id);
+  }, [dailyRewardToast]);
+
   const onSecretSidebarOpenChat = useCallback(() => {
     setChatBackTab("secret");
     setActiveTab("chat");
@@ -2620,6 +2731,12 @@ export default function SpacetimeMailboxApp({
     setAdminEditRole,
     setAdminEditActive,
     submitAdminEdit: () => void submitAdminEdit(),
+    avatarCatalogRows: adminAvatarCatalogRows,
+    avatarCatalogEditBusy: adminActionLoading,
+    avatarCatalogError: adminActionError,
+    updateAvatarCatalogItem: (args) => void updateAvatarCatalogItem(args),
+    createAvatarSeriesBatch: (args) => void createAvatarSeriesBatch(args),
+    deleteAvatarCatalogItem: (avatarKey) => void deleteAvatarCatalogItem(avatarKey),
   });
 
   const composeMessageMainProps = {
@@ -2780,6 +2897,49 @@ export default function SpacetimeMailboxApp({
     onResizeChatInput: resizeChatInput,
     onSendChatMessage: () => void handleSendChatMessage(),
     chatInputRef,
+  };
+
+  const handleSelectAvatar = async (avatarKey: string) => {
+    setAvatarActionLoading(true);
+    setAvatarActionError("");
+    try {
+      await setAvatarKey({ avatarKey } as any);
+      setAvatarPickerOpen(false);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setAvatarActionError(msg || "切換頭像失敗");
+    } finally {
+      setAvatarActionLoading(false);
+    }
+  };
+
+  const handleUnlockAvatar = async (avatarKey: string) => {
+    setAvatarActionLoading(true);
+    setAvatarActionError("");
+    try {
+      await unlockAvatarItem({ avatarKey } as any);
+      setDailyRewardToast("已解鎖並套用新頭像");
+      setAvatarPickerOpen(false);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setAvatarActionError(msg || "解鎖失敗");
+    } finally {
+      setAvatarActionLoading(false);
+    }
+  };
+
+  const handleClaimDailyReward = async () => {
+    if (dailyRewardStatus !== "claimable") return;
+    setDailyRewardLoading(true);
+    try {
+      await claimNewcomerDailyPoints({} as any);
+      setDailyRewardToast("已領取 188 積分");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setDailyRewardToast(msg || "領取失敗");
+    } finally {
+      setDailyRewardLoading(false);
+    }
   };
 
   const secretMainProps = {
@@ -3087,6 +3247,11 @@ export default function SpacetimeMailboxApp({
                 onLogout={() => void handleLogout()}
                 onNavigate={onMineHubNavigate}
                 squarePostsCount={squarePostsSorted.length}
+                availablePoints={availablePoints}
+                avatarImageUrl={currentAvatarUrl}
+                dailyRewardStatus={dailyRewardStatus}
+                dailyRewardLoading={dailyRewardLoading}
+                onClaimDailyReward={() => void handleClaimDailyReward()}
               />
             ) : activeTab === "mine_square" ? (
               squareSelectedPostId ? (
@@ -3342,6 +3507,11 @@ export default function SpacetimeMailboxApp({
           setProfileActionMenuOpen(false);
           void openProfileModal();
         }}
+        onOpenAvatarPicker={() => {
+          setProfileActionMenuOpen(false);
+          setAvatarActionError("");
+          setAvatarPickerOpen(true);
+        }}
         onOpenPassword={() => {
           openPasswordModal();
         }}
@@ -3371,6 +3541,21 @@ export default function SpacetimeMailboxApp({
         onSetPasswordNew={setPasswordNew}
         onSetPasswordConfirm={setPasswordConfirm}
         onSubmitPasswordChange={() => void submitPasswordChange()}
+      />
+
+      <AvatarPickerModalSection
+        open={avatarPickerOpen}
+        currentAvatarKey={currentAvatarKey}
+        availablePoints={availablePoints}
+        catalogRows={avatarCatalogRows.filter(
+          (row) => row.isPublished || unlockedAvatarKeySet.has(row.avatarKey),
+        )}
+        unlockedKeys={unlockedAvatarKeySet}
+        unlockLoading={avatarActionLoading}
+        actionError={avatarActionError}
+        onClose={() => setAvatarPickerOpen(false)}
+        onSelectAvatar={(avatarKey) => void handleSelectAvatar(avatarKey)}
+        onUnlockAvatar={(avatarKey) => void handleUnlockAvatar(avatarKey)}
       />
 
       <ProfileModalSection
@@ -3416,6 +3601,12 @@ export default function SpacetimeMailboxApp({
         onSubmitAgeGate={() => void submitAgeGate()}
       />
       <AdminWorkbench viewProps={adminViewProps} slot="modals" />
+
+      {dailyRewardToast ? (
+        <div className="pointer-events-none fixed bottom-24 left-1/2 z-[260] -translate-x-1/2 rounded-full border border-white/15 bg-black/70 px-3 py-1.5 text-[12px] font-semibold text-white shadow-lg">
+          {dailyRewardToast}
+        </div>
+      ) : null}
 
     </div>
 

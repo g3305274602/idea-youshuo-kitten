@@ -12,6 +12,7 @@ export interface User {
   gender: string;
   ageYears: number;
   profileNote: string;
+  avatarKey?: string;
 }
 
 export interface Message {
@@ -43,7 +44,7 @@ export type AppTab =
   | "mine_square" /** 從「我的」進入的廣場牆二級頁，返回仍回「我的」 */
 
 
-export type AdminSection = "main" | "review" | "reports";
+export type AdminSection = "main" | "review" | "reports" | "avatar";
 
 export type AdminReportFilter = "pending" | "resolved";
 

@@ -137,6 +137,23 @@ type CreateAdminViewPropsParams = {
   setAdminEditRole: (v: string) => void;
   setAdminEditActive: Dispatch<SetStateAction<boolean>>;
   submitAdminEdit: () => void;
+  avatarCatalogRows: readonly any[];
+  avatarCatalogEditBusy: boolean;
+  avatarCatalogError: string;
+  updateAvatarCatalogItem: (args: {
+    avatarKey: string;
+    pricePoints: number;
+    isPublished: boolean;
+    sortOrder: number;
+  }) => void;
+  createAvatarSeriesBatch: (args: {
+    seriesKey: string;
+    basePath: string;
+    defaultPricePoints: number;
+    sortOrderBase: number;
+    generateCount: number;
+  }) => void;
+  deleteAvatarCatalogItem: (avatarKey: string) => void;
 };
 
 export function createAdminViewProps(params: CreateAdminViewPropsParams) {
@@ -167,6 +184,11 @@ export function createAdminViewProps(params: CreateAdminViewPropsParams) {
       onSelectReview: () => {
         params.setActiveTab("admin");
         params.setAdminSection("review");
+        params.setAdminMobileShowContent(true);
+      },
+      onSelectAvatar: () => {
+        params.setActiveTab(params.auth.isSuperAdmin ? "admin_ops" : "admin");
+        params.setAdminSection("avatar");
         params.setAdminMobileShowContent(true);
       },
     },
@@ -253,6 +275,13 @@ export function createAdminViewProps(params: CreateAdminViewPropsParams) {
       onSetAdminTargetIdentityHex: params.setAdminTargetIdentityHex,
       onQuickBanTargetAccount: () => params.quickBanTargetAccount(),
       onQuickUnbanTargetAccount: () => params.quickUnbanTargetAccount(),
+      avatarCatalogRows: params.avatarCatalogRows,
+      avatarCatalogEditBusy: params.avatarCatalogEditBusy,
+      avatarCatalogError: params.avatarCatalogError,
+      onAvatarUpdateItem: params.updateAvatarCatalogItem,
+      onAvatarOpenCreateModal: () => {},
+      onAvatarDeleteItem: params.deleteAvatarCatalogItem,
+      onAvatarCreateItem: params.createAvatarSeriesBatch,
     },
     modalProps: {
       adminReportModalOpen: params.isAdminReportModalVisible,

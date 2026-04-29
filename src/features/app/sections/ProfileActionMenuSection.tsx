@@ -11,6 +11,7 @@ type ProfileActionMenuSectionProps = {
   onBootstrapAdminSelf: () => void | Promise<void>;
   onEnterAdmin: () => void;
   onOpenProfile: () => void;
+  onOpenAvatarPicker: () => void;
   onOpenPassword: () => void;
   onLogout: () => void;
 };
@@ -25,6 +26,7 @@ export function ProfileActionMenuSection({
   onBootstrapAdminSelf,
   onEnterAdmin,
   onOpenProfile,
+  onOpenAvatarPicker,
   onOpenPassword,
   onLogout,
 }: ProfileActionMenuSectionProps) {
@@ -88,6 +90,16 @@ export function ProfileActionMenuSection({
                 className="cd-btn-ghost w-full py-3 text-left text-[14px] font-bold"
               >
                 基本資料
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onOpenAvatarPicker();
+                }}
+                className="cd-btn-ghost w-full py-3 text-left text-[14px] font-bold"
+              >
+                更換頭像
               </button>
               <button
                 type="button"
