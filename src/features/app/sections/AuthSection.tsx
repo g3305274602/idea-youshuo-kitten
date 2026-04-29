@@ -274,12 +274,14 @@ export function AuthSection({
 
           <button
             type="button"
+            disabled={loading}
             onClick={() => {
+              if (loading) return;
               onViewChange(view === "login" ? "register" : "login");
               onClearTransientState(); // 清除錯誤與暫存
               setShowPassword(false);
             }}
-            className="w-full text-center text-[14px] font-medium text-white/60 mt-8 hover:text-white transition-all"
+            className="w-full text-center text-[14px] font-medium text-white/60 mt-8 hover:text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {view === "login" ? "還沒帳號？來註冊一個" : "已有帳號？回去登入"}
           </button>

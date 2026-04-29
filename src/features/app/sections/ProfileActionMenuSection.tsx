@@ -97,7 +97,7 @@ export function ProfileActionMenuSection({
                   onClose();
                   onOpenAvatarPicker();
                 }}
-                className="cd-btn-ghost w-full py-3 text-left text-[14px] font-bold"
+                className="cd-btn-ghost w-full py-3 text-left text-[14px] font-bold hidden"
               >
                 更換頭像
               </button>

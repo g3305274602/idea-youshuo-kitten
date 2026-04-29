@@ -18,6 +18,7 @@ type MineSidebarSectionProps = {
   chatUnreadCount: number;
   myReportsCount: number;
   onOpenActions: () => void;
+  onOpenAvatarPicker: () => void;
   onEditIntro: () => void;
   onLogout: () => void;
   onNavigate: (tab: AppTab) => void;
@@ -42,6 +43,7 @@ export function MineSidebarSection({
   dailyRewardStatus = "hidden",
   dailyRewardLoading = false,
   onClaimDailyReward,
+  onOpenAvatarPicker,
 }: MineSidebarSectionProps) {
   const displayName = user?.displayName?.trim() || "未命名用戶";
   const shuoshuo = user?.profileNote?.trim() ?? "";
@@ -54,22 +56,26 @@ export function MineSidebarSection({
     <section className="ys-mine-page">
       <div className="ys-mine-profile-card">
         <div className="ys-mine-profile-card-row">
-          <button type="button" onClick={onOpenActions} className="ys-mine-profile-hitbox" aria-label="開啟個人設定">
-            <span className="ys-mine-avatar-slot" aria-hidden>
-              {avatarImageUrl ? (
-                <img
-                  src={avatarImageUrl}
-                  alt=""
-                  className="h-full w-full rounded-[24px] object-cover"
-                  loading="lazy"
-                  decoding="async"
-                />
-              ) : null}
-            </span>
+          <button
+            type="button"
+            onClick={onOpenAvatarPicker}
+            className="ys-mine-avatar-slot"
+            aria-label="更換頭像"
+          >
+            {avatarImageUrl ? (
+              <img
+                src={avatarImageUrl}
+                alt=""
+                className="h-full w-full rounded-[24px] object-cover"
+                loading="lazy"
+                decoding="async"
+              />
+            ) : null}
+          </button>
+          <div className="ys-mine-profile-hitbox">
             <div className="ys-mine-profile-main">
               <div className="ys-mine-name-row">
                 <p className="ys-mine-name">{displayName}</p>
-                
               </div>
               <div className="ys-mine-level-row">
                 <div className="ys-mine-level-chip">
@@ -102,15 +108,26 @@ export function MineSidebarSection({
                 ) : null}
               </div>
               <div className="ys-mine-shuoshuo-row">
-                <span className="ys-mine-shuoshuo-label">說說</span>
-                {shuoshuo ? (
-                  <span className="min-w-0 truncate text-white/80">{shuoshuo}</span>
-                ) : (
-                  <span className="min-w-0 truncate text-white/35">尚無說說</span>
-                )}
+                <button
+                  type="button"
+                  onClick={onEditIntro}
+                  className="min-w-0 flex-1 flex items-center gap-1.5 text-left truncate text-white/80 hover:text-white/95"
+                >
+                  {shuoshuo ? (
+                    <>
+                      <span className="min-w-0 flex-1 truncate">{shuoshuo}</span>
+                      <Edit3 className="h-3.5 w-3.5 shrink-0 text-white/50" aria-hidden />
+                    </>
+                  ) : (
+                    <>
+                      <span className="min-w-0 flex-1 truncate text-white/35">尚無說說</span>
+                      <Edit3 className="h-3.5 w-3.5 shrink-0 text-white/40" aria-hidden />
+                    </>
+                  )}
+                </button>
               </div>
             </div>
-          </button>
+          </div>
           <button
             type="button"
             onClick={onOpenActions}

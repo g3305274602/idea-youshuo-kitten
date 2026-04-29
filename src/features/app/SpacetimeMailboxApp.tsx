@@ -3243,6 +3243,10 @@ export default function SpacetimeMailboxApp({
                   ).length
                 }
                 onOpenActions={() => void openProfileActionMenu()}
+                 onOpenAvatarPicker={() => {
+                   setAvatarActionError("");
+                   setAvatarPickerOpen(true);
+                 }}
                 onEditIntro={() => void openIntroEditor()}
                 onLogout={() => void handleLogout()}
                 onNavigate={onMineHubNavigate}

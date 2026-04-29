@@ -135,6 +135,21 @@ type UseAccountFlowHandlersParams = {
 };
 
 export function useAccountFlowHandlers(params: UseAccountFlowHandlersParams) {
+  async function withAuthTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+      const id = window.setTimeout(() => {
+        reject(new Error("登入/註冊逾時，請稍後再試"));
+      }, ms);
+      p.then((v) => {
+        window.clearTimeout(id);
+        resolve(v);
+      }).catch((err) => {
+        window.clearTimeout(id);
+        reject(err);
+      });
+    });
+  }
+
   async function callOtpGateway<T>(path: string, body: Record<string, unknown>): Promise<T> {
     const res = await fetch(`${EMAIL_OTP_GATEWAY_URL}${path}`, {
       method: "POST",
@@ -264,20 +279,26 @@ export function useAccountFlowHandlers(params: UseAccountFlowHandlersParams) {
       }
 
       if (isLogin) {
-        await params.loginAccount({ email: currentEmail, password: currentPassword });
+        await withAuthTimeout(
+          params.loginAccount({ email: currentEmail, password: currentPassword }),
+          20_000,
+        );
       } else {
         if (registerOtpVerifiedEmail !== currentEmail) {
           params.setError("請先完成信箱驗證");
           return;
         }
-        await params.registerAccountWithEmailOtp({
-          email: currentEmail,
-          password: currentPassword,
-          displayName: params.registerDisplayName.trim(),
-          gender: normalizeBinaryGender(params.registerGender),
-          birthDate: undefined,
-          profileNote: "",
-        });
+        await withAuthTimeout(
+          params.registerAccountWithEmailOtp({
+            email: currentEmail,
+            password: currentPassword,
+            displayName: params.registerDisplayName.trim(),
+            gender: normalizeBinaryGender(params.registerGender),
+            birthDate: undefined,
+            profileNote: "",
+          }),
+          20_000,
+        );
         setRegisterOtpVerifiedEmail("");
         setRegisterOtpVerifiedCode("");
         setRegisterOtpCode("");
