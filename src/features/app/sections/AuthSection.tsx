@@ -18,6 +18,13 @@ type AuthSectionProps = {
   registerOtpMessage: string;
   registerOtpCooldownUntilMs: number;
   registerOtpVerified: boolean;
+  forgotOtpCode: string;
+  forgotOtpBusy: boolean;
+  forgotOtpMessage: string;
+  forgotOtpCooldownUntilMs: number;
+  forgotOtpVerified: boolean;
+  forgotNewPassword: string;
+  forgotConfirmPassword: string;
   loading: boolean;
   error: string;
   onSubmit: () => void; // 這對應原先的 handleAuth
@@ -30,6 +37,11 @@ type AuthSectionProps = {
   onRegisterProfileNoteChange: (value: string) => void;
   onRegisterOtpCodeChange: (value: string) => void;
   onRequestRegisterOtp: () => void;
+  onForgotOtpCodeChange: (value: string) => void;
+  onForgotNewPasswordChange: (value: string) => void;
+  onForgotConfirmPasswordChange: (value: string) => void;
+  onRequestForgotOtp: () => void;
+  onSubmitForgotPassword: () => void;
   onClearTransientState: () => void;
 };
 
@@ -46,6 +58,13 @@ export function AuthSection({
   registerOtpMessage,
   registerOtpCooldownUntilMs,
   registerOtpVerified,
+  forgotOtpCode,
+  forgotOtpBusy,
+  forgotOtpMessage,
+  forgotOtpCooldownUntilMs,
+  forgotOtpVerified,
+  forgotNewPassword,
+  forgotConfirmPassword,
   loading,
   error,
   onSubmit,
@@ -58,10 +77,16 @@ export function AuthSection({
   onRegisterProfileNoteChange,
   onRegisterOtpCodeChange,
   onRequestRegisterOtp,
+  onForgotOtpCodeChange,
+  onForgotNewPasswordChange,
+  onForgotConfirmPasswordChange,
+  onRequestForgotOtp,
+  onSubmitForgotPassword,
   onClearTransientState,
 }: AuthSectionProps) {
   // 密碼顯示狀態放在組件內部
   const [showPassword, setShowPassword] = useState(false);
+  const [forgotMode, setForgotMode] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -73,6 +98,11 @@ export function AuthSection({
     Math.ceil((registerOtpCooldownUntilMs - Date.now()) / 1000),
   );
   const otpCanRequest = otpCooldownSec <= 0 && !registerOtpBusy;
+  const forgotOtpCooldownSec = Math.max(
+    0,
+    Math.ceil((forgotOtpCooldownUntilMs - Date.now()) / 1000),
+  );
+  const forgotOtpCanRequest = forgotOtpCooldownSec <= 0 && !forgotOtpBusy;
 
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-[#121319] p-6 font-sans text-white">
@@ -261,7 +291,11 @@ export function AuthSection({
 
           <button
             type="submit"
-            disabled={loading || (view === "register" && !registerOtpVerified)}
+            disabled={
+              loading ||
+              (view === "register" && !registerOtpVerified) ||
+              (view === "login" && forgotMode)
+            }
             className="w-full py-[14px] mt-6 bg-white text-apple-black hover:bg-white/90 rounded-[980px] font-sans font-semibold text-[17px] tracking-tight transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
           >
             {loading && <Loader2 className="w-4 h-4 animate-spin" />}
@@ -271,6 +305,70 @@ export function AuthSection({
                 ? "拆開看看"
                 : "我也來留一則"}
           </button>
+
+          {view === "login" ? (
+            <div className="mt-3 rounded-[16px] border border-white/[0.08] bg-white/[0.03] p-3">
+              <button
+                type="button"
+                onClick={() => setForgotMode((v) => !v)}
+                className="text-[12px] font-semibold text-[#FFD54F]"
+              >
+                {forgotMode ? "收起重設密碼" : "忘記密碼？信箱重設"}
+              </button>
+              {forgotMode ? (
+                <div className="mt-2 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={6}
+                      value={forgotOtpCode}
+                      onChange={(e) =>
+                        onForgotOtpCodeChange(e.target.value.replace(/\D+/g, "").slice(0, 6))
+                      }
+                      className="min-w-0 flex-1 rounded-[12px] border border-white/[0.1] bg-white/[0.04] px-3 py-2 text-[15px] text-white placeholder:text-white/25 outline-none focus:ring-1 focus:ring-white/40"
+                      placeholder="輸入 6 位驗證碼"
+                    />
+                    <button
+                      type="button"
+                      disabled={!forgotOtpCanRequest}
+                      onClick={onRequestForgotOtp}
+                      className="shrink-0 rounded-[12px] border border-white/20 bg-white/[0.08] px-3 py-2 text-[12px] font-semibold text-white disabled:opacity-45"
+                    >
+                      {forgotOtpCooldownSec > 0 ? `${forgotOtpCooldownSec}s` : "發送驗證碼"}
+                    </button>
+                  </div>
+                  <input
+                    type="password"
+                    value={forgotNewPassword}
+                    onChange={(e) => onForgotNewPasswordChange(e.target.value)}
+                    className="w-full rounded-[12px] border border-white/[0.1] bg-white/[0.04] px-3 py-2 text-[15px] text-white placeholder:text-white/25 outline-none focus:ring-1 focus:ring-white/40"
+                    placeholder="新密碼（6-128 字元）"
+                  />
+                  <input
+                    type="password"
+                    value={forgotConfirmPassword}
+                    onChange={(e) => onForgotConfirmPasswordChange(e.target.value)}
+                    className="w-full rounded-[12px] border border-white/[0.1] bg-white/[0.04] px-3 py-2 text-[15px] text-white placeholder:text-white/25 outline-none focus:ring-1 focus:ring-white/40"
+                    placeholder="確認新密碼"
+                  />
+                  <button
+                    type="button"
+                    onClick={onSubmitForgotPassword}
+                    disabled={forgotOtpBusy}
+                    className="w-full rounded-[12px] border border-[#FFD54F]/40 bg-[#FFD54F]/20 px-3 py-2 text-[12px] font-semibold text-[#FFD54F] disabled:opacity-50"
+                  >
+                    {forgotOtpBusy ? "處理中…" : "確認重設密碼"}
+                  </button>
+                  {forgotOtpMessage ? (
+                    <p className={cn("text-[12px]", forgotOtpVerified ? "text-emerald-300" : "text-white/65")}>
+                      {forgotOtpMessage}
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
 
           <button
             type="button"

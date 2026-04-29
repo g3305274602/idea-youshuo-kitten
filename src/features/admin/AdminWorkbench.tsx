@@ -89,6 +89,8 @@ type CreateAdminViewPropsParams = {
   adminSearchRows: readonly any[];
   adminTargetIdentityHex: string;
   selectedAdminTargetProfile: any;
+  pointsBalanceByAccountId: Map<string, number>;
+  canEditAccountOperation: boolean;
   activeSanctionsForTarget: readonly any[];
   appealTicketRows: readonly any[];
   userSanctionRows: readonly any[];
@@ -122,6 +124,15 @@ type CreateAdminViewPropsParams = {
   setAdminTargetIdentityHex: (v: string) => void;
   quickBanTargetAccount: () => void;
   quickUnbanTargetAccount: () => void;
+  operateAccount: (args: {
+    accountId: string;
+    email: string;
+    displayName: string;
+    gender: string;
+    ageYears: number;
+    pointsBalance: number;
+    secretPlain: string;
+  }) => Promise<void>;
   isAdminReportModalVisible: boolean;
   adminGrantEmail: string;
   adminGrantRole: string;
@@ -225,6 +236,8 @@ export function createAdminViewProps(params: CreateAdminViewPropsParams) {
       adminSearchRows: params.adminSearchRows,
       adminTargetIdentityHex: params.adminTargetIdentityHex,
       selectedAdminTargetProfile: params.selectedAdminTargetProfile,
+      pointsBalanceByAccountId: params.pointsBalanceByAccountId,
+      canEditAccountOperation: params.canEditAccountOperation,
       activeSanctionsForTarget: params.activeSanctionsForTarget,
       appealTicketRows: params.appealTicketRows,
       userSanctionRows: params.userSanctionRows,
@@ -276,6 +289,7 @@ export function createAdminViewProps(params: CreateAdminViewPropsParams) {
       onSetAdminTargetIdentityHex: params.setAdminTargetIdentityHex,
       onQuickBanTargetAccount: () => params.quickBanTargetAccount(),
       onQuickUnbanTargetAccount: () => params.quickUnbanTargetAccount(),
+      onOperateAccount: (args) => params.operateAccount(args),
       avatarCatalogRows: params.avatarCatalogRows,
       avatarCatalogEditBusy: params.avatarCatalogEditBusy,
       avatarCatalogError: params.avatarCatalogError,

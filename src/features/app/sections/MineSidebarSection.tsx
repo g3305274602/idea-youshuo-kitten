@@ -1,6 +1,7 @@
 import { Coins, Edit3, Settings, Star } from "lucide-react";
 import type { AppTab, User as AppUser } from "../types";
 import { MineHubMenuNav } from "./MineHubMenuNav";
+import { cn } from "../../../lib/utils";
 
 type MineSidebarSectionProps = {
   activeTab: AppTab;
@@ -24,6 +25,18 @@ type MineSidebarSectionProps = {
   onNavigate: (tab: AppTab) => void;
   /** 全站可見的廣場貼文總數（廣場牆列副標用） */
   squarePostsCount: number;
+  titleLabel?: string;
+  titleWatermark?: string;
+  titleTone?:
+    | "stardust"
+    | "glimmer"
+    | "meteor"
+    | "satellite"
+    | "planet"
+    | "star"
+    | "galaxy"
+    | "universe"
+    | "creator";
 };
 
 export function MineSidebarSection({
@@ -44,6 +57,9 @@ export function MineSidebarSection({
   dailyRewardLoading = false,
   onClaimDailyReward,
   onOpenAvatarPicker,
+  titleLabel = "星塵",
+  titleWatermark = "STARDUST",
+  titleTone = "stardust",
 }: MineSidebarSectionProps) {
   const displayName = user?.displayName?.trim() || "未命名用戶";
   const shuoshuo = user?.profileNote?.trim() ?? "";
@@ -54,12 +70,15 @@ export function MineSidebarSection({
 
   return (
     <section className="ys-mine-page">
-      <div className="ys-mine-profile-card">
+      <div className={cn("ys-mine-profile-card", `ys-mine-profile-card--${titleTone}`)}>
+        <span className={cn("ys-title-watermark", `ys-title-watermark--${titleTone}`)}>
+          {titleWatermark}
+        </span>
         <div className="ys-mine-profile-card-row">
           <button
             type="button"
             onClick={onOpenAvatarPicker}
-            className="ys-mine-avatar-slot"
+            className={cn("ys-mine-avatar-slot", `ys-mine-avatar-slot--${titleTone}`)}
             aria-label="更換頭像"
           >
             {avatarImageUrl ? (
@@ -80,7 +99,7 @@ export function MineSidebarSection({
               <div className="ys-mine-level-row">
                 <div className="ys-mine-level-chip">
                   <Star className="h-2.5 w-2.5" strokeWidth={2.6} aria-hidden />
-                  <span>Lv.12</span>
+                  <span>{titleLabel}</span>
                 </div>
                 <span className="ys-mine-points-chip" role="img" aria-label={pointsAria}>
                   <Coins className="h-3 w-3" strokeWidth={2.2} aria-hidden />

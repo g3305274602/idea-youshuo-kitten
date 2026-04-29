@@ -68,6 +68,10 @@ type UseAccountFlowHandlersParams = {
   }) => Promise<unknown>;
   requestEmailOtp: (args: { email: string; purpose: string; code: string }) => Promise<unknown>;
   verifyEmailOtp: (args: { email: string; purpose: string; code: string }) => Promise<unknown>;
+  resetPasswordWithEmailOtp: (args: {
+    email: string;
+    newPassword: string;
+  }) => Promise<unknown>;
   myProfile: any;
   user: AppUser | null;
   setBirthYear: (v: number) => void;
@@ -174,6 +178,15 @@ export function useAccountFlowHandlers(params: UseAccountFlowHandlersParams) {
   const [registerOtpVerifiedCode, setRegisterOtpVerifiedCode] = useState("");
   const [registerOtpCooldownUntilMs, setRegisterOtpCooldownUntilMs] = useState(0);
   const [registerOtpRejectedCode, setRegisterOtpRejectedCode] = useState("");
+  const [forgotOtpCode, setForgotOtpCode] = useState("");
+  const [forgotOtpBusy, setForgotOtpBusy] = useState(false);
+  const [forgotOtpMessage, setForgotOtpMessage] = useState("");
+  const [forgotOtpVerifiedEmail, setForgotOtpVerifiedEmail] = useState("");
+  const [forgotOtpVerifiedCode, setForgotOtpVerifiedCode] = useState("");
+  const [forgotOtpCooldownUntilMs, setForgotOtpCooldownUntilMs] = useState(0);
+  const [forgotOtpRejectedCode, setForgotOtpRejectedCode] = useState("");
+  const [forgotNewPassword, setForgotNewPassword] = useState("");
+  const [forgotConfirmPassword, setForgotConfirmPassword] = useState("");
 
   const normalizedEmail = useMemo(
     () => params.email.trim().toLowerCase(),
@@ -360,6 +373,32 @@ export function useAccountFlowHandlers(params: UseAccountFlowHandlersParams) {
     }
   };
 
+  const requestForgotPasswordOtp = async () => {
+    const em = params.email.trim().toLowerCase();
+    if (!em) {
+      setForgotOtpMessage("請先輸入信箱");
+      return;
+    }
+    setForgotOtpBusy(true);
+    setForgotOtpMessage("");
+    try {
+      const code = String(Math.floor(100000 + Math.random() * 900000));
+      await params.requestEmailOtp({ email: em, purpose: "reset_password", code });
+      await callOtpGateway("/otp/request", { email: em, purpose: "reset_password", code });
+      setForgotOtpVerifiedEmail("");
+      setForgotOtpVerifiedCode("");
+      setForgotOtpCode("");
+      setForgotOtpCooldownUntilMs(Date.now() + 60_000);
+      setForgotOtpRejectedCode("");
+      setForgotOtpMessage("重設驗證碼已送出，請查收信箱");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setForgotOtpMessage(msg || "發送驗證碼失敗");
+    } finally {
+      setForgotOtpBusy(false);
+    }
+  };
+
   const verifyRegisterEmailOtp = async (overrideCode?: string) => {
     const em = params.email.trim().toLowerCase();
     const code = (overrideCode ?? registerOtpCode).trim();
@@ -388,6 +427,34 @@ export function useAccountFlowHandlers(params: UseAccountFlowHandlersParams) {
     }
   };
 
+  const verifyForgotPasswordOtp = async (overrideCode?: string) => {
+    const em = params.email.trim().toLowerCase();
+    const code = (overrideCode ?? forgotOtpCode).trim();
+    if (!em) {
+      setForgotOtpMessage("請先輸入信箱");
+      return;
+    }
+    if (!/^\d{6}$/.test(code)) {
+      setForgotOtpMessage("請輸入 6 位數驗證碼");
+      return;
+    }
+    setForgotOtpBusy(true);
+    setForgotOtpMessage("");
+    try {
+      await params.verifyEmailOtp({ email: em, purpose: "reset_password", code });
+      setForgotOtpVerifiedEmail(em);
+      setForgotOtpVerifiedCode(code);
+      setForgotOtpRejectedCode("");
+      setForgotOtpMessage("驗證成功，請設定新密碼");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setForgotOtpRejectedCode(code);
+      setForgotOtpMessage(msg || "驗證失敗");
+    } finally {
+      setForgotOtpBusy(false);
+    }
+  };
+
   useEffect(() => {
     if (registerOtpBusy) return;
     const code = registerOtpCode.trim();
@@ -412,6 +479,69 @@ export function useAccountFlowHandlers(params: UseAccountFlowHandlersParams) {
     registerOtpVerifiedCode,
     normalizedEmail,
   ]);
+
+  useEffect(() => {
+    if (forgotOtpBusy) return;
+    const code = forgotOtpCode.trim();
+    if (
+      forgotOtpVerifiedEmail === normalizedEmail &&
+      !!normalizedEmail &&
+      forgotOtpVerifiedCode === code
+    ) {
+      return;
+    }
+    if (code.length !== 6) return;
+    if (code === forgotOtpRejectedCode) return;
+    const t = window.setTimeout(() => {
+      void verifyForgotPasswordOtp(code);
+    }, 650);
+    return () => window.clearTimeout(t);
+  }, [
+    forgotOtpCode,
+    forgotOtpBusy,
+    forgotOtpRejectedCode,
+    forgotOtpVerifiedEmail,
+    forgotOtpVerifiedCode,
+    normalizedEmail,
+  ]);
+
+  const submitForgotPasswordReset = async () => {
+    const em = params.email.trim().toLowerCase();
+    if (!em) {
+      setForgotOtpMessage("請先輸入信箱");
+      return;
+    }
+    if (!(forgotOtpVerifiedEmail === em && forgotOtpVerifiedCode === forgotOtpCode.trim())) {
+      setForgotOtpMessage("請先完成驗證碼驗證");
+      return;
+    }
+    const np = forgotNewPassword.trim();
+    if (np.length < 6 || np.length > 128) {
+      setForgotOtpMessage("新密碼長度需 6–128 字元");
+      return;
+    }
+    if (np !== forgotConfirmPassword) {
+      setForgotOtpMessage("兩次新密碼不一致");
+      return;
+    }
+    setForgotOtpBusy(true);
+    setForgotOtpMessage("");
+    try {
+      await params.resetPasswordWithEmailOtp({ email: em, newPassword: np });
+      setForgotOtpMessage("重設成功，請使用新密碼登入");
+      setForgotOtpCode("");
+      setForgotOtpVerifiedCode("");
+      setForgotOtpVerifiedEmail("");
+      setForgotOtpRejectedCode("");
+      setForgotNewPassword("");
+      setForgotConfirmPassword("");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setForgotOtpMessage(msg || "重設密碼失敗");
+    } finally {
+      setForgotOtpBusy(false);
+    }
+  };
 
   const openProfileModal = () => {
     if (!params.myProfile) return;
@@ -609,6 +739,19 @@ export function useAccountFlowHandlers(params: UseAccountFlowHandlersParams) {
     registerOtpVerified: registerOtpVerifiedEmail === normalizedEmail && !!normalizedEmail,
     requestRegisterEmailOtp,
     verifyRegisterEmailOtp,
+    forgotOtpCode,
+    setForgotOtpCode,
+    forgotOtpBusy,
+    forgotOtpMessage,
+    forgotOtpCooldownUntilMs,
+    forgotOtpVerified:
+      forgotOtpVerifiedEmail === normalizedEmail && !!normalizedEmail,
+    forgotNewPassword,
+    setForgotNewPassword,
+    forgotConfirmPassword,
+    setForgotConfirmPassword,
+    requestForgotPasswordOtp,
+    submitForgotPasswordReset,
     openProfileModal,
     openProfileActionMenu,
     openAccountProfile,

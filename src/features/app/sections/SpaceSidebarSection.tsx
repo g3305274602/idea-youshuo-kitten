@@ -5,6 +5,7 @@ type SpaceSidebarSectionProps = {
   displayName?: string;
   capsuleCount: number;
   squareCount: number;
+  watermarkText?: string;
 };
 
 export function SpaceSidebarSection({
@@ -12,10 +13,14 @@ export function SpaceSidebarSection({
   displayName,
   capsuleCount,
   squareCount,
+  watermarkText = "",
 }: SpaceSidebarSectionProps) {
   return (
     <div className="flex flex-col gap-4 px-2 pb-4 pt-0">
-      <div className="cd-card-raised rounded-2xl p-4">
+      <div className="cd-card-raised relative overflow-hidden rounded-2xl p-4">
+        {watermarkText ? (
+          <span className="ys-title-watermark ys-title-watermark--planet">{watermarkText}</span>
+        ) : null}
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/12 bg-gradient-to-br from-[#F06292]/30 to-violet-600/20">
             <User className="h-6 w-6 text-white" />

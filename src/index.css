@@ -310,6 +310,104 @@
     border: 1px solid rgba(255, 255, 255, 0.08);
     box-shadow: inset 0 0 10px rgba(255, 255, 255, 0.02);
   }
+  .ys-mine-profile-card--stardust {
+    box-shadow: inset 0 0 10px rgba(255, 255, 255, 0.02);
+  }
+  .ys-mine-profile-card--glimmer {
+    box-shadow: inset 0 0 10px rgba(255, 255, 255, 0.04), 0 0 16px rgba(255, 255, 255, 0.06);
+  }
+  .ys-mine-profile-card--meteor {
+    box-shadow: inset 0 0 10px rgba(255, 255, 255, 0.03), 0 0 18px rgba(120, 180, 255, 0.15);
+  }
+  .ys-mine-profile-card--satellite {
+    box-shadow: inset 0 0 10px rgba(255, 255, 255, 0.03), 0 0 18px rgba(170, 145, 255, 0.18);
+  }
+  .ys-mine-profile-card--planet {
+    box-shadow: inset 0 0 10px rgba(255, 255, 255, 0.03), 0 0 20px rgba(79, 209, 197, 0.2);
+  }
+  .ys-mine-profile-card--star {
+    box-shadow: inset 0 0 10px rgba(255, 255, 255, 0.03), 0 0 24px rgba(255, 213, 79, 0.24);
+  }
+  .ys-mine-profile-card--galaxy {
+    box-shadow: inset 0 0 10px rgba(255, 255, 255, 0.03), 0 0 26px rgba(186, 104, 200, 0.28);
+  }
+  .ys-mine-profile-card--universe {
+    box-shadow: inset 0 0 10px rgba(255, 255, 255, 0.04), 0 0 30px rgba(64, 224, 208, 0.3);
+  }
+  .ys-mine-profile-card--creator {
+    box-shadow: inset 0 0 10px rgba(255, 255, 255, 0.05), 0 0 34px rgba(255, 215, 0, 0.34);
+  }
+  .ys-title-watermark {
+    @apply pointer-events-none absolute right-10 top-1/2 z-0 -translate-y-1/2 rotate-[-18deg] select-none text-[22px] font-black tracking-[0.14em];
+    opacity: 0.16;
+    filter: blur(0.2px);
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .ys-title-watermark--stardust {
+    color: rgba(203, 213, 225, 0.6);
+    text-shadow: 0 0 8px rgba(203, 213, 225, 0.12);
+  }
+  .ys-title-watermark--glimmer {
+    color: rgba(226, 232, 240, 0.66);
+    text-shadow:
+      0 0 8px rgba(226, 232, 240, 0.14),
+      0 0 18px rgba(248, 250, 252, 0.1);
+  }
+  .ys-title-watermark--meteor {
+    color: rgba(147, 197, 253, 0.68);
+    letter-spacing: 0.18em;
+    text-shadow:
+      8px 0 16px rgba(147, 197, 253, 0.16),
+      20px 0 24px rgba(196, 181, 253, 0.1);
+  }
+  .ys-title-watermark--satellite {
+    color: rgba(196, 181, 253, 0.7);
+    text-shadow:
+      0 0 10px rgba(196, 181, 253, 0.16),
+      0 0 22px rgba(129, 140, 248, 0.14);
+  }
+  .ys-title-watermark--planet {
+    color: rgba(94, 234, 212, 0.7);
+    text-shadow:
+      0 0 10px rgba(94, 234, 212, 0.16),
+      0 0 24px rgba(34, 211, 238, 0.14);
+  }
+  .ys-title-watermark--star {
+    color: rgba(253, 224, 71, 0.72);
+    text-shadow:
+      0 0 10px rgba(253, 224, 71, 0.18),
+      0 0 26px rgba(251, 191, 36, 0.16);
+  }
+  .ys-title-watermark--galaxy {
+    color: transparent;
+    background: linear-gradient(90deg, rgba(216, 180, 254, 0.82), rgba(103, 232, 249, 0.78));
+    -webkit-background-clip: text;
+    background-clip: text;
+    text-shadow: 0 0 24px rgba(216, 180, 254, 0.16);
+  }
+  .ys-title-watermark--universe {
+    color: transparent;
+    background: linear-gradient(
+      100deg,
+      rgba(103, 232, 249, 0.8),
+      rgba(244, 114, 182, 0.72),
+      rgba(129, 140, 248, 0.7)
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    text-shadow: 0 0 28px rgba(103, 232, 249, 0.16);
+  }
+  .ys-title-watermark--creator {
+    color: transparent;
+    background: linear-gradient(90deg, rgba(253, 224, 71, 0.88), rgba(251, 191, 36, 0.86));
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-stroke: 0.4px rgba(255, 255, 255, 0.22);
+    text-shadow:
+      0 0 16px rgba(251, 191, 36, 0.22),
+      0 0 34px rgba(245, 158, 11, 0.18);
+  }
 
   .ys-mine-profile-card-row {
     @apply flex min-w-0 w-full items-start gap-1;
@@ -329,6 +427,33 @@
       0 0 0 1px rgba(255, 255, 255, 0.06),
       0 8px 28px rgba(240, 98, 146, 0.22),
       0 4px 16px rgba(255, 213, 79, 0.12);
+  }
+  .ys-mine-avatar-slot--stardust {
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.04), 0 6px 14px rgba(255, 255, 255, 0.1);
+  }
+  .ys-mine-avatar-slot--glimmer {
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 8px 18px rgba(255, 255, 255, 0.16);
+  }
+  .ys-mine-avatar-slot--meteor {
+    box-shadow: 0 0 0 1px rgba(120, 180, 255, 0.25), 0 10px 24px rgba(120, 180, 255, 0.24);
+  }
+  .ys-mine-avatar-slot--satellite {
+    box-shadow: 0 0 0 1px rgba(170, 145, 255, 0.26), 0 10px 24px rgba(170, 145, 255, 0.26);
+  }
+  .ys-mine-avatar-slot--planet {
+    box-shadow: 0 0 0 1px rgba(79, 209, 197, 0.28), 0 10px 24px rgba(79, 209, 197, 0.28);
+  }
+  .ys-mine-avatar-slot--star {
+    box-shadow: 0 0 0 1px rgba(255, 213, 79, 0.34), 0 10px 26px rgba(255, 213, 79, 0.34);
+  }
+  .ys-mine-avatar-slot--galaxy {
+    box-shadow: 0 0 0 1px rgba(186, 104, 200, 0.36), 0 10px 28px rgba(186, 104, 200, 0.36);
+  }
+  .ys-mine-avatar-slot--universe {
+    box-shadow: 0 0 0 1px rgba(64, 224, 208, 0.38), 0 10px 30px rgba(64, 224, 208, 0.38);
+  }
+  .ys-mine-avatar-slot--creator {
+    box-shadow: 0 0 0 1px rgba(255, 215, 0, 0.44), 0 10px 34px rgba(255, 215, 0, 0.44);
   }
 
   .ys-mine-profile-main {

@@ -157,6 +157,9 @@ export default function SpacetimeMailboxApp({
   );
   const requestEmailOtp = useReducer(reducers.requestEmailOtp);
   const verifyEmailOtp = useReducer(reducers.verifyEmailOtp);
+  const resetPasswordWithEmailOtp = useReducer(
+    (reducers as any).resetPasswordWithEmailOtp,
+  );
   const updateAccountProfile = useReducer(reducers.updateAccountProfile);
   const setAgeYears = useReducer(reducers.setAgeYears);
   const loginAccount = useReducer(reducers.loginAccount);
@@ -181,6 +184,7 @@ export default function SpacetimeMailboxApp({
   const setSquareReaction = useReducer(reducers.setSquareReaction);
   const appendLetterExchange = useReducer(reducers.appendLetterExchange);
   const addSquareComment = useReducer(reducers.addSquareComment);
+  const drawCapsuleOnce = useReducer((reducers as any).drawCapsuleOnce);
   const addCapsulePrivateMessage = useReducer(
     reducers.addCapsulePrivateMessage,
   );
@@ -191,6 +195,15 @@ export default function SpacetimeMailboxApp({
   const adminDeleteCapsule = useReducer(reducers.adminDeleteCapsule);
   const adminDeleteSquarePost = useReducer(reducers.adminDeleteSquarePost);
   const adminDeleteRoleRecord = useReducer(reducers.adminDeleteRoleRecord);
+  const adminUpdateAccountProfileAndPoints = useReducer(
+    (reducers as any).adminUpdateAccountProfileAndPoints,
+  );
+  const adminSetTemporaryPasswordByEmail = useReducer(
+    (reducers as any).adminSetTemporaryPasswordByEmail,
+  );
+  const adminResetPasswordByEmail = useReducer(
+    (reducers as any).adminResetPasswordByEmail,
+  );
   const adminCreateAvatarSeriesBatch = useReducer(
     (reducers as any).adminCreateAvatarSeriesBatch,
   );
@@ -445,6 +458,25 @@ export default function SpacetimeMailboxApp({
   const [avatarActionError, setAvatarActionError] = useState("");
   const [dailyRewardLoading, setDailyRewardLoading] = useState(false);
   const [dailyRewardToast, setDailyRewardToast] = useState("");
+  const [forcePwdOld, setForcePwdOld] = useState("");
+  const [forcePwdNew, setForcePwdNew] = useState("");
+  const [forcePwdConfirm, setForcePwdConfirm] = useState("");
+  const [forcePwdSaving, setForcePwdSaving] = useState(false);
+  const [forcePwdError, setForcePwdError] = useState("");
+  const emitPointsToast = useCallback(
+    (delta: number, action: string, settled = false) => {
+      const amount = delta > 0 ? `+${delta}` : delta < 0 ? `${delta}` : "±0";
+      const status = settled
+        ? "每日結算"
+        : delta < 0
+          ? "已扣除"
+          : "已入帳";
+      setDailyRewardToast(
+        `【積分】${amount}｜${action}｜${status}`,
+      );
+    },
+    [],
+  );
 
   /** 給舉報人看的結果通知（存入 resolutionNote） */
   const PRESET_REPORTER: Record<string, string> = {
@@ -681,6 +713,16 @@ export default function SpacetimeMailboxApp({
       ? (tables as any).accountDailyRewardClaim.where((r: any) => r.accountId.eq(myAccountId))
       : (tables as any).accountDailyRewardClaim.where((r: any) => r.accountId.eq("__stop__")),
   );
+  const [passwordResetRequiredRows] = useTable(
+    myAccountId
+      ? (tables as any).accountPasswordResetRequired.where((r: any) => r.accountId.eq(myAccountId))
+      : (tables as any).accountPasswordResetRequired.where((r: any) => r.accountId.eq("__stop__")),
+  );
+  const [adminPointsWalletRows] = useTable(
+    activeTab === "admin" || activeTab === "admin_ops"
+      ? (tables as any).accountPointsWallet
+      : (tables as any).accountPointsWallet.where((r: any) => r.accountId.eq("__stop__")),
+  );
   const [myCreatedAtRows] = useTable(
     myEmail
       ? (tables as any).accountProfileCreatedAt.where((r: any) => r.email.eq(myEmail))
@@ -874,6 +916,36 @@ export default function SpacetimeMailboxApp({
     const row = pointsWalletRows[0] as any;
     return row?.balance != null ? Number(row.balance) : 0;
   }, [pointsWalletRows]);
+  const mustForcePasswordReset = useMemo(() => {
+    const row = (passwordResetRequiredRows as any[])[0];
+    return !!(row && row.required);
+  }, [passwordResetRequiredRows]);
+  const pointsBalanceByAccountId = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const row of adminPointsWalletRows as any[]) {
+      const aid = String(row.accountId ?? "").trim();
+      if (!aid) continue;
+      m.set(aid, Number(row.balance ?? 0));
+    }
+    return m;
+  }, [adminPointsWalletRows]);
+  const consumedPoints = useMemo(() => {
+    return Math.max(0, availablePoints);
+  }, [availablePoints]);
+  const titleMeta = useMemo(() => {
+    const tiers = [
+      { need: 1_000_000, label: "造物主", en: "CREATOR", tone: "creator" },
+      { need: 200_000, label: "宇宙", en: "UNIVERSE", tone: "universe" },
+      { need: 50_000, label: "星系", en: "GALAXY", tone: "galaxy" },
+      { need: 10_000, label: "恆星", en: "STAR", tone: "star" },
+      { need: 2_000, label: "行星", en: "PLANET", tone: "planet" },
+      { need: 500, label: "衛星", en: "SATELLITE", tone: "satellite" },
+      { need: 100, label: "流星", en: "METEOR", tone: "meteor" },
+      { need: 10, label: "微光", en: "GLIMMER", tone: "glimmer" },
+      { need: 0, label: "星塵", en: "STARDUST", tone: "stardust" },
+    ] as const;
+    return tiers.find((t) => consumedPoints >= t.need) ?? tiers[tiers.length - 1];
+  }, [consumedPoints]);
 
   const avatarCatalogRows = useMemo(
     () =>
@@ -1607,6 +1679,18 @@ export default function SpacetimeMailboxApp({
     registerOtpCooldownUntilMs,
     registerOtpVerified,
     requestRegisterEmailOtp,
+    forgotOtpCode,
+    setForgotOtpCode,
+    forgotOtpBusy,
+    forgotOtpMessage,
+    forgotOtpCooldownUntilMs,
+    forgotOtpVerified,
+    forgotNewPassword,
+    setForgotNewPassword,
+    forgotConfirmPassword,
+    setForgotConfirmPassword,
+    requestForgotPasswordOtp,
+    submitForgotPasswordReset,
     openProfileModal,
     openProfileActionMenu,
     openAccountProfile,
@@ -1635,6 +1719,7 @@ export default function SpacetimeMailboxApp({
     registerAccountWithEmailOtp,
     requestEmailOtp,
     verifyEmailOtp,
+    resetPasswordWithEmailOtp,
     myProfile,
     user,
     setBirthYear,
@@ -1808,6 +1893,7 @@ export default function SpacetimeMailboxApp({
             squareShowRecipient: false,
           }),
         );
+        emitPointsToast(5, "發布膠囊");
         setComposeSuccess("秘密膠囊已即時送出。");
       }
       (e.target as HTMLFormElement).reset();
@@ -2386,6 +2472,11 @@ export default function SpacetimeMailboxApp({
         key="bootloader"
         className="ys-dreamy-cosmic flex h-screen w-full flex-col items-center justify-center text-white"
       >
+        <img
+          src={`${import.meta.env.BASE_URL}logo.png`}
+          alt="有說"
+          className="mb-4 h-16 w-16 rounded-2xl border border-white/15 bg-white/5 object-contain p-1 shadow-lg"
+        />
         <Loader2 className="h-8 w-8 animate-spin text-[#FFD54F] mb-4" />
         <p className="text-[14px] font-bold">正在連線至時空數據庫...</p>
       </div>
@@ -2407,6 +2498,13 @@ export default function SpacetimeMailboxApp({
         registerOtpMessage={registerOtpMessage}
         registerOtpCooldownUntilMs={registerOtpCooldownUntilMs}
         registerOtpVerified={registerOtpVerified}
+        forgotOtpCode={forgotOtpCode}
+        forgotOtpBusy={forgotOtpBusy}
+        forgotOtpMessage={forgotOtpMessage}
+        forgotOtpCooldownUntilMs={forgotOtpCooldownUntilMs}
+        forgotOtpVerified={forgotOtpVerified}
+        forgotNewPassword={forgotNewPassword}
+        forgotConfirmPassword={forgotConfirmPassword}
         loading={loading}
         error={error}
         onSubmit={() => void handleAuth(view !== "register")}
@@ -2419,6 +2517,11 @@ export default function SpacetimeMailboxApp({
         onRegisterProfileNoteChange={setRegisterProfileNote}
         onRegisterOtpCodeChange={setRegisterOtpCode}
         onRequestRegisterOtp={() => void requestRegisterEmailOtp()}
+        onForgotOtpCodeChange={setForgotOtpCode}
+        onForgotNewPasswordChange={setForgotNewPassword}
+        onForgotConfirmPasswordChange={setForgotConfirmPassword}
+        onRequestForgotOtp={() => void requestForgotPasswordOtp()}
+        onSubmitForgotPassword={() => void submitForgotPasswordReset()}
         onClearTransientState={() => {
           setError("");
           setConfirmPassword("");
@@ -2486,6 +2589,7 @@ export default function SpacetimeMailboxApp({
     unfavoriteSquarePost,
     favoriteCapsule,
     unfavoriteCapsule,
+    onPointsToast: emitPointsToast,
   });
 
   const {
@@ -2524,6 +2628,8 @@ export default function SpacetimeMailboxApp({
     setCapsulePostId,
     setCapsulePrivateDraft,
     setCapsuleThreadGuestHex,
+    onPointsToast: emitPointsToast,
+    drawCapsuleOnce,
     deleteCapsuleMessage,
     myProfile,
     currentMessage,
@@ -2554,6 +2660,7 @@ export default function SpacetimeMailboxApp({
     selectedMessageId,
     setLoading,
     setSquareActionError,
+    onPointsToast: emitPointsToast,
     publishRepliesPublic,
     publishIncludeThread,
     publishIncludeCapsulePrivate,
@@ -2700,6 +2807,15 @@ export default function SpacetimeMailboxApp({
     adminSearchRows,
     adminTargetIdentityHex,
     selectedAdminTargetProfile,
+    pointsBalanceByAccountId,
+    canEditAccountOperation:
+      (String(activeAdminRoleRow?.role ?? "")
+        .trim()
+        .toLowerCase() === "super_admin" ||
+        String(activeAdminRoleRow?.role ?? "")
+          .trim()
+          .toLowerCase() === "moderator") &&
+      !!activeAdminRoleRow?.isActive,
     activeSanctionsForTarget,
     appealTicketRows,
     userSanctionRows,
@@ -2735,6 +2851,9 @@ export default function SpacetimeMailboxApp({
     setAdminTargetIdentityHex,
     quickBanTargetAccount: () => void quickBanTargetAccount(),
     quickUnbanTargetAccount: () => void quickUnbanTargetAccount(),
+    operateAccount: async (args) => {
+      await handleOperateAccount(args);
+    },
     isAdminReportModalVisible,
     adminGrantEmail,
     adminGrantRole,
@@ -2937,7 +3056,10 @@ export default function SpacetimeMailboxApp({
     setAvatarActionError("");
     try {
       await unlockAvatarItem({ avatarKey } as any);
-      setDailyRewardToast("已解鎖並套用新頭像");
+      const row = avatarCatalogRows.find((x: any) => String(x.avatarKey) === avatarKey);
+      const cost = row ? Number(row.pricePoints || 0) : 0;
+      if (cost > 0) emitPointsToast(-cost, "解鎖頭像");
+      else setDailyRewardToast("已解鎖並套用新頭像");
       setAvatarPickerOpen(false);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -2952,12 +3074,79 @@ export default function SpacetimeMailboxApp({
     setDailyRewardLoading(true);
     try {
       await claimNewcomerDailyPoints({} as any);
-      setDailyRewardToast("已領取 188 積分");
+      emitPointsToast(188, "領取每日積分");
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       setDailyRewardToast(msg || "領取失敗");
     } finally {
       setDailyRewardLoading(false);
+    }
+  };
+
+  const handleOperateAccount = async (args: {
+    accountId: string;
+    email: string;
+    displayName: string;
+    gender: string;
+    ageYears: number;
+    pointsBalance: number;
+    secretPlain: string;
+  }) => {
+    setAdminActionLoading(true);
+    setAdminActionError("");
+    try {
+      await adminUpdateAccountProfileAndPoints({
+        accountId: args.accountId,
+        displayName: args.displayName,
+        gender: args.gender,
+        ageYears: Math.max(16, Math.min(126, Math.floor(args.ageYears))),
+        pointsBalance: BigInt(Math.max(0, Math.floor(args.pointsBalance))),
+      } as any);
+      const secret = String(args.secretPlain ?? "").trim();
+      if (secret) {
+        await adminSetTemporaryPasswordByEmail({
+          email: args.email,
+          temporaryPassword: secret,
+        } as any);
+      }
+      setDailyRewardToast(secret ? "帳號資料已更新，已設定一次性密碼" : "帳號資料已更新");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setAdminActionError(msg || "操作帳號失敗");
+      throw err;
+    } finally {
+      setAdminActionLoading(false);
+    }
+  };
+
+  const submitForcedPasswordChange = async () => {
+    const oldPassword = forcePwdOld.trim();
+    const newPassword = forcePwdNew.trim();
+    if (!oldPassword || !newPassword) {
+      setForcePwdError("請填寫臨時密碼與新密碼");
+      return;
+    }
+    if (newPassword.length < 6 || newPassword.length > 128) {
+      setForcePwdError("新密碼長度需 6–128 字元");
+      return;
+    }
+    if (newPassword !== forcePwdConfirm) {
+      setForcePwdError("兩次新密碼不一致");
+      return;
+    }
+    setForcePwdSaving(true);
+    setForcePwdError("");
+    try {
+      await changePassword({ oldPassword, newPassword });
+      setForcePwdOld("");
+      setForcePwdNew("");
+      setForcePwdConfirm("");
+      setDailyRewardToast("密碼更新成功");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setForcePwdError(msg || "修改密碼失敗");
+    } finally {
+      setForcePwdSaving(false);
     }
   };
 
@@ -3086,7 +3275,7 @@ export default function SpacetimeMailboxApp({
         sanctionTickerText={sanctionTickerText}
       />
 
-      <div className="relative flex min-h-0 flex-1 overflow-hidden pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] md:pb-0">
+      <div className="relative flex min-h-0 flex-1 overflow-y-auto overflow-x-hidden pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] md:overflow-hidden md:pb-0">
         {/* Column 1: Message List (Product Grid Style) */}
         <aside
           className={cn(
@@ -3217,8 +3406,8 @@ export default function SpacetimeMailboxApp({
               className={cn(
                 "min-h-0 flex-1",
                 activeTab === "secret" || activeTab === "mine_square"
-                  ? "flex flex-col overflow-y-auto apple-scroll"
-                  : "space-y-1.5 overflow-y-auto apple-scroll",
+                  ? "flex flex-col md:overflow-y-auto apple-scroll"
+                  : "space-y-1.5 md:overflow-y-auto apple-scroll",
               )}
             >
             {(activeTab === "inbox" ||
@@ -3275,6 +3464,9 @@ export default function SpacetimeMailboxApp({
                 dailyRewardStatus={dailyRewardStatus}
                 dailyRewardLoading={dailyRewardLoading}
                 onClaimDailyReward={() => void handleClaimDailyReward()}
+                titleLabel={titleMeta.label}
+                titleWatermark={titleMeta.en}
+                titleTone={titleMeta.tone}
               />
             ) : activeTab === "mine_square" ? (
               squareSelectedPostId ? (
@@ -3300,6 +3492,7 @@ export default function SpacetimeMailboxApp({
                 }
                 capsuleCount={spaceCapsules.length}
                 squareCount={spaceSquares.length}
+                watermarkText={isOwnSpace ? titleMeta.en : ""}
               />
             ) : activeTab === "admin" || activeTab === "admin_ops" ? (
               <AdminWorkbench viewProps={adminViewProps} slot="sidebar" />
@@ -3414,7 +3607,7 @@ export default function SpacetimeMailboxApp({
         >
           <div
             className={cn(
-              "flex min-h-0 flex-1 flex-col overflow-y-auto apple-scroll px-2 py-2 md:px-8 md:py-8",
+              "flex min-h-0 flex-1 flex-col overflow-y-auto apple-scroll px-2 md:px-8 md:py-2",
               activeTab === "new" || activeTab === "direct"
                 ? "justify-start"
                 : (activeTab === "secret" && !selectedSquarePost) ||
@@ -3624,6 +3817,54 @@ export default function SpacetimeMailboxApp({
         onSubmitAgeGate={() => void submitAgeGate()}
       />
       <AdminWorkbench viewProps={adminViewProps} slot="modals" />
+
+      {mustForcePasswordReset ? (
+        <div className="fixed inset-0 z-[320] flex items-center justify-center bg-black/55 p-4">
+          <div className="cd-modal-panel w-full max-w-md p-4">
+            <p className="text-[16px] font-bold text-white">安全提醒：請立即更新密碼</p>
+            <p className="mt-1 text-[12px] text-white/70">
+              你正在使用一次性密碼登入，必須先修改密碼才能繼續使用。
+            </p>
+            <div className="mt-3 space-y-2">
+              <input
+                type="password"
+                value={forcePwdOld}
+                onChange={(e) => setForcePwdOld(e.target.value)}
+                placeholder="臨時密碼"
+                className="cd-field text-[13px]"
+                disabled={forcePwdSaving}
+              />
+              <input
+                type="password"
+                value={forcePwdNew}
+                onChange={(e) => setForcePwdNew(e.target.value)}
+                placeholder="新密碼（6-128 字元）"
+                className="cd-field text-[13px]"
+                disabled={forcePwdSaving}
+              />
+              <input
+                type="password"
+                value={forcePwdConfirm}
+                onChange={(e) => setForcePwdConfirm(e.target.value)}
+                placeholder="確認新密碼"
+                className="cd-field text-[13px]"
+                disabled={forcePwdSaving}
+              />
+              {forcePwdError ? (
+                <p className="text-[12px] font-semibold text-red-300">{forcePwdError}</p>
+              ) : null}
+            </div>
+            <button
+              type="button"
+              className="cd-btn-primary mt-4 w-full py-2 text-[13px] font-bold disabled:opacity-60"
+              disabled={forcePwdSaving}
+              onClick={() => void submitForcedPasswordChange()}
+            >
+              {forcePwdSaving ? "更新中…" : "更新密碼"}
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       {dailyRewardToast ? (
         <div className="pointer-events-none fixed bottom-24 left-1/2 z-[260] -translate-x-1/2 rounded-full border border-white/15 bg-black/70 px-3 py-1.5 text-[12px] font-semibold text-white shadow-lg">

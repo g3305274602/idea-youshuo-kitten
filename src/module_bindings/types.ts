@@ -30,6 +30,23 @@ export const AccountDailyRewardClaim = __t.object("AccountDailyRewardClaim", {
 });
 export type AccountDailyRewardClaim = __Infer<typeof AccountDailyRewardClaim>;
 
+export const AccountEngagementSettlement = __t.object("AccountEngagementSettlement", {
+  accountId: __t.string(),
+  ownerIdentity: __t.identity(),
+  lastSettledOrdinal: __t.i64(),
+  lastActiveCount: __t.i64(),
+  updatedAt: __t.timestamp(),
+});
+export type AccountEngagementSettlement = __Infer<typeof AccountEngagementSettlement>;
+
+export const AccountPasswordResetRequired = __t.object("AccountPasswordResetRequired", {
+  accountId: __t.string(),
+  ownerIdentity: __t.identity(),
+  required: __t.bool(),
+  issuedAt: __t.timestamp(),
+});
+export type AccountPasswordResetRequired = __Infer<typeof AccountPasswordResetRequired>;
+
 export const AccountPointsLedger = __t.object("AccountPointsLedger", {
   id: __t.string(),
   accountId: __t.string(),

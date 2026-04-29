@@ -66,6 +66,8 @@ type UseMailboxInteractionHandlersParams = {
   setCapsulePostId: (value: any) => void;
   setCapsulePrivateDraft: (value: any) => void;
   setCapsuleThreadGuestHex: (value: any) => void;
+  onPointsToast: (delta: number, action: string, settled?: boolean) => void;
+  drawCapsuleOnce: (args: {}) => Promise<unknown>;
   deleteCapsuleMessage: (args: { id: string }) => Promise<unknown>;
   myProfile: unknown;
   currentMessage: MessageLike | null | undefined;
@@ -148,7 +150,14 @@ export function useMailboxInteractionHandlers(
     sessionStorage.removeItem(CAPSULE_FORWARD_SHOWN_KEY);
   };
 
-  const openCapsuleDrawer = () => {
+  const openCapsuleDrawer = async () => {
+    try {
+      await params.drawCapsuleOnce({});
+      params.onPointsToast(-10, "抽取膠囊");
+    } catch (error) {
+      params.setSquareActionError(error instanceof Error ? error.message : "抽膠囊失敗");
+      return;
+    }
     params.setCapsuleOpen(true);
     params.setCapsuleSwitching(false);
     params.setSquareActionError("");

@@ -152,6 +152,16 @@ const accountSecret = table(
   },
 );
 
+const accountPasswordResetRequired = table(
+  { name: "account_password_reset_required", public: true },
+  {
+    accountId: t.string().primaryKey(),
+    ownerIdentity: t.identity().index("btree"),
+    required: t.bool().default(true),
+    issuedAt: t.timestamp(),
+  },
+);
+
 /** Email OTP challenge（私有） */
 const emailOtpChallenge = table(
   { name: "email_otp_challenge", public: false },
@@ -468,6 +478,18 @@ const accountDailyRewardClaim = table(
   },
 );
 
+/** 互動積分每日結算狀態（按帳號記錄上次結算日與快照） */
+const accountEngagementSettlement = table(
+  { name: "account_engagement_settlement", public: false },
+  {
+    accountId: t.string().primaryKey(),
+    ownerIdentity: t.identity().index("btree"),
+    lastSettledOrdinal: t.i64().default(-1n),
+    lastActiveCount: t.i64().default(0n),
+    updatedAt: t.timestamp(),
+  },
+);
+
 /** 用戶舉報單 */
 const reportTicket = table(
   { name: "report_ticket", public: true },
@@ -572,6 +594,7 @@ const spacetimedb = schema({
   accountProfile,
   accountProfileCreatedAt,
   accountSecret,
+  accountPasswordResetRequired,
   emailOtpChallenge,
   emailOtpSession,
   emailOtpAuditLog,
@@ -591,6 +614,7 @@ const spacetimedb = schema({
   accountPointsWallet,
   accountPointsLedger,
   accountDailyRewardClaim,
+  accountEngagementSettlement,
   reportTicket,
   reportTargetSnapshot,
   moderationActionLog,
@@ -930,13 +954,15 @@ const REPORT_TARGET_TYPES = new Set([
   "chat_account",
 ]);
 const ADMIN_ROLES = new Set(["super_admin", "moderator", "reviewer"]);
-const EMAIL_OTP_PURPOSES = new Set(["register"]);
+const EMAIL_OTP_PURPOSES = new Set(["register", "reset_password"]);
 const EMAIL_OTP_CODE_LEN = 6;
 const EMAIL_OTP_EXPIRE_MICROS = 5n * 60n * 1_000_000n;
 const EMAIL_OTP_RESEND_MICROS = 60n * 1_000_000n;
 const EMAIL_OTP_LOCK_MICROS = 15n * 60n * 1_000_000n;
 const EMAIL_OTP_SESSION_MICROS = 15n * 60n * 1_000_000n;
 const EMAIL_OTP_MAX_ATTEMPTS = 5;
+const RESET_PWD_MIN_INTERVAL_MICROS = 5n * 60n * 1_000_000n;
+const RESET_PWD_DAILY_MAX = 3;
 const AVATAR_KEY_MAX = 80;
 const AVATAR_SERIES_KEY_MAX = 32;
 const AVATAR_SERIES_NAME_MAX = 32;
@@ -944,6 +970,10 @@ const AVATAR_FILE_NAME_MAX = 160;
 const AVATAR_BASE_PATH_MAX = 200;
 const AVATAR_PRICE_MIN = 0;
 const AVATAR_PRICE_MAX = 99999;
+const SQUARE_PUBLISH_COST = 10n;
+const CAPSULE_DRAW_COST = 10n;
+const REWARD_SEND_CAPSULE = 5n;
+const REWARD_PRIVATE_REPLY = 5n;
 const DAILY_REWARD_POINTS = 188n;
 const DAILY_REWARD_DAYS = 3;
 const UTC8_OFFSET_MICROS = 8n * 60n * 60n * 1_000_000n;
@@ -1047,7 +1077,7 @@ function getOrCreatePointsWallet(
 }
 
 function writePointsLedger(
-  ctx: { db: any; sender: Identity; timestamp: Timestamp; random: Random },
+  ctx: { db: any; timestamp: Timestamp; random: Random },
   params: {
     accountId: string;
     ownerIdentity: Identity;
@@ -1067,6 +1097,117 @@ function writePointsLedger(
     detail: (params.detail ?? "").trim(),
     createdAt: ctx.timestamp,
   });
+}
+
+function creditPoints(
+  ctx: { db: any; timestamp: Timestamp; random: Random },
+  params: {
+    accountId: string;
+    ownerIdentity: Identity;
+    points: bigint;
+    reason: string;
+    detail?: string;
+  },
+) {
+  if (params.points <= 0n) return;
+  const wallet = getOrCreatePointsWallet(ctx, params.accountId, params.ownerIdentity);
+  const nextBalance = wallet.balance + params.points;
+  ctx.db.accountPointsWallet.accountId.update({
+    ...wallet,
+    balance: nextBalance,
+    updatedAt: ctx.timestamp,
+  });
+  writePointsLedger(ctx, {
+    accountId: params.accountId,
+    ownerIdentity: params.ownerIdentity,
+    delta: params.points,
+    balanceAfter: nextBalance,
+    reason: params.reason,
+    detail: params.detail,
+  });
+}
+
+function computeEngagementActiveCountForAccount(
+  ctx: { db: any },
+  accountId: string,
+  ownerIdentity: Identity,
+): bigint {
+  const postIds = new Set<string>();
+  for (const post of ctx.db.squarePost.iter()) {
+    if (post.publisherAccountId === accountId) postIds.add(post.sourceMessageId);
+  }
+
+  let count = 0n;
+  for (const reaction of ctx.db.squareReaction.iter()) {
+    if (reaction.kind !== "up") continue;
+    if (!postIds.has(reaction.postSourceMessageId)) continue;
+    if (reaction.reactorIdentity.isEqual(ownerIdentity)) continue;
+    count += 1n;
+  }
+  for (const fav of ctx.db.squareFavorite.iter()) {
+    if (!postIds.has(fav.postSourceMessageId)) continue;
+    if (fav.collectorIdentity.isEqual(ownerIdentity)) continue;
+    count += 1n;
+  }
+
+  const myCapsuleIds = new Set<string>();
+  for (const cap of ctx.db.capsuleMessage.authorAccountId.filter(accountId)) {
+    myCapsuleIds.add(cap.id);
+  }
+  for (const fav of ctx.db.capsuleFavorite.iter()) {
+    if (!myCapsuleIds.has(fav.capsuleId)) continue;
+    if (fav.collectorIdentity.isEqual(ownerIdentity)) continue;
+    count += 1n;
+  }
+  return count;
+}
+
+function settleEngagementPointsForAccount(
+  ctx: { db: any; timestamp: Timestamp; random: Random },
+  accountId: string,
+  ownerIdentity: Identity,
+) {
+  const aid = accountId.trim();
+  if (!aid) return;
+  const todayOrdinal = utc8DayOrdinal(ctx.timestamp.microsSinceUnixEpoch);
+  const st = ctx.db.accountEngagementSettlement.accountId.find(aid);
+  if (st && st.lastSettledOrdinal === todayOrdinal) return;
+
+  const currentActive = computeEngagementActiveCountForAccount(
+    ctx,
+    aid,
+    ownerIdentity,
+  );
+  const baseline = st?.lastActiveCount ?? 0n;
+  const grant = currentActive > baseline ? currentActive - baseline : 0n;
+
+  if (grant > 0n) {
+    creditPoints(ctx, {
+      accountId: aid,
+      ownerIdentity,
+      points: grant,
+      reason: "engagement_daily_settlement",
+      detail: todayOrdinal.toString(),
+    });
+  }
+
+  if (st) {
+    ctx.db.accountEngagementSettlement.accountId.update({
+      ...st,
+      ownerIdentity,
+      lastSettledOrdinal: todayOrdinal,
+      lastActiveCount: currentActive,
+      updatedAt: ctx.timestamp,
+    });
+  } else {
+    ctx.db.accountEngagementSettlement.insert({
+      accountId: aid,
+      ownerIdentity,
+      lastSettledOrdinal: todayOrdinal,
+      lastActiveCount: currentActive,
+      updatedAt: ctx.timestamp,
+    });
+  }
 }
 
 function validateProfileFields(
@@ -1314,6 +1455,19 @@ function requireSuperAdmin(ctx: { db: any; sender: Identity }) {
   }
 }
 
+function requireAdminEditor(ctx: { db: any; sender: Identity }) {
+  const pf = ctx.db.accountProfile.ownerIdentity.find(ctx.sender);
+  if (!pf) throw new SenderError("尚未登入");
+  const row = ctx.db.adminRole.accountId.find(pf.accountId);
+  if (!row || !row.isActive) throw new SenderError("僅管理員可操作");
+  const role = String(row.role ?? "")
+    .trim()
+    .toLowerCase();
+  if (role !== "super_admin" && role !== "moderator") {
+    throw new SenderError("僅超管或管理員可編輯");
+  }
+}
+
 function findOrphanSuperAdmins(ctx: { db: any }): any[] {
   const rows: any[] = [];
   for (const row of ctx.db.adminRole.iter()) {
@@ -1405,6 +1559,31 @@ export const request_email_otp = spacetimedb.reducer(
   (ctx, { email, purpose, code }) => {
     const em = assertEmailForOtp(email);
     const p = normalizeOtpPurpose(purpose);
+    if (p === "reset_password") {
+      const profile = ctx.db.accountProfile.email.find(em);
+      if (!profile) throw new SenderError("帳號不存在");
+      const nowMicros = ctx.timestamp.microsSinceUnixEpoch;
+      const todayOrdinal = utc8DayOrdinal(nowMicros);
+      let latestRequestMicros = 0n;
+      let todayCount = 0;
+      for (const row of ctx.db.emailOtpAuditLog.email.filter(em)) {
+        if (row.purpose !== "reset_password") continue;
+        if (row.action !== "request") continue;
+        if (row.status !== "queued") continue;
+        const micros = row.createdAt.microsSinceUnixEpoch;
+        if (micros > latestRequestMicros) latestRequestMicros = micros;
+        if (utc8DayOrdinal(micros) === todayOrdinal) todayCount += 1;
+      }
+      if (
+        latestRequestMicros > 0n &&
+        nowMicros - latestRequestMicros < RESET_PWD_MIN_INTERVAL_MICROS
+      ) {
+        throw new SenderError("同帳號 5 分鐘內僅可發送 1 次重設驗證碼");
+      }
+      if (todayCount >= RESET_PWD_DAILY_MAX) {
+        throw new SenderError("同帳號每日最多僅可發送 3 次重設驗證碼");
+      }
+    }
     const providedCode = (code ?? "").trim();
     if (providedCode && !/^\d{6}$/.test(providedCode)) {
       throw new SenderError("驗證碼格式不正確");
@@ -2186,6 +2365,12 @@ export const change_password = spacetimedb.reducer(
       ...sec,
       passwordHash: hashPassword(np, ctx.random),
     });
+    const resetRequired = ctx.db.accountPasswordResetRequired.accountId.find(
+      pf.accountId,
+    );
+    if (resetRequired) {
+      ctx.db.accountPasswordResetRequired.delete(resetRequired);
+    }
   },
 );
 
@@ -2371,7 +2556,7 @@ export const admin_reset_password_by_email = spacetimedb.reducer(
   },
   (ctx, { email, newPassword }) => {
     if (hasAnyAdmin(ctx)) {
-      requireSuperAdmin(ctx);
+      requireAdminEditor(ctx);
     }
     const em = normalizeEmail(email);
     if (!em) throw new SenderError("請提供有效信箱");
@@ -2394,6 +2579,163 @@ export const admin_reset_password_by_email = spacetimedb.reducer(
         "",
       );
     }
+  },
+);
+
+export const admin_set_temporary_password_by_email = spacetimedb.reducer(
+  {
+    email: t.string(),
+    temporaryPassword: t.string(),
+  },
+  (ctx, { email, temporaryPassword }) => {
+    requireAdminEditor(ctx);
+    const em = normalizeEmail(email);
+    if (!em) throw new SenderError("請提供有效信箱");
+    const np = String(temporaryPassword ?? "").trim();
+    if (np.length < 6 || np.length > 128) {
+      throw new SenderError("臨時密碼長度需 6–128 字元");
+    }
+    const sec = ctx.db.accountSecret.email.find(em);
+    const profile = ctx.db.accountProfile.email.find(em);
+    if (!sec || !profile) throw new SenderError("帳號不存在");
+
+    ctx.db.accountSecret.email.update({
+      ...sec,
+      passwordHash: hashPassword(np, ctx.random),
+    });
+
+    const existing = ctx.db.accountPasswordResetRequired.accountId.find(
+      profile.accountId,
+    );
+    if (existing) {
+      ctx.db.accountPasswordResetRequired.accountId.update({
+        ...existing,
+        ownerIdentity: profile.ownerIdentity,
+        required: true,
+        issuedAt: ctx.timestamp,
+      });
+    } else {
+      ctx.db.accountPasswordResetRequired.insert({
+        accountId: profile.accountId,
+        ownerIdentity: profile.ownerIdentity,
+        required: true,
+        issuedAt: ctx.timestamp,
+      });
+    }
+
+    writeAdminAudit(
+      ctx,
+      "admin_set_temporary_password_by_email",
+      "account_secret",
+      em,
+      "force_reset:true",
+    );
+  },
+);
+
+export const reset_password_with_email_otp = spacetimedb.reducer(
+  {
+    email: t.string(),
+    newPassword: t.string(),
+  },
+  (ctx, { email, newPassword }) => {
+    const em = assertEmailForOtp(email);
+    const np = String(newPassword ?? "").trim();
+    if (np.length < 6 || np.length > 128) {
+      throw new SenderError("新密碼長度需 6–128 字元");
+    }
+
+    const sessionKey = makeOtpSessionKey(ctx.sender, "reset_password", em);
+    const session = ctx.db.emailOtpSession.sessionKey.find(sessionKey);
+    if (!session) throw new SenderError("請先完成信箱驗證");
+    if (session.expiresAt.microsSinceUnixEpoch <= ctx.timestamp.microsSinceUnixEpoch) {
+      ctx.db.emailOtpSession.sessionKey.delete(sessionKey);
+      throw new SenderError("驗證已過期，請重新獲取驗證碼");
+    }
+
+    const sec = ctx.db.accountSecret.email.find(em);
+    const profile = ctx.db.accountProfile.email.find(em);
+    if (!sec || !profile) throw new SenderError("帳號不存在");
+
+    ctx.db.accountSecret.email.update({
+      ...sec,
+      passwordHash: hashPassword(np, ctx.random),
+    });
+    ctx.db.emailOtpSession.sessionKey.delete(sessionKey);
+    const challengeKey = makeOtpChallengeKey("reset_password", em);
+    const challenge = ctx.db.emailOtpChallenge.challengeKey.find(challengeKey);
+    if (challenge) ctx.db.emailOtpChallenge.challengeKey.delete(challenge.challengeKey);
+
+    const resetRequired = ctx.db.accountPasswordResetRequired.accountId.find(
+      profile.accountId,
+    );
+    if (resetRequired) ctx.db.accountPasswordResetRequired.delete(resetRequired);
+  },
+);
+
+export const admin_update_account_profile_and_points = spacetimedb.reducer(
+  {
+    accountId: t.string(),
+    displayName: t.string(),
+    gender: t.string(),
+    ageYears: t.u8(),
+    pointsBalance: t.i64(),
+  },
+  (ctx, { accountId, displayName, gender, ageYears, pointsBalance }) => {
+    requireAdminEditor(ctx);
+    const aid = String(accountId ?? "").trim();
+    if (!aid) throw new SenderError("缺少 accountId");
+    const target = ctx.db.accountProfile.accountId.find(aid);
+    if (!target) throw new SenderError("找不到帳號");
+
+    const dn = String(displayName ?? "").trim();
+    if (!dn) throw new SenderError("請填寫暱稱");
+    if (dn.length > MAX_DISPLAY_NAME_LEN) throw new SenderError("暱稱過長");
+    const g = String(gender ?? "")
+      .trim()
+      .toLowerCase();
+    if (!ALLOWED_GENDER.has(g)) throw new SenderError("請選擇性別");
+    const ay = Number(ageYears);
+    if (!Number.isFinite(ay) || ay < AGE_REQUIRED_MIN || ay > AGE_REQUIRED_MAX) {
+      throw new SenderError(`請填寫有效年齡（${AGE_REQUIRED_MIN}–${AGE_REQUIRED_MAX}）`);
+    }
+    if (pointsBalance < 0n) throw new SenderError("積分不得小於 0");
+    const birthMicros =
+      ctx.timestamp.microsSinceUnixEpoch - BigInt(ay) * 31536000n * 1000000n;
+    const birthDate = new Timestamp(birthMicros);
+
+    ctx.db.accountProfile.email.update({
+      ...target,
+      displayName: dn,
+      gender: g,
+      birthDate,
+    });
+
+    const wallet = getOrCreatePointsWallet(ctx, target.accountId, target.ownerIdentity);
+    const nextBalance = pointsBalance;
+    if (wallet.balance !== nextBalance) {
+      ctx.db.accountPointsWallet.accountId.update({
+        ...wallet,
+        balance: nextBalance,
+        updatedAt: ctx.timestamp,
+      });
+      writePointsLedger(ctx, {
+        accountId: target.accountId,
+        ownerIdentity: target.ownerIdentity,
+        delta: nextBalance - wallet.balance,
+        balanceAfter: nextBalance,
+        reason: "admin_set_balance",
+        detail: target.email,
+      });
+    }
+
+    writeAdminAudit(
+      ctx,
+      "admin_update_account_profile_and_points",
+      "account_profile",
+      target.accountId,
+      `${target.email}|balance:${nextBalance.toString()}|gender:${g}|age:${ay}`,
+    );
   },
 );
 
@@ -2928,6 +3270,13 @@ export const send_capsule_message = spacetimedb.reducer(
       isProfilePublic,
       isDeleted: false,
     });
+    creditPoints(ctx, {
+      accountId: pf.accountId,
+      ownerIdentity: ctx.sender,
+      points: REWARD_SEND_CAPSULE,
+      reason: "capsule_publish_reward",
+      detail: newId,
+    });
   },
 );
 
@@ -3243,6 +3592,10 @@ export const publish_to_square = spacetimedb.reducer(
   ) => {
     const pf = ctx.db.accountProfile.ownerIdentity.find(ctx.sender);
     if (!pf) throw new SenderError("尚未登入");
+    const wallet = getOrCreatePointsWallet(ctx, pf.accountId, pf.ownerIdentity);
+    if (wallet.balance < SQUARE_PUBLISH_COST) {
+      throw new SenderError("積分不足（發布廣場需 10 積分）");
+    }
     const kind = normalizeSourceKind(sourceKind);
     const source = getSquareSourceRow(ctx, sourceMessageId, kind);
     if (!source) throw new SenderError("找不到訊息");
@@ -3277,8 +3630,45 @@ export const publish_to_square = spacetimedb.reducer(
         exchangeLog: source.exchangeLog,
       },
     );
+    const nextBalance = wallet.balance - SQUARE_PUBLISH_COST;
+    ctx.db.accountPointsWallet.accountId.update({
+      ...wallet,
+      balance: nextBalance,
+      updatedAt: ctx.timestamp,
+    });
+    writePointsLedger(ctx, {
+      accountId: pf.accountId,
+      ownerIdentity: pf.ownerIdentity,
+      delta: -SQUARE_PUBLISH_COST,
+      balanceAfter: nextBalance,
+      reason: "square_publish_cost",
+      detail: sourceMessageId,
+    });
   },
 );
+
+export const draw_capsule_once = spacetimedb.reducer({}, (ctx) => {
+  const pf = ctx.db.accountProfile.ownerIdentity.find(ctx.sender);
+  if (!pf) throw new SenderError("尚未登入");
+  const wallet = getOrCreatePointsWallet(ctx, pf.accountId, pf.ownerIdentity);
+  if (wallet.balance < CAPSULE_DRAW_COST) {
+    throw new SenderError("積分不足（抽膠囊需 10 積分）");
+  }
+  const nextBalance = wallet.balance - CAPSULE_DRAW_COST;
+  ctx.db.accountPointsWallet.accountId.update({
+    ...wallet,
+    balance: nextBalance,
+    updatedAt: ctx.timestamp,
+  });
+  writePointsLedger(ctx, {
+    accountId: pf.accountId,
+    ownerIdentity: pf.ownerIdentity,
+    delta: -CAPSULE_DRAW_COST,
+    balanceAfter: nextBalance,
+    reason: "capsule_draw_cost",
+    detail: "draw_capsule_once",
+  });
+});
 
 export const append_letter_exchange = spacetimedb.reducer(
   { messageId: t.string(), body: t.string() },
@@ -3333,9 +3723,15 @@ export const set_square_reaction = spacetimedb.reducer(
   (ctx, { sourceMessageId, kind }) => {
     const pf = ctx.db.accountProfile.ownerIdentity.find(ctx.sender);
     if (!pf) throw new SenderError("尚未登入");
-    if (!ctx.db.squarePost.sourceMessageId.find(sourceMessageId)) {
+    const post = ctx.db.squarePost.sourceMessageId.find(sourceMessageId);
+    if (!post) {
       throw new SenderError("此貼不在廣場");
     }
+    settleEngagementPointsForAccount(
+      ctx,
+      post.publisherAccountId,
+      post.publisherIdentity,
+    );
     const k = kind.trim();
     if (k !== "up" && k !== "mid" && k !== "down" && k !== "none") {
       throw new SenderError("無效的反應類型");
@@ -3503,6 +3899,13 @@ export const add_capsule_private_message = spacetimedb.reducer(
       body: body.trim(),
       createdAt: ctx.timestamp,
     });
+    creditPoints(ctx, {
+      accountId: pf.accountId,
+      ownerIdentity: ctx.sender,
+      points: REWARD_PRIVATE_REPLY,
+      reason: "capsule_private_reply_reward",
+      detail: sourceMessageId,
+    });
     refreshSquareSnapshotIfNeeded(ctx, sourceMessageId);
   },
 );
@@ -3514,6 +3917,11 @@ export const favorite_square_post = spacetimedb.reducer(
     if (!pf) throw new SenderError("尚未登入");
     const post = ctx.db.squarePost.sourceMessageId.find(sourceMessageId);
     if (!post) throw new SenderError("請先於廣場公開此信再收藏");
+    settleEngagementPointsForAccount(
+      ctx,
+      post.publisherAccountId,
+      post.publisherIdentity,
+    );
     for (const row of ctx.db.squareFavorite.iter()) {
       if (
         row.postSourceMessageId === sourceMessageId &&
@@ -3546,6 +3954,14 @@ export const unfavorite_square_post = spacetimedb.reducer(
   (ctx, { sourceMessageId }) => {
     const pf = ctx.db.accountProfile.ownerIdentity.find(ctx.sender);
     if (!pf) throw new SenderError("尚未登入");
+    const post = ctx.db.squarePost.sourceMessageId.find(sourceMessageId);
+    if (post) {
+      settleEngagementPointsForAccount(
+        ctx,
+        post.publisherAccountId,
+        post.publisherIdentity,
+      );
+    }
     for (const row of ctx.db.squareFavorite.iter()) {
       if (
         row.postSourceMessageId === sourceMessageId &&
@@ -3566,6 +3982,7 @@ export const favorite_capsule = spacetimedb.reducer(
     if (!pf) throw new SenderError("尚未登入");
     const cap = ctx.db.capsuleMessage.id.find(capsuleId);
     if (!cap) throw new SenderError("找不到膠囊");
+    settleEngagementPointsForAccount(ctx, cap.authorAccountId, cap.authorIdentity);
     if (cap.authorIdentity.isEqual(ctx.sender))
       throw new SenderError("不能收藏自己的膠囊");
     const st = ctx.db.capsuleMessageSpaceState.capsuleId.find(capsuleId);
@@ -3609,6 +4026,10 @@ export const unfavorite_capsule = spacetimedb.reducer(
   (ctx, { capsuleId }) => {
     const pf = ctx.db.accountProfile.ownerIdentity.find(ctx.sender);
     if (!pf) throw new SenderError("尚未登入");
+    const cap = ctx.db.capsuleMessage.id.find(capsuleId);
+    if (cap) {
+      settleEngagementPointsForAccount(ctx, cap.authorAccountId, cap.authorIdentity);
+    }
     for (const row of ctx.db.capsuleFavorite.capsuleId.filter(capsuleId)) {
       if (row.collectorIdentity.isEqual(ctx.sender)) {
         ctx.db.capsuleFavorite.delete(row);

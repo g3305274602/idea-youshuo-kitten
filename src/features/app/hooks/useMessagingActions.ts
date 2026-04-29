@@ -9,6 +9,7 @@ type UseMessagingActionsParams = {
   selectedMessageId: string | null;
   setLoading: (v: boolean) => void;
   setSquareActionError: (v: string) => void;
+  onPointsToast: (delta: number, action: string, settled?: boolean) => void;
   publishRepliesPublic: boolean;
   publishIncludeThread: boolean;
   publishIncludeCapsulePrivate: boolean;
@@ -86,6 +87,7 @@ export function useMessagingActions(params: UseMessagingActionsParams) {
         showRecipientOnSquare: params.publishShowRecipient,
       });
       params.setPublishModalOpenWithStack(false);
+      params.onPointsToast(-10, "發布到廣場");
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       if (handleSessionInvalid(msg)) return;
@@ -115,6 +117,9 @@ export function useMessagingActions(params: UseMessagingActionsParams) {
       const cur = params.mySquareReactionByPost.get(sourceMessageId);
       const nextKind = cur === kind ? "none" : kind;
       await params.setSquareReaction({ sourceMessageId, kind: nextKind });
+      if (nextKind === "up") {
+        params.onPointsToast(0, "收到按讚", true);
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       if (handleSessionInvalid(msg)) return;
@@ -183,6 +188,7 @@ export function useMessagingActions(params: UseMessagingActionsParams) {
         body,
       });
       params.setCapsulePrivateDraft("");
+      params.onPointsToast(5, "私線回覆");
       if (!params.isCapsuleParticipantUi && threadGuestHex === params.identity.toHexString()) {
         params.jumpToChatFromCapsule(sourceMessageId);
       }
@@ -215,6 +221,7 @@ export function useMessagingActions(params: UseMessagingActionsParams) {
         body,
       });
       params.setChatDraft("");
+      params.onPointsToast(5, "私線回覆");
       if (params.chatInputRef.current) {
         params.chatInputRef.current.style.height = "44px";
       }

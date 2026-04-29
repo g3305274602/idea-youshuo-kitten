@@ -44,7 +44,9 @@ import AdminDeleteRoleRecordReducer from "./admin_delete_role_record_reducer";
 import AdminDeleteSquarePostReducer from "./admin_delete_square_post_reducer";
 import AdminPurgeAllRolesReducer from "./admin_purge_all_roles_reducer";
 import AdminResetPasswordByEmailReducer from "./admin_reset_password_by_email_reducer";
+import AdminSetTemporaryPasswordByEmailReducer from "./admin_set_temporary_password_by_email_reducer";
 import AdminSetUserSanctionStatusReducer from "./admin_set_user_sanction_status_reducer";
+import AdminUpdateAccountProfileAndPointsReducer from "./admin_update_account_profile_and_points_reducer";
 import AdminUpdateAppealTicketReducer from "./admin_update_appeal_ticket_reducer";
 import AdminUpdateAvatarCatalogItemReducer from "./admin_update_avatar_catalog_item_reducer";
 import AdminUpdateReportTicketReducer from "./admin_update_report_ticket_reducer";
@@ -60,6 +62,7 @@ import DeleteScheduledMessageReducer from "./delete_scheduled_message_reducer";
 import DevCleanupSeedCapsuleSquarePostsReducer from "./dev_cleanup_seed_capsule_square_posts_reducer";
 import DevSeedDemoUsersReducer from "./dev_seed_demo_users_reducer";
 import DevSeedSecretCapsulePostsReducer from "./dev_seed_secret_capsule_posts_reducer";
+import DrawCapsuleOnceReducer from "./draw_capsule_once_reducer";
 import FavoriteCapsuleReducer from "./favorite_capsule_reducer";
 import FavoriteSquarePostReducer from "./favorite_square_post_reducer";
 import LoginAccountReducer from "./login_account_reducer";
@@ -67,6 +70,7 @@ import PublishToSquareReducer from "./publish_to_square_reducer";
 import RegisterAccountReducer from "./register_account_reducer";
 import RegisterAccountWithEmailOtpReducer from "./register_account_with_email_otp_reducer";
 import RequestEmailOtpReducer from "./request_email_otp_reducer";
+import ResetPasswordWithEmailOtpReducer from "./reset_password_with_email_otp_reducer";
 import RestoreCapsuleMessageReducer from "./restore_capsule_message_reducer";
 import SendCapsuleMessageReducer from "./send_capsule_message_reducer";
 import SendDirectMessageReducer from "./send_direct_message_reducer";
@@ -88,6 +92,7 @@ import VerifyEmailOtpReducer from "./verify_email_otp_reducer";
 // Import all table schema definitions
 import AccountAvatarUnlockRow from "./account_avatar_unlock_table";
 import AccountDailyRewardClaimRow from "./account_daily_reward_claim_table";
+import AccountPasswordResetRequiredRow from "./account_password_reset_required_table";
 import AccountPointsLedgerRow from "./account_points_ledger_table";
 import AccountPointsWalletRow from "./account_points_wallet_table";
 import AccountProfileRow from "./account_profile_table";
@@ -153,6 +158,20 @@ const tablesSchema = __schema({
       { name: 'account_daily_reward_claim_claim_key_key', constraint: 'unique', columns: ['claimKey'] },
     ],
   }, AccountDailyRewardClaimRow),
+  accountPasswordResetRequired: __table({
+    name: 'account_password_reset_required',
+    indexes: [
+      { accessor: 'accountId', name: 'account_password_reset_required_account_id_idx_btree', algorithm: 'btree', columns: [
+        'accountId',
+      ] },
+      { accessor: 'ownerIdentity', name: 'account_password_reset_required_owner_identity_idx_btree', algorithm: 'btree', columns: [
+        'ownerIdentity',
+      ] },
+    ],
+    constraints: [
+      { name: 'account_password_reset_required_account_id_key', constraint: 'unique', columns: ['accountId'] },
+    ],
+  }, AccountPasswordResetRequiredRow),
   accountPointsLedger: __table({
     name: 'account_points_ledger',
     indexes: [
@@ -506,7 +525,9 @@ const reducersSchema = __reducers(
   __reducerSchema("admin_delete_square_post", AdminDeleteSquarePostReducer),
   __reducerSchema("admin_purge_all_roles", AdminPurgeAllRolesReducer),
   __reducerSchema("admin_reset_password_by_email", AdminResetPasswordByEmailReducer),
+  __reducerSchema("admin_set_temporary_password_by_email", AdminSetTemporaryPasswordByEmailReducer),
   __reducerSchema("admin_set_user_sanction_status", AdminSetUserSanctionStatusReducer),
+  __reducerSchema("admin_update_account_profile_and_points", AdminUpdateAccountProfileAndPointsReducer),
   __reducerSchema("admin_update_appeal_ticket", AdminUpdateAppealTicketReducer),
   __reducerSchema("admin_update_avatar_catalog_item", AdminUpdateAvatarCatalogItemReducer),
   __reducerSchema("admin_update_report_ticket", AdminUpdateReportTicketReducer),
@@ -522,6 +543,7 @@ const reducersSchema = __reducers(
   __reducerSchema("dev_cleanup_seed_capsule_square_posts", DevCleanupSeedCapsuleSquarePostsReducer),
   __reducerSchema("dev_seed_demo_users", DevSeedDemoUsersReducer),
   __reducerSchema("dev_seed_secret_capsule_posts", DevSeedSecretCapsulePostsReducer),
+  __reducerSchema("draw_capsule_once", DrawCapsuleOnceReducer),
   __reducerSchema("favorite_capsule", FavoriteCapsuleReducer),
   __reducerSchema("favorite_square_post", FavoriteSquarePostReducer),
   __reducerSchema("login_account", LoginAccountReducer),
@@ -529,6 +551,7 @@ const reducersSchema = __reducers(
   __reducerSchema("register_account", RegisterAccountReducer),
   __reducerSchema("register_account_with_email_otp", RegisterAccountWithEmailOtpReducer),
   __reducerSchema("request_email_otp", RequestEmailOtpReducer),
+  __reducerSchema("reset_password_with_email_otp", ResetPasswordWithEmailOtpReducer),
   __reducerSchema("restore_capsule_message", RestoreCapsuleMessageReducer),
   __reducerSchema("send_capsule_message", SendCapsuleMessageReducer),
   __reducerSchema("send_direct_message", SendDirectMessageReducer),

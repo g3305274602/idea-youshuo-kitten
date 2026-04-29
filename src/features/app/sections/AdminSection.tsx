@@ -362,6 +362,8 @@ type AdminContentProps = {
   adminSearchRows: readonly AccountProfile[];
   adminTargetIdentityHex: string;
   selectedAdminTargetProfile: AccountProfile | null;
+  pointsBalanceByAccountId: Map<string, number>;
+  canEditAccountOperation: boolean;
   activeSanctionsForTarget: readonly UserSanction[];
   appealTicketRows: readonly AppealTicket[];
   userSanctionRows: readonly UserSanction[];
@@ -399,6 +401,15 @@ type AdminContentProps = {
   onSetAdminTargetIdentityHex: (value: string) => void;
   onQuickBanTargetAccount: () => void | Promise<void>;
   onQuickUnbanTargetAccount: () => void | Promise<void>;
+  onOperateAccount: (args: {
+    accountId: string;
+    email: string;
+    displayName: string;
+    gender: string;
+    ageYears: number;
+    pointsBalance: number;
+    secretPlain: string;
+  }) => void | Promise<void>;
   avatarCatalogRows: readonly {
     avatarKey: string;
     seriesKey: string;
@@ -462,6 +473,8 @@ export function AdminContent(props: AdminContentProps) {
     adminSearchRows,
     adminTargetIdentityHex,
     selectedAdminTargetProfile,
+    pointsBalanceByAccountId,
+    canEditAccountOperation,
     activeSanctionsForTarget,
     appealTicketRows,
     userSanctionRows,
@@ -499,6 +512,7 @@ export function AdminContent(props: AdminContentProps) {
     onSetAdminTargetIdentityHex,
     onQuickBanTargetAccount,
     onQuickUnbanTargetAccount,
+    onOperateAccount,
     avatarCatalogRows,
     avatarCatalogEditBusy,
     avatarCatalogError,
@@ -526,6 +540,19 @@ export function AdminContent(props: AdminContentProps) {
   const [seriesEditGenerateCountInput, setSeriesEditGenerateCountInput] = useState("5");
   const [avatarDeleteConfirmOpen, setAvatarDeleteConfirmOpen] = useState(false);
   const [avatarDeleteTargetKey, setAvatarDeleteTargetKey] = useState("");
+  const [accountOpsOpen, setAccountOpsOpen] = useState(false);
+  const [accountOpsDisplayName, setAccountOpsDisplayName] = useState("");
+  const [accountOpsGender, setAccountOpsGender] = useState("unspecified");
+  const [accountOpsAgeInput, setAccountOpsAgeInput] = useState("18");
+  const [accountOpsPointsInput, setAccountOpsPointsInput] = useState("");
+  const [accountOpsSecretInput, setAccountOpsSecretInput] = useState("");
+  const [accountOpsSecretCopied, setAccountOpsSecretCopied] = useState(false);
+  const generateTempSecret = () => {
+    const ts = Date.now().toString(36);
+    const rand = Math.random().toString(36).slice(2, 10);
+    const mix = `${rand}${ts}`.slice(0, 12);
+    return `T${mix}9`;
+  };
 
   const toPublicAssetUrl = (basePath: string, fileName: string) => {
     const normalizedBase = String(basePath || "").trim();
@@ -2087,8 +2114,12 @@ export function AdminContent(props: AdminContentProps) {
             <ul className="mt-2 min-h-0 flex-1 space-y-1.5 overflow-y-auto rounded-lg border border-white/10 bg-white/[0.04] p-2 lg:max-h-none lg:flex-1">
               {activeAdminRows.map((r) => {
                 const hex = r.adminIdentity.toHexString();
-                const em = adminEmailByHex.get(hex);
-                const isUnknown = !em;
+                const profile = profileByIdentityHex.get(hex) as any;
+                const accountLabel =
+                  (typeof profile?.email === "string" && profile.email.trim()) ||
+                  adminEmailByHex.get(hex) ||
+                  "";
+                const isUnknown = !accountLabel;
                 return (
                   <li
                     key={hex}
@@ -2107,14 +2138,14 @@ export function AdminContent(props: AdminContentProps) {
                         {isUnknown ? (
                           <span className="ml-1 text-amber-700">⚠ 未知帳號</span>
                         ) : (
-                          <span className="ml-1">{em}</span>
+                          <span className="ml-1">{accountLabel}</span>
                         )}
                         {r.adminIdentity.isEqual(identity) ? "（你）" : ""}
                       </p>
                       <div className="flex shrink-0 items-center gap-2">
                         <button
                           type="button"
-                          onClick={() => onOpenAdminEditModal(r, em ?? "")}
+                          onClick={() => onOpenAdminEditModal(r, accountLabel)}
                           className="rounded border border-stone-400 bg-white px-2 py-0.5 text-[10px] font-semibold text-stone-800"
                         >
                           編輯
@@ -2271,21 +2302,33 @@ export function AdminContent(props: AdminContentProps) {
           <p className="text-[12px] text-white/60">目前還沒有管理帳號。</p>
         ) : (
           <ul className="space-y-1.5">
-            {activeAdminRows.map((r) => (
-              <li
-                key={r.adminIdentity.toHexString()}
-                className="rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1.5 text-[12px] text-white/80 break-all"
-              >
-                <span className="font-bold text-white">{r.role}</span> ·{" "}
-                {r.adminIdentity.toHexString()}
-                {r.adminIdentity.isEqual(identity) ? "（你）" : ""}
-              </li>
-            ))}
+            {activeAdminRows.map((r) => {
+              const hex = r.adminIdentity.toHexString();
+              const profile = profileByIdentityHex.get(hex) as any;
+              const accountLabel =
+                (typeof profile?.email === "string" && profile.email.trim()) ||
+                adminEmailByHex.get(hex) ||
+                hex;
+              return (
+                <li
+                  key={hex}
+                  className="rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1.5 text-[12px] text-white/80 break-all"
+                >
+                  <span className="font-bold text-white">{r.role}</span> · {accountLabel}
+                  {r.adminIdentity.isEqual(identity) ? "（你）" : ""}
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>
       <div className="cd-card-raised rounded-2xl p-4 space-y-3">
-        <p className="text-[13px] font-black text-white">帳號搜尋與一鍵停權 / 復權</p>
+        <p className="text-[13px] font-black text-white">
+          帳號審核管理
+          <span className="ml-2 text-[11px] font-medium text-white/60">
+            {canEditAccountOperation ? "（可編輯）" : "（僅查看）"}
+          </span>
+        </p>
         <input
           value={adminAccountSearch}
           onChange={(e) => onSetAdminAccountSearch(e.target.value)}
@@ -2334,23 +2377,213 @@ export function AdminContent(props: AdminContentProps) {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          {canEditAccountOperation ? (
+            <>
+              <button
+                type="button"
+                onClick={() => void onQuickBanTargetAccount()}
+                disabled={adminActionLoading || !adminTargetIdentityHex}
+                className="rounded-lg bg-red-600 px-3 py-1.5 text-[12px] font-bold text-white disabled:opacity-60"
+              >
+                {adminActionLoading ? "處理中…" : "一鍵停權"}
+              </button>
+              <button
+                type="button"
+                onClick={() => void onQuickUnbanTargetAccount()}
+                disabled={adminActionLoading || !adminTargetIdentityHex}
+                className="rounded-lg border border-emerald-500 bg-white px-3 py-1.5 text-[12px] font-bold text-emerald-700 disabled:opacity-60"
+              >
+                {adminActionLoading ? "處理中…" : "一鍵復權"}
+              </button>
+            </>
+          ) : null}
           <button
             type="button"
-            onClick={() => void onQuickBanTargetAccount()}
-            disabled={adminActionLoading || !adminTargetIdentityHex}
-            className="rounded-lg bg-red-600 px-3 py-1.5 text-[12px] font-bold text-white disabled:opacity-60"
+            onClick={() => {
+              if (!selectedAdminTargetProfile) return;
+              const p = selectedAdminTargetProfile as any;
+              const aid = String(p.accountId ?? "").trim();
+              const points = aid ? pointsBalanceByAccountId.get(aid) ?? 0 : 0;
+              const birth = p.birthDate?.toDate?.() as Date | undefined;
+              const age =
+                birth instanceof Date && Number.isFinite(birth.getTime())
+                  ? Math.max(
+                      16,
+                      Math.min(
+                        126,
+                        Math.floor((Date.now() - birth.getTime()) / (365.25 * 24 * 3600 * 1000)),
+                      ),
+                    )
+                  : 18;
+              setAccountOpsDisplayName(String(p.displayName ?? ""));
+              setAccountOpsGender(String(p.gender ?? "unspecified"));
+              setAccountOpsAgeInput(String(age));
+              setAccountOpsPointsInput(String(points));
+              setAccountOpsSecretInput("");
+              setAccountOpsOpen(true);
+            }}
+            disabled={adminActionLoading || !selectedAdminTargetProfile}
+            className="rounded-lg border border-sky-400/60 bg-sky-500/15 px-3 py-1.5 text-[12px] font-bold text-sky-100 disabled:opacity-60"
           >
-            {adminActionLoading ? "處理中…" : "一鍵停權"}
-          </button>
-          <button
-            type="button"
-            onClick={() => void onQuickUnbanTargetAccount()}
-            disabled={adminActionLoading || !adminTargetIdentityHex}
-            className="rounded-lg border border-emerald-500 bg-white px-3 py-1.5 text-[12px] font-bold text-emerald-700 disabled:opacity-60"
-          >
-            {adminActionLoading ? "處理中…" : "一鍵復權"}
+            {adminActionLoading ? "處理中…" : canEditAccountOperation ? "操作帳號" : "查看帳號"}
           </button>
         </div>
+        <AnimatePresence>
+          {accountOpsOpen && selectedAdminTargetProfile ? (
+            <motion.div
+              key="admin-account-ops-modal"
+              role="presentation"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[260] flex items-end justify-center bg-black/45 p-4 sm:items-center"
+              onClick={() => !adminActionLoading && setAccountOpsOpen(false)}
+            >
+              <motion.div
+                role="dialog"
+                aria-modal="true"
+                initial={{ opacity: 0, y: 18 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 10 }}
+                onClick={(e) => e.stopPropagation()}
+                className="cd-modal-panel w-full max-w-md p-4"
+              >
+                <p className="text-[16px] font-bold text-white">
+                  {canEditAccountOperation ? "操作帳號" : "查看帳號"}
+                </p>
+                <p className="mt-1 text-[12px] text-white/70">
+                  {selectedAdminTargetProfile.email}
+                </p>
+                <div className="mt-3 space-y-2">
+                  <label className="block space-y-1">
+                    <span className="text-[11px] font-semibold text-white/70">姓名</span>
+                    <input
+                      value={accountOpsDisplayName}
+                      onChange={(e) => setAccountOpsDisplayName(e.target.value)}
+                      placeholder="姓名"
+                      className="cd-field text-[13px]"
+                      readOnly={!canEditAccountOperation}
+                    />
+                  </label>
+                  <label className="block space-y-1">
+                    <span className="text-[11px] font-semibold text-white/70">性別</span>
+                    <CdSelect
+                      value={accountOpsGender}
+                      onChange={(v) => setAccountOpsGender(String(v))}
+                      options={[
+                        { value: "unspecified", label: "未指定" },
+                        { value: "male", label: "男" },
+                        { value: "female", label: "女" },
+                        { value: "other", label: "其他" },
+                      ]}
+                      disabled={!canEditAccountOperation}
+                      className="text-[13px]"
+                    />
+                  </label>
+                  <label className="block space-y-1">
+                    <span className="text-[11px] font-semibold text-white/70">年齡</span>
+                    <input
+                      type="number"
+                      min={16}
+                      max={126}
+                      value={accountOpsAgeInput}
+                      onChange={(e) => {
+                        if (!canEditAccountOperation) return;
+                        const v = Math.max(16, Math.min(126, Number(e.target.value || 16)));
+                        setAccountOpsAgeInput(String(v));
+                      }}
+                      placeholder="16-126"
+                      className="cd-field text-[13px]"
+                      readOnly={!canEditAccountOperation}
+                    />
+                  </label>
+                  <label className="block space-y-1">
+                    <span className="text-[11px] font-semibold text-white/70">可用積分</span>
+                    <input
+                    type="number"
+                    min={0}
+                    value={accountOpsPointsInput}
+                    onChange={(e) => {
+                      if (!canEditAccountOperation) return;
+                      setAccountOpsPointsInput(
+                        String(Math.max(0, Number(e.target.value || 0))),
+                      );
+                    }}
+                    placeholder="積分餘額（直接覆蓋）"
+                    className="cd-field text-[13px]"
+                    readOnly={!canEditAccountOperation}
+                    />
+                  </label>
+                  <label className="block space-y-1">
+                    <span className="text-[11px] font-semibold text-white/70">密碼</span>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={accountOpsSecretInput}
+                        onChange={(e) => setAccountOpsSecretInput(e.target.value)}
+                        placeholder="無法回顯明文；留空則不修改"
+                        className="cd-field min-w-0 flex-1 text-[13px]"
+                        readOnly={!canEditAccountOperation}
+                      />
+                      {canEditAccountOperation ? (
+                        <button
+                          type="button"
+                          className="rounded-lg border border-[#FFD54F]/45 bg-[#FFD54F]/15 px-2 py-1.5 text-[11px] font-bold text-[#FFD54F] disabled:opacity-60"
+                          disabled={adminActionLoading}
+                          onClick={async () => {
+                            const next = generateTempSecret();
+                            setAccountOpsSecretInput(next);
+                            try {
+                              await navigator.clipboard.writeText(next);
+                              setAccountOpsSecretCopied(true);
+                              window.setTimeout(() => setAccountOpsSecretCopied(false), 1500);
+                            } catch {
+                              setAccountOpsSecretCopied(false);
+                            }
+                          }}
+                        >
+                          {accountOpsSecretCopied ? "已複製" : "一鍵生成"}
+                        </button>
+                      ) : null}
+                    </div>
+                  </label>
+                </div>
+                <div className="mt-4 flex gap-2">
+                  <button
+                    type="button"
+                    className="cd-btn-ghost flex-1 py-2 text-[13px]"
+                    onClick={() => setAccountOpsOpen(false)}
+                    disabled={adminActionLoading}
+                  >
+                    取消
+                  </button>
+                  {canEditAccountOperation ? (
+                    <button
+                      type="button"
+                      className="cd-btn-primary flex-1 py-2 text-[13px] disabled:opacity-60"
+                      disabled={adminActionLoading}
+                      onClick={async () => {
+                        const p = selectedAdminTargetProfile as any;
+                        await onOperateAccount({
+                          accountId: String(p.accountId ?? ""),
+                          email: String(p.email ?? ""),
+                          displayName: accountOpsDisplayName,
+                          gender: accountOpsGender,
+                          ageYears: Math.max(16, Math.min(126, Number(accountOpsAgeInput || 16))),
+                          pointsBalance: Math.max(0, Number(accountOpsPointsInput || 0)),
+                          secretPlain: accountOpsSecretInput,
+                        });
+                        setAccountOpsOpen(false);
+                      }}
+                    >
+                      {adminActionLoading ? "儲存中…" : "儲存變更"}
+                    </button>
+                  ) : null}
+                </div>
+              </motion.div>
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
       </div>
     </div>
   );

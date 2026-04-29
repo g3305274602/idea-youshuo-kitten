@@ -7,6 +7,7 @@ type UseFavoriteHandlersParams = {
   favoriteSelectedId: string | null;
   setFavoriteSelectedId: (value: string | null) => void;
   setSquareActionError: (value: string) => void;
+  onPointsToast: (delta: number, action: string, settled?: boolean) => void;
   favoriteSquarePost: (args: { sourceMessageId: string }) => Promise<unknown>;
   unfavoriteSquarePost: (args: { sourceMessageId: string }) => Promise<unknown>;
   favoriteCapsule: (args: { capsuleId: string }) => Promise<unknown>;
@@ -25,6 +26,7 @@ export function useFavoriteHandlers(params: UseFavoriteHandlersParams) {
     params.setSquareActionError("");
     try {
       await params.favoriteSquarePost({ sourceMessageId });
+      params.onPointsToast(0, "收到收藏", true);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       if (handleSessionInvalid(msg)) return;
@@ -48,6 +50,7 @@ export function useFavoriteHandlers(params: UseFavoriteHandlersParams) {
     params.setSquareActionError("");
     try {
       await params.favoriteCapsule({ capsuleId });
+      params.onPointsToast(0, "收到收藏", true);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       if (handleSessionInvalid(msg)) return;
