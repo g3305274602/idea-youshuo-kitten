@@ -6,6 +6,7 @@ import { useEscapeClose } from "../hooks/useEscapeClose";
 type AvatarCatalogRow = {
   avatarKey: string;
   seriesKey: string;
+  seriesDisplayName?: string;
   basePath: string;
   fileName: string;
   pricePoints: number;
@@ -28,7 +29,8 @@ type AvatarPickerModalSectionProps = {
 
 function buildAvatarUrl(row: AvatarCatalogRow): string {
   const base = row.basePath.endsWith("/") ? row.basePath : `${row.basePath}/`;
-  return `${base}${row.fileName}`;
+  const joined = `${base}${row.fileName}`.replace(/\/{2,}/g, "/").replace(/^\//, "");
+  return `${import.meta.env.BASE_URL}${joined}`;
 }
 
 export function AvatarPickerModalSection({
@@ -92,8 +94,8 @@ export function AvatarPickerModalSection({
             <div className="mt-3 max-h-[58vh] space-y-3 overflow-y-auto pr-1 apple-scroll">
               {groupedRows.map(([seriesKey, rows]) => (
                 <section key={seriesKey} className="space-y-1.5">
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-[#8E8E93]">
-                    {seriesKey}
+                  <p className="text-[11px] font-bold tracking-wider text-[#8E8E93]">
+                    {rows.find((r) => r.seriesDisplayName?.trim())?.seriesDisplayName || seriesKey}
                   </p>
                   <div className="grid grid-cols-5 gap-2">
                     {rows.map((row) => {
@@ -112,7 +114,7 @@ export function AvatarPickerModalSection({
                             }
                             setConfirmKey(row.avatarKey);
                           }}
-                          className={`relative overflow-hidden rounded-xl border ${
+                          className={`relative aspect-square overflow-hidden rounded-2xl border ${
                             selected
                               ? "border-[#FFD54F] ring-2 ring-[#FFD54F]/35"
                               : "border-white/15"
@@ -122,7 +124,7 @@ export function AvatarPickerModalSection({
                           <img
                             src={src}
                             alt={row.avatarKey}
-                            className={`h-14 w-full object-cover ${isUnlocked ? "" : "opacity-45"}`}
+                            className={`h-full w-full object-contain ${isUnlocked ? "" : "opacity-45"}`}
                             loading="lazy"
                             decoding="async"
                           />

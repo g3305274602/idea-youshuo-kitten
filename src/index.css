@@ -344,19 +344,19 @@
   }
 
   .ys-mine-level-row {
-    @apply mt-1 flex min-w-0 w-full flex-nowrap items-center gap-2 pr-0.5;
+    @apply mt-1 flex min-w-0 w-full flex-wrap items-center gap-2 pr-0.5;
   }
 
   .ys-mine-level-chip {
-    @apply inline-flex items-center gap-0.5 rounded-full border border-[#FFD54F]/50 bg-[#121319] px-1.5 py-px text-[10px] font-bold leading-none text-[#FFD54F] sm:text-[11px];
+    @apply inline-flex h-6 items-center gap-0.5 rounded-full border border-[#FFD54F]/50 bg-[#121319] px-2 text-[11px] font-bold leading-none text-[#FFD54F];
   }
 
   .ys-mine-points-chip {
-    @apply inline-flex items-center gap-0.5 rounded-full border border-[#FFD54F]/50 bg-[#121319] px-1.5 py-px text-[10px] font-bold leading-none text-[#FFD54F] sm:text-[11px];
+    @apply inline-flex h-6 items-center gap-0.5 rounded-full border border-[#FFD54F]/50 bg-[#121319] px-2 text-[11px] font-bold leading-none text-[#FFD54F];
   }
 
   .ys-mine-claim-chip {
-    @apply inline-flex items-center rounded-full border border-emerald-300/50 bg-emerald-500/15 px-2 py-px text-[10px] font-bold leading-none text-emerald-100 transition-colors disabled:cursor-not-allowed disabled:opacity-60 sm:text-[11px];
+    @apply inline-flex h-6 shrink-0 items-center whitespace-nowrap rounded-full border border-emerald-300/50 bg-emerald-500/15 px-2 text-[11px] font-bold leading-none text-emerald-100 transition-colors disabled:cursor-not-allowed disabled:opacity-60;
   }
 
   .ys-mine-shuoshuo-row {

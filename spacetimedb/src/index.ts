@@ -991,6 +991,31 @@ function normalizeFileName(raw: string): string {
   return f;
 }
 
+function resolveDefaultAvatarKey(ctx: { db: any }): string {
+  const rows: any[] = [];
+  for (const row of ctx.db.avatarCatalogItem.iter()) {
+    rows.push(row);
+  }
+  if (rows.length === 0) return "";
+
+  const byFirst = (list: any[]) =>
+    list
+      .slice()
+      .sort((a, b) => {
+        const seriesCmp = String(a.seriesKey).localeCompare(String(b.seriesKey));
+        if (seriesCmp !== 0) return seriesCmp;
+        const orderCmp = Number(a.sortOrder) - Number(b.sortOrder);
+        if (orderCmp !== 0) return orderCmp;
+        return String(a.avatarKey).localeCompare(String(b.avatarKey));
+      })[0];
+
+  const freePublished = rows.filter((r) => Number(r.pricePoints) <= 0 && !!r.isPublished);
+  if (freePublished.length > 0) return String(byFirst(freePublished).avatarKey || "");
+  const freeOnly = rows.filter((r) => Number(r.pricePoints) <= 0);
+  if (freeOnly.length > 0) return String(byFirst(freeOnly).avatarKey || "");
+  return String(byFirst(rows).avatarKey || "");
+}
+
 function assertAvatarPrice(value: number): number {
   if (!Number.isInteger(value)) throw new SenderError("頭像價格需為整數");
   if (value < AVATAR_PRICE_MIN || value > AVATAR_PRICE_MAX) {
@@ -1219,6 +1244,7 @@ function registerAccountCore(
   );
   const hash = hashPassword(password, ctx.random);
   const accountId = accountIdForEmail(em);
+  const defaultAvatarKey = resolveDefaultAvatarKey(ctx);
   ctx.db.accountSecret.insert({ email: em, passwordHash: hash });
   ctx.db.accountProfile.insert({
     email: em,
@@ -1228,7 +1254,7 @@ function registerAccountCore(
     gender: g,
     birthDate: undefined,
     profileNote: note,
-    avatarKey: "",
+    avatarKey: defaultAvatarKey,
   });
   ctx.db.accountProfileCreatedAt.insert({
     email: em,

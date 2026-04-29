@@ -681,6 +681,11 @@ export default function SpacetimeMailboxApp({
       ? (tables as any).accountDailyRewardClaim.where((r: any) => r.accountId.eq(myAccountId))
       : (tables as any).accountDailyRewardClaim.where((r: any) => r.accountId.eq("__stop__")),
   );
+  const [myCreatedAtRows] = useTable(
+    myEmail
+      ? (tables as any).accountProfileCreatedAt.where((r: any) => r.email.eq(myEmail))
+      : (tables as any).accountProfileCreatedAt.where((r: any) => r.email.eq("__stop__")),
+  );
 
   const {
     adminRoleRows,
@@ -898,7 +903,21 @@ export default function SpacetimeMailboxApp({
     "claimable" | "claimed" | "expired" | "hidden"
   >(() => {
     if (!myProfile || !myAccountId) return "hidden";
-    const created = accountProfileCreatedAtRows.find((r) => r.accountId === myAccountId);
+    const createdRowsSource =
+      (myCreatedAtRows as any[]).length > 0
+        ? (myCreatedAtRows as any[])
+        : (accountProfileCreatedAtRows as any[]);
+    const created =
+      createdRowsSource.find((r: any) => r.accountId === myAccountId) ??
+      createdRowsSource.find(
+        (r) =>
+          String(r.email || "")
+            .trim()
+            .toLowerCase() ===
+          String(myEmail || "")
+            .trim()
+            .toLowerCase(),
+      );
     if (!created) return "hidden";
     const nowLocal = new Date(Date.now() + 8 * 60 * 60 * 1000);
     const createdLocal = new Date(
@@ -920,7 +939,7 @@ export default function SpacetimeMailboxApp({
       (r) => Number(r.dayIndex) === diff,
     );
     return claimed ? "claimed" : "claimable";
-  }, [myProfile, myAccountId, accountProfileCreatedAtRows, dailyRewardClaimRows]);
+  }, [myProfile, myAccountId, myEmail, myCreatedAtRows, accountProfileCreatedAtRows, dailyRewardClaimRows]);
 
   // ==========================================
   // 3. 業務邏輯清單 (Inbox, Outbox, Square)

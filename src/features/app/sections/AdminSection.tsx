@@ -1330,16 +1330,16 @@ export function AdminContent(props: AdminContentProps) {
                               const previewKey = `${row.avatarKey}:${previewSrc}`;
                               const broken = !!avatarPreviewBroken[previewKey];
                               return (
-                                <div className="overflow-hidden rounded-lg border border-white/10 bg-black/30">
+                                <div className="aspect-square overflow-hidden rounded-lg border border-white/10 bg-black/30">
                                   {broken ? (
-                                    <div className="flex h-20 items-center justify-center text-[10px] text-white/45">
+                                    <div className="flex h-full items-center justify-center text-[10px] text-white/45">
                                       圖片不存在
                                     </div>
                                   ) : (
                                     <img
                                       src={previewSrc}
                                       alt=""
-                                      className="h-20 w-full object-cover"
+                                      className="h-full w-full object-contain"
                                       loading="lazy"
                                       decoding="async"
                                       onError={() =>
