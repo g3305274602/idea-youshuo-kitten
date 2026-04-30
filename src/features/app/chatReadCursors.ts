@@ -1,7 +1,16 @@
-import type { Identity } from "spacetimedb";
 import type { CapsulePrivateMessage } from "../../module_bindings/types";
 
 const STORAGE_PREFIX = "youshuo_chat_read_cursor_";
+
+/** 私訊氣泡：僅以帳號 id 比對（雙側 trim），與後端寫入一致 */
+export function isChatMessageFromSelfByAccount(
+  authorAccountId: string,
+  myAccountId?: string,
+): boolean {
+  const a = `${authorAccountId ?? ""}`.trim();
+  const m = `${myAccountId ?? ""}`.trim();
+  return !!m && !!a && a === m;
+}
 
 export function loadReadCursorMap(identityHex: string): Map<string, bigint> {
   try {
@@ -23,19 +32,18 @@ export function saveReadCursorMap(
   map: Map<string, bigint>,
 ): void {
   const obj: Record<string, string> = {};
-  for (const [k, v] of map) {
+  for (const [k, v] of map.entries()) {
     obj[k] = v.toString();
   }
   localStorage.setItem(STORAGE_PREFIX + identityHex, JSON.stringify(obj));
 }
 
 /**
- * 未讀：最後一則為對方，且其時間晚於已讀游標（游標為該線內已讀到的最大訊息時間）。
+ * 未讀：最後一則為對方（帳號非本人），且其時間晚於已讀游標。
  */
 export function computeThreadUnread(
   readCursorMicros: bigint,
   messages: readonly CapsulePrivateMessage[],
-  myIdentity: Identity,
   myAccountId?: string,
 ): boolean {
   if (messages.length === 0) return false;
@@ -46,11 +54,8 @@ export function computeThreadUnread(
       ),
   );
   const last = sorted[sorted.length - 1]!;
-  const isMineByAccount =
-    !!myAccountId &&
-    !!last.authorAccountId &&
-    last.authorAccountId === myAccountId;
-  if (isMineByAccount || last.authorIdentity.isEqual(myIdentity)) return false;
+  if (isChatMessageFromSelfByAccount(last.authorAccountId, myAccountId))
+    return false;
   return last.createdAt.microsSinceUnixEpoch > readCursorMicros;
 }
 

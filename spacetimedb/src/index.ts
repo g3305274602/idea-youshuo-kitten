@@ -1848,10 +1848,7 @@ export const unlock_avatar_item = spacetimedb.reducer(
       });
     }
 
-    ctx.db.accountProfile.email.update({
-      ...pf,
-      avatarKey: key,
-    });
+    // 僅解鎖／扣點並入庫，不自動套用頭像（由使用者再以 set_avatar_key 換上）
   },
 );
 
@@ -3812,10 +3809,10 @@ export const add_capsule_private_message = spacetimedb.reducer(
   (ctx, { sourceMessageId, threadGuestIdentity, body }) => {
     const pf = ctx.db.accountProfile.ownerIdentity.find(ctx.sender);
     if (!pf) throw new SenderError("尚未登入");
-    const myAccountId = pf.accountId;
+    const myAccountId = (pf.accountId || "").trim();
     const guestPf = ctx.db.accountProfile.ownerIdentity.find(threadGuestIdentity);
     if (!guestPf) throw new SenderError("訪客資料不存在，請重新開線");
-    const guestAccountId = guestPf?.accountId || "";
+    const guestAccountId = (guestPf?.accountId || "").trim();
     const post = ctx.db.squarePost.sourceMessageId.find(sourceMessageId);
     const source = post
       ? getSquareSourceRow(
@@ -3847,7 +3844,7 @@ export const add_capsule_private_message = spacetimedb.reducer(
     const participant = post
       ? isSquareSourceParticipant(pf, source, ctx.sender)
       : source.kind === "capsule"
-        ? (source as any).authorAccountId === pf.accountId // 膠囊比對 AccountId
+        ? `${(source as any).authorAccountId ?? ""}`.trim() === myAccountId // 膠囊比對 AccountId
         : normalizeEmail(source.senderEmail) === normalizeEmail(pf.email); // 定向信比對 Email
     if (participant) {
       if (threadGuestIdentity.isEqual(ctx.sender)) {
@@ -3884,7 +3881,8 @@ export const add_capsule_private_message = spacetimedb.reducer(
     }
     if (
       threadCount < 10 &&
-      latestInThread?.authorIdentity?.isEqual(ctx.sender)
+      latestInThread &&
+      `${latestInThread.authorAccountId ?? ""}`.trim() === myAccountId
     ) {
       throw new SenderError("前 10 句需你一句我一句，請等對方回覆");
     }
@@ -3893,9 +3891,9 @@ export const add_capsule_private_message = spacetimedb.reducer(
       id: newMessageId(ctx.random),
       sourceMessageId,
       threadGuestIdentity,
-      threadGuestAccountId: guestAccountId, // 使用查表得到的 ID
+      threadGuestAccountId: guestAccountId,
       authorIdentity: ctx.sender,
-      authorAccountId: myAccountId,        // 使用查表得到的 ID
+      authorAccountId: myAccountId,
       body: body.trim(),
       createdAt: ctx.timestamp,
     });

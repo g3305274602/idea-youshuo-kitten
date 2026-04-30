@@ -1,9 +1,9 @@
 import { AlertTriangle, Heart, Home, LayoutGrid, MessageCircle, User } from "lucide-react";
 import { useLayoutEffect, useRef } from "react";
 import type React from "react";
-
 import { cn } from "../../../lib/utils";
 import { anonPaperNoteLabel } from "../helpers";
+import { isChatMessageFromSelfByAccount } from "../chatReadCursors";
 import { GenderIcon } from "./PickerControls";
 
 type ChatMessageItem = {
@@ -266,7 +266,10 @@ export function ChatMainSection({
           )}
 
           {selectedChatMessages.map((m) => {
-            const isMine = m.authorAccountId === myAccountId;
+            const isMine = isChatMessageFromSelfByAccount(
+              m.authorAccountId,
+              myAccountId,
+            );
             return (
               <div
                 key={m.id}

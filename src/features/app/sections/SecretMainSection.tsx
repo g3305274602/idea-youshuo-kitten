@@ -75,10 +75,7 @@ export function SecretMainSection({
   if (!selectedSquarePost) {
     return (
       <div className="mx-auto flex w-full max-w-md flex-1 flex-col items-center justify-center gap-4 px-4 py-8 md:max-w-lg md:py-10">
-        <div className="flex w-full max-w-sm shrink-0 flex-col items-center justify-center gap-3 rounded-3xl border border-white/10 bg-gradient-to-br from-[#1A1B22]/95 via-[#121319]/95 to-[#0c0c12]/95 px-4 py-5 shadow-[0_12px_30px_-16px_rgba(0,0,0,0.6)] backdrop-blur-md">
-          <p className="text-center text-[11px] font-black uppercase tracking-[0.18em] text-[#8E8E93]">
-            抽一則秘密膠囊
-          </p>
+        <div className="flex w-full max-w-sm shrink-0 flex-col items-center justify-center gap-3 rounded-3xl from-[#1A1B22]/95 via-[#121319]/95 to-[#0c0c12]/95 px-4 py-5 backdrop-blur-md">
           <div className="flex w-full justify-center">
             <SecretCapsuleDrawButton
               variant="treasure"

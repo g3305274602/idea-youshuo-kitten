@@ -119,11 +119,11 @@ export function AvatarPickerModalSection({
                               ? "border-[#FFD54F] ring-2 ring-[#FFD54F]/35"
                               : "border-white/15"
                           }`}
-                          title={row.avatarKey}
+                          title={row.seriesDisplayName?.trim() || "頭像"}
                         >
                           <img
                             src={src}
-                            alt={row.avatarKey}
+                            alt=""
                             className={`h-full w-full object-contain ${isUnlocked ? "" : "opacity-45"}`}
                             loading="lazy"
                             decoding="async"
@@ -165,34 +165,38 @@ export function AvatarPickerModalSection({
                   <motion.div
                     role="dialog"
                     aria-modal="true"
+                    aria-labelledby="avatar-unlock-confirm-title"
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 8 }}
                     onClick={(e) => e.stopPropagation()}
-                    className="w-full rounded-2xl border border-white/15 bg-[#121319] p-4"
+                    className="w-full max-w-[min(100%,17.5rem)] rounded-2xl border border-white/15 bg-[#121319] p-4 shadow-lg"
                   >
                     {(() => {
                       const row = catalogRows.find((r) => r.avatarKey === confirmKey);
                       if (!row) return null;
                       const canUnlock = availablePoints >= row.pricePoints;
+                      const seriesLabel = row.seriesDisplayName?.trim() || "";
                       return (
                         <>
-                          <p className="text-[15px] font-bold text-white">
-                            解鎖 {row.seriesKey.toUpperCase()} 全系列中的單張
+                          <p
+                            id="avatar-unlock-confirm-title"
+                            className="text-[15px] font-bold leading-snug text-white"
+                          >
+                            {seriesLabel
+                              ? `解鎖「${seriesLabel}」中的此張頭像`
+                              : "解鎖此張頭像"}
                           </p>
-                          <p className="mt-1 text-[12px] text-white/75">
-                            頭像：{row.avatarKey}
+                          <p className="mt-2 text-[12px] leading-relaxed text-white/72">
+                            解鎖後可隨時使用為顯示頭像
                           </p>
-                          <p className="mt-1 text-[12px] text-white/75">
-                            需要：{row.pricePoints} 積分
-                          </p>
-                          <p className="text-[12px] text-white/75">
-                            目前：{availablePoints} 積分
+                          <p className="mt-2 text-[12px] text-white/75">
+                            需要 {row.pricePoints} 積分 · 目前 {availablePoints} 積分
                           </p>
                           <div className="mt-3 flex gap-2">
                             <button
                               type="button"
-                              className="cd-btn-ghost flex-1 py-2 text-[13px]"
+                              className="cd-btn-ghost min-w-0 flex-1 py-2 text-[13px]"
                               onClick={() => setConfirmKey("")}
                               disabled={unlockLoading}
                             >
@@ -200,9 +204,17 @@ export function AvatarPickerModalSection({
                             </button>
                             <button
                               type="button"
-                              className="cd-btn-primary flex-1 py-2 text-[13px] disabled:opacity-60"
+                              className="cd-btn-primary min-w-0 flex-1 py-2 text-[13px] disabled:opacity-60"
                               disabled={!canUnlock || unlockLoading}
-                              onClick={() => void onUnlockAvatar(confirmKey)}
+                              onClick={async () => {
+                                if (!canUnlock || unlockLoading) return;
+                                try {
+                                  await Promise.resolve(onUnlockAvatar(confirmKey));
+                                  setConfirmKey("");
+                                } catch {
+                                  /* 錯誤由 actionError / 父層顯示 */
+                                }
+                              }}
                             >
                               {canUnlock ? "確認解鎖" : "積分不足"}
                             </button>

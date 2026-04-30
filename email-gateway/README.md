@@ -1,6 +1,6 @@
 # Email OTP Gateway
 
-本服務提供 Email 驗證碼發送與驗證 API，供前端註冊流程呼叫。
+本服務提供 Email 驗證碼發送與驗證 API，供前端註冊與「忘記密碼」（`purpose: reset_password`）發信呼叫。
 
 ## 啟動
 
@@ -13,10 +13,11 @@ npm run email:gateway
 ## API
 
 - `POST /otp/request`
-  - body: `{ "email": "user@example.com", "purpose": "register", "code": "123456" }`
+  - body: `{ "email": "user@example.com", "purpose": "register" | "reset_password", "code": "123456" }`
   - `code` 可選；若提供，gateway 會寄送指定 6 位碼（建議由 SpacetimeDB 先寫入後再呼叫）
+  - `reset_password` 時郵件主旨／內文為「重設密碼驗證碼」，與註冊驗證區分
 - `POST /otp/verify`
-  - body: `{ "email": "user@example.com", "purpose": "register", "code": "123456" }`
+  - body: `{ "email": "user@example.com", "purpose": "register" | "reset_password", "code": "123456" }`
 
 回應格式：
 

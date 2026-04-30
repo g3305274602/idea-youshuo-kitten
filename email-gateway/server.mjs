@@ -17,6 +17,9 @@ const RATE_WINDOW_MS = 60 * 1000;
 const RATE_MAX_PER_IP = 20;
 const RATE_MAX_PER_EMAIL = 8;
 
+/** SpacetimeDB 已存挑戰；Gateway 須對註冊與忘記密碼皆能寄信 */
+const ALLOWED_OTP_PURPOSES = new Set(["register", "reset_password"]);
+
 /** @type {Map<string, {salt:string, hash:string, expiresAt:number, resendAfter:number, attempts:number, lockedUntil:number, sendCount:number}>} */
 const otpStore = new Map();
 /** @type {Map<string, {count:number, resetAt:number}>} */
@@ -167,7 +170,7 @@ const server = createServer(async (req, res) => {
   if (!isValidEmail(email)) {
     return sendJson(req, res, 400, "信箱格式不正確");
   }
-  if (purpose !== "register") {
+  if (!ALLOWED_OTP_PURPOSES.has(purpose)) {
     return sendJson(req, res, 400, "不支援的驗證用途");
   }
 
@@ -195,7 +198,7 @@ const server = createServer(async (req, res) => {
       sendCount: (row?.sendCount || 0) + 1,
     });
     try {
-      await sendOtpMail(email, code);
+      await sendOtpMail(email, code, purpose);
     } catch (err) {
       return sendJson(
         req,

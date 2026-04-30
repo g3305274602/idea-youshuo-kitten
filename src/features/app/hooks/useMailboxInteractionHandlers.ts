@@ -151,26 +151,27 @@ export function useMailboxInteractionHandlers(
   };
 
   const openCapsuleDrawer = async () => {
+    params.setSquareActionError("");
+    const pool = [...params.capsuleEligiblePool];
+    params.setCapsuleOpen(true);
+    params.setCapsuleSwitching(false);
+    if (pool.length === 0) {
+      params.setCapsulePostId(null);
+      return;
+    }
     try {
       await params.drawCapsuleOnce({});
       params.onPointsToast(-10, "抽取膠囊");
     } catch (error) {
       params.setSquareActionError(error instanceof Error ? error.message : "抽膠囊失敗");
+      params.setCapsuleOpen(false);
       return;
     }
-    params.setCapsuleOpen(true);
-    params.setCapsuleSwitching(false);
-    params.setSquareActionError("");
     // 新一輪抽取：清空「本輪已出現」集合，確保從完整候選池開始。
     const shownIds = new Set<string>();
     writeShownCapsuleIds(shownIds);
     writePrevCapsuleId(null);
     writeForwardCapsuleId(null);
-    const pool = [...params.capsuleEligiblePool];
-    if (pool.length === 0) {
-      params.setCapsulePostId(null);
-      return;
-    }
     const pick = pool[Math.floor(Math.random() * pool.length)]!;
     shownIds.add(pick.id);
     writeShownCapsuleIds(shownIds);

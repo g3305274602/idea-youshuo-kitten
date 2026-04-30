@@ -95,6 +95,7 @@ import { useChatReadCursors } from "./hooks/useChatReadCursors";
 import { useMailboxReadState } from "./hooks/useMailboxReadState";
 import {
   computeThreadUnread,
+  isChatMessageFromSelfByAccount,
   maxMessageMicros,
 } from "./chatReadCursors";
 import { useAccountFlowHandlers } from "./hooks/useAccountFlowHandlers";
@@ -1191,13 +1192,15 @@ export default function SpacetimeMailboxApp({
 
   const capsuleIdsExcludedFromDraw = useMemo(() => {
     const s = new Set<string>();
+    const me = `${myAccountId ?? ""}`.trim();
     for (const row of capsuleFavoriteRows) s.add(row.capsuleId);
     for (const row of squareFavoriteRows) s.add(row.postSourceMessageId);
     for (const row of capsulePrivateRows) {
-      if (row.threadGuestIdentity.isEqual(identity)) s.add(row.sourceMessageId);
+      const guestAcc = `${row.threadGuestAccountId ?? ""}`.trim();
+      if (me && guestAcc && guestAcc === me) s.add(row.sourceMessageId);
     }
     return s;
-  }, [capsuleFavoriteRows, squareFavoriteRows, capsulePrivateRows, identity]);
+  }, [capsuleFavoriteRows, squareFavoriteRows, capsulePrivateRows, myAccountId]);
 
   /** 膠囊候選（改接 capsule_message）：非自己發布且已到開啟時間 */
   const capsuleMessagesVisible = useMemo(
@@ -1215,15 +1218,13 @@ export default function SpacetimeMailboxApp({
 
   const capsuleEligiblePool = useMemo(
     () =>
-      capsuleMessagesVisible.filter(
-        (m) =>
-          !(
-            m.authorIdentity.isEqual(identity) ||
-            (!!myAccountId && m.authorAccountId === myAccountId)
-          ) &&
-          !capsuleIdsExcludedFromDraw.has(m.id),
-      ),
-    [capsuleMessagesVisible, identity, myAccountId, capsuleIdsExcludedFromDraw],
+      capsuleMessagesVisible.filter((m) => {
+        const aid = `${m.authorAccountId ?? ""}`.trim();
+        const me = `${myAccountId ?? ""}`.trim();
+        const isOwn = !!me && !!aid && aid === me;
+        return !isOwn && !capsuleIdsExcludedFromDraw.has(m.id);
+      }),
+    [capsuleMessagesVisible, myAccountId, capsuleIdsExcludedFromDraw],
   );
 
   const capsuleEmptyReason = useMemo(() => {
@@ -1235,20 +1236,17 @@ export default function SpacetimeMailboxApp({
         ? ("wall_empty" as const)
         : ("timing" as const);
     }
-    const others = capsuleMessagesVisible.filter(
-      (m) =>
-        !(
-          m.authorIdentity.isEqual(identity) ||
-          (!!myAccountId && m.authorAccountId === myAccountId)
-        ),
-    );
+    const others = capsuleMessagesVisible.filter((m) => {
+      const aid = `${m.authorAccountId ?? ""}`.trim();
+      const me = `${myAccountId ?? ""}`.trim();
+      return !(!!me && !!aid && aid === me);
+    });
     if (others.length === 0) return "only_self" as const;
     if (capsuleEligiblePool.length === 0) return "all_saved" as const;
     return null;
   }, [
     capsuleMessagesVisible,
     capsuleMessageRows,
-    identity,
     myAccountId,
     capsuleEligiblePool,
     capsuleStateById,
@@ -1275,13 +1273,11 @@ export default function SpacetimeMailboxApp({
         .filter((m) => !isCapsuleDeleted(m.id))
         .filter((m) => {
           if (isOwnSpace) {
-            // 兼容舊資料：有些列可能 accountId 缺失或不一致，改以 identity 作後備比對。
-            return (
-              (!!myAccountId && m.authorAccountId === myAccountId) ||
-              m.authorIdentity.isEqual(identity)
-            );
+            const aid = `${m.authorAccountId ?? ""}`.trim();
+            const me = `${myAccountId ?? ""}`.trim();
+            return !!me && !!aid && aid === me;
           }
-          return m.authorAccountId === targetAccountId;
+          return `${m.authorAccountId ?? ""}`.trim() === `${targetAccountId ?? ""}`.trim();
         })
         .filter((m) => {
           if (isOwnSpace) return true;
@@ -2159,7 +2155,10 @@ export default function SpacetimeMailboxApp({
         const last = sorted[sorted.length - 1]!;
         return {
           ...row,
-          hasNewMessageFromPeer: !last.authorIdentity.isEqual(identity),
+          hasNewMessageFromPeer: !isChatMessageFromSelfByAccount(
+            last.authorAccountId,
+            myAccountId,
+          ),
         };
       })
       .sort((a, b) => Number(b.lastAtMicros - a.lastAtMicros));
@@ -2167,7 +2166,7 @@ export default function SpacetimeMailboxApp({
     capsulePrivateRows,
     squarePostRows,
     capsuleMessageRows,
-    identity,
+    myAccountId,
     publicProfileByIdentityHex,
     profileByAccountId,
   ]);
@@ -2270,15 +2269,10 @@ export default function SpacetimeMailboxApp({
           m.threadGuestIdentity.isEqual(guestId),
       );
       const readCursor = cursorMap.get(t.key) ?? 0n;
-      const hasUnread = computeThreadUnread(
-        readCursor,
-        msgs,
-        identity,
-        myAccountId,
-      );
+      const hasUnread = computeThreadUnread(readCursor, msgs, myAccountId);
       return { ...t, hasUnread };
     });
-  }, [capsuleChatThreads, capsulePrivateRows, identity, myAccountId, cursorMap]);
+  }, [capsuleChatThreads, capsulePrivateRows, myAccountId, cursorMap]);
 
   const chatUnreadThreadCount = useMemo(
     () => capsuleChatThreadsWithUnread.filter((t) => t.hasUnread).length,
@@ -2475,7 +2469,7 @@ export default function SpacetimeMailboxApp({
         <img
           src={`${import.meta.env.BASE_URL}logo.png`}
           alt="有說"
-          className="mb-4 h-16 w-16 rounded-2xl border border-white/15 bg-white/5 object-contain p-1 shadow-lg"
+          className="mb-4 w-32 object-contain p-1"
         />
         <Loader2 className="h-8 w-8 animate-spin text-[#FFD54F] mb-4" />
         <p className="text-[14px] font-bold">正在連線至時空數據庫...</p>
@@ -3059,11 +3053,11 @@ export default function SpacetimeMailboxApp({
       const row = avatarCatalogRows.find((x: any) => String(x.avatarKey) === avatarKey);
       const cost = row ? Number(row.pricePoints || 0) : 0;
       if (cost > 0) emitPointsToast(-cost, "解鎖頭像");
-      else setDailyRewardToast("已解鎖並套用新頭像");
-      setAvatarPickerOpen(false);
+      else setDailyRewardToast("已解鎖此張頭像，可點選格子套用為顯示頭像");
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       setAvatarActionError(msg || "解鎖失敗");
+      throw err;
     } finally {
       setAvatarActionLoading(false);
     }
@@ -3607,13 +3601,7 @@ export default function SpacetimeMailboxApp({
         >
           <div
             className={cn(
-              "flex min-h-0 flex-1 flex-col overflow-y-auto apple-scroll px-2 md:px-8 md:py-2",
-              activeTab === "new" || activeTab === "direct"
-                ? "justify-start"
-                : (activeTab === "secret" && !selectedSquarePost) ||
-                    (activeTab === "mine_square" && !selectedSquarePost)
-                  ? "justify-start"
-                  : "justify-start md:justify-center",
+              " min-h-0 flex-1 flex-col overflow-y-auto apple-scroll px-2 md:px-8 md:py-2"
             )}
           >
             {activeTab === "mine" ? (
