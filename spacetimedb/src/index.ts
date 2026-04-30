@@ -3840,11 +3840,22 @@ export const add_capsule_private_message = spacetimedb.reducer(
     if (text.length > MAX_SQUARE_COMMENT_LEN)
       throw new SenderError("內容過長（最多 300 字）");
 
-    // 🔑 修改後的判定：使用 Email 或 AccountId 進行比對，不再依賴 Identity
+    // 參與者判定以 accountId 為主；舊資料 accountId 可能為空時以 email 後備，避免誤鎖整條線。
     const participant = post
       ? isSquareSourceParticipant(pf, source, ctx.sender)
       : source.kind === "capsule"
-        ? `${(source as any).authorAccountId ?? ""}`.trim() === myAccountId // 膠囊比對 AccountId
+        ? (() => {
+            const sourceAuthorAid = `${(source as any).authorAccountId ?? ""}`.trim();
+            const byAccount =
+              sourceAuthorAid.length > 0 &&
+              myAccountId.length > 0 &&
+              sourceAuthorAid === myAccountId;
+            if (byAccount) return true;
+            return (
+              normalizeEmail((source as any).authorEmail ?? "") ===
+              normalizeEmail(pf.email)
+            );
+          })()
         : normalizeEmail(source.senderEmail) === normalizeEmail(pf.email); // 定向信比對 Email
     if (participant) {
       if (threadGuestIdentity.isEqual(ctx.sender)) {
@@ -3879,11 +3890,13 @@ export const add_capsule_private_message = spacetimedb.reducer(
         latestInThread = row;
       }
     }
-    if (
-      threadCount < 10 &&
-      latestInThread &&
-      `${latestInThread.authorAccountId ?? ""}`.trim() === myAccountId
-    ) {
+    const latestAuthorAid = `${latestInThread?.authorAccountId ?? ""}`.trim();
+    const isLatestMineByAccount =
+      latestAuthorAid.length > 0 &&
+      myAccountId.length > 0 &&
+      latestAuthorAid === myAccountId;
+    const isLatestMineByIdentity = !!latestInThread?.authorIdentity?.isEqual?.(ctx.sender);
+    if (threadCount < 10 && (isLatestMineByAccount || isLatestMineByIdentity)) {
       throw new SenderError("前 10 句需你一句我一句，請等對方回覆");
     }
 

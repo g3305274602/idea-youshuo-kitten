@@ -2306,9 +2306,16 @@ export default function SpacetimeMailboxApp({
         : undefined)
     : undefined;
 
-  const isSourceCapsuleMine =
-    !!selectedChatThread &&
-    selectedChatThread.threadGuestHex !== identity.toHexString();
+  const isSourceCapsuleMine = useMemo(() => {
+    if (!selectedChatThread) return false;
+    const myAid = `${myAccountId ?? ""}`.trim();
+    if (!myAid) return false;
+    const sourceId = selectedChatThread.sourceMessageId;
+    const sourceCapsule = capsuleMessageRows.find((c) => c.id === sourceId);
+    const sourcePost = squarePostRows.find((p) => p.sourceMessageId === sourceId);
+    const sourceAid = `${sourceCapsule?.authorAccountId ?? sourcePost?.publisherAccountId ?? ""}`.trim();
+    return !!sourceAid && sourceAid === myAid;
+  }, [selectedChatThread, myAccountId, capsuleMessageRows, squarePostRows]);
 
   useEffect(() => {
     if (activeTab !== "chat") return;
