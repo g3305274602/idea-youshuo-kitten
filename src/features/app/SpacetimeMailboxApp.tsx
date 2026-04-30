@@ -3504,7 +3504,7 @@ export default function SpacetimeMailboxApp({
               className={cn(
                 "min-h-0 flex-1",
                 activeTab === "secret" || activeTab === "mine_square"
-                  ? "flex flex-col md:overflow-y-auto apple-scroll"
+                  ? "flex flex-col h-full md:overflow-y-auto apple-scroll"
                   : "space-y-1.5 md:overflow-y-auto apple-scroll",
               )}
             >
@@ -3638,8 +3638,8 @@ export default function SpacetimeMailboxApp({
             ) : activeTab === "secret" ? (
               <>
                 {/* 手機：原左欄（抽膠囊 + 底列廣場／聊聊） */}
-                <div className="mx-auto flex min-h-0 w-full max-w-md flex-1 flex-col items-center gap-3 pb-8 pt-2 md:hidden">
-                  <div className="flex min-h-0 w-full flex-1 flex-col items-center justify-center gap-3 px-1">
+                <div className="mx-auto flex h-full min-h-0 w-full max-w-md flex-1 flex-col gap-3 pb-4 pt-2 md:hidden">
+                  <div className="flex min-h-0 w-full flex-1 flex-col justify-center gap-3 px-1">
                     <div className="flex w-full justify-center">
                       <SecretCapsuleDrawButton
                         variant="treasure"

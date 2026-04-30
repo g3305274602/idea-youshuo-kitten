@@ -299,7 +299,7 @@
   }
 
   .ys-mine-page {
-    @apply relative px-2 pt-1 pb-3;
+    @apply relative pt-1 pb-3;
   }
 
   .ys-mine-profile-card {

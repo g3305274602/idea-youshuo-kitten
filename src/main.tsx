@@ -11,9 +11,11 @@ const HOST =
   (import.meta.env.DEV ? 'ws://localhost:3000' : 'wss://maincloud.spacetimedb.com');
 const DB_NAME = import.meta.env.VITE_SPACETIMEDB_DB_NAME ?? 'idea-jd2zx';
 const TOKEN_KEY = `${HOST}/${DB_NAME}/auth_token`;
+const RETRY_ONCE_KEY = `${HOST}/${DB_NAME}/connect_retry_once`;
 
 const onConnect = (conn: DbConnection, identity: Identity, token: string) => {
   localStorage.setItem(TOKEN_KEY, token);
+  sessionStorage.removeItem(RETRY_ONCE_KEY);
   console.log(
     'Connected to SpacetimeDB with identity:',
     identity.toHexString()
@@ -25,6 +27,17 @@ const onDisconnect = () => {
 };
 
 const onConnectError = (_ctx: ErrorContext, err: unknown) => {
+  const hasToken = Boolean(localStorage.getItem(TOKEN_KEY));
+  const hasRetried = sessionStorage.getItem(RETRY_ONCE_KEY) === '1';
+  if (hasToken && !hasRetried) {
+    localStorage.removeItem(TOKEN_KEY);
+    sessionStorage.setItem(RETRY_ONCE_KEY, '1');
+    console.warn(
+      `[SpacetimeDB] 首次連線失敗，已清除舊 token（${TOKEN_KEY}）並自動重試一次。`
+    );
+    window.location.reload();
+    return;
+  }
   console.error('Error connecting to SpacetimeDB:', err);
   console.error(
     `[SpacetimeDB] 連線失敗排查：資料庫「${DB_NAME}」、主機「${HOST}」。請確認已在該 server 執行過「spacetime publish」（且 spacetime.json 的 database 與 VITE_SPACETIMEDB_DB_NAME 一致）；若曾換過資料庫名稱，請清除 localStorage 鍵「${TOKEN_KEY}」後重新整理。`
