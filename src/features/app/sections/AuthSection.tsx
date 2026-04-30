@@ -1,5 +1,5 @@
 import type React from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { Loader2, Eye, EyeOff } from "lucide-react"; // 記得補上 Eye 圖標
 import { cn } from "../../../lib/utils";
@@ -87,6 +87,14 @@ export function AuthSection({
   // 密碼顯示狀態放在組件內部
   const [showPassword, setShowPassword] = useState(false);
   const [forgotMode, setForgotMode] = useState(false);
+  const [nowMs, setNowMs] = useState(() => Date.now());
+
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      setNowMs(Date.now());
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -95,12 +103,12 @@ export function AuthSection({
 
   const otpCooldownSec = Math.max(
     0,
-    Math.ceil((registerOtpCooldownUntilMs - Date.now()) / 1000),
+    Math.ceil((registerOtpCooldownUntilMs - nowMs) / 1000),
   );
   const otpCanRequest = otpCooldownSec <= 0 && !registerOtpBusy;
   const forgotOtpCooldownSec = Math.max(
     0,
-    Math.ceil((forgotOtpCooldownUntilMs - Date.now()) / 1000),
+    Math.ceil((forgotOtpCooldownUntilMs - nowMs) / 1000),
   );
   const forgotOtpCanRequest = forgotOtpCooldownSec <= 0 && !forgotOtpBusy;
 

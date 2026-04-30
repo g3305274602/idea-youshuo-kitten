@@ -218,7 +218,11 @@ export function useMessagingActions(params: UseMessagingActionsParams) {
 
   const handleSendChatMessage = async () => {
     const body = params.chatDraft.trim();
-    if (!body || !params.selectedChatThread) return;
+    if (!params.selectedChatThread) {
+      params.setSquareActionError("目前聊天線已失效，請重新選擇一條聊聊後再發送。");
+      return;
+    }
+    if (!body) return;
     if (params.authIsWarned) {
       const endStr = params.myMuteEndAt
         ? `至 ${new Date(Number(params.myMuteEndAt / 1000n)).toLocaleDateString("zh-TW")}`

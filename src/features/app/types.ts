@@ -61,6 +61,7 @@ export type CapsuleChatThreadSummary = {
   key: string;
   sourceMessageId: string;
   threadGuestHex: string;
+  threadGuestAccountId?: string;
   counterpartLabel: string;
   counterpartIdentityHex: string;
   counterpartAccountId?: string;

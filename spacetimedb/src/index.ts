@@ -782,18 +782,65 @@ function isCapsuleThirdParty(
   return true;
 }
 
-function capsuleThreadNonEmpty(
+function resolveThreadGuestIdentityAndAccount(
+  ctx: { db: any },
+  sourceMessageId: string,
+  requestedGuestIdentity: Identity,
+): { effectiveGuestIdentity: Identity; guestAccountId: string } | null {
+  const byIdentity = ctx.db.accountProfile.ownerIdentity.find(requestedGuestIdentity);
+  let guestAccountId = `${byIdentity?.accountId ?? ""}`.trim();
+
+  if (!guestAccountId) {
+    for (const row of ctx.db.capsulePrivateMessage.iter()) {
+      if (row.sourceMessageId !== sourceMessageId) continue;
+      if (!row.threadGuestIdentity.isEqual(requestedGuestIdentity)) continue;
+      const fromThread = `${row.threadGuestAccountId ?? ""}`.trim();
+      if (fromThread) {
+        guestAccountId = fromThread;
+        break;
+      }
+      const fromAuthor =
+        row.authorIdentity.isEqual(requestedGuestIdentity)
+          ? `${row.authorAccountId ?? ""}`.trim()
+          : "";
+      if (fromAuthor) {
+        guestAccountId = fromAuthor;
+        break;
+      }
+    }
+  }
+
+  if (guestAccountId) {
+    const byAccount = ctx.db.accountProfile.accountId.find(guestAccountId);
+    if (byAccount) {
+      return {
+        effectiveGuestIdentity: byAccount.ownerIdentity,
+        guestAccountId,
+      };
+    }
+  }
+
+  if (byIdentity) {
+    return {
+      effectiveGuestIdentity: requestedGuestIdentity,
+      guestAccountId,
+    };
+  }
+
+  return null;
+}
+
+function capsuleThreadNonEmptyByGuest(
   ctx: { db: any },
   sourceMessageId: string,
   guestId: Identity,
+  guestAccountId: string,
 ): boolean {
+  const aid = guestAccountId.trim();
   for (const row of ctx.db.capsulePrivateMessage.iter()) {
-    if (
-      row.sourceMessageId === sourceMessageId &&
-      row.threadGuestIdentity.isEqual(guestId)
-    ) {
-      return true;
-    }
+    if (row.sourceMessageId !== sourceMessageId) continue;
+    if (row.threadGuestIdentity.isEqual(guestId)) return true;
+    if (aid && `${row.threadGuestAccountId ?? ""}`.trim() === aid) return true;
   }
   return false;
 }
@@ -3843,9 +3890,14 @@ export const add_capsule_private_message = spacetimedb.reducer(
     const pf = ctx.db.accountProfile.ownerIdentity.find(ctx.sender);
     if (!pf) throw new SenderError("尚未登入");
     const myAccountId = (pf.accountId || "").trim();
-    const guestPf = ctx.db.accountProfile.ownerIdentity.find(threadGuestIdentity);
-    if (!guestPf) throw new SenderError("訪客資料不存在，請重新開線");
-    const guestAccountId = (guestPf?.accountId || "").trim();
+    const guestResolved = resolveThreadGuestIdentityAndAccount(
+      ctx,
+      sourceMessageId,
+      threadGuestIdentity,
+    );
+    if (!guestResolved) throw new SenderError("訪客資料不存在，請重新開線");
+    const effectiveGuestIdentity = guestResolved.effectiveGuestIdentity;
+    const guestAccountId = (guestResolved.guestAccountId || "").trim();
     const post = ctx.db.squarePost.sourceMessageId.find(sourceMessageId);
     const source = post
       ? getSquareSourceRow(
@@ -3862,10 +3914,10 @@ export const add_capsule_private_message = spacetimedb.reducer(
       throw new SenderError("信件尚未開啟");
     }
     if (source.kind === "direct") {
-      if (!isCapsuleThirdParty(ctx, source, threadGuestIdentity)) {
+      if (!isCapsuleThirdParty(ctx, source, effectiveGuestIdentity)) {
         throw new SenderError("膠囊私訊須以訪客身份開線");
       }
-    } else if (source.senderIdentity.isEqual(threadGuestIdentity)) {
+    } else if (source.senderIdentity.isEqual(effectiveGuestIdentity)) {
       throw new SenderError("膠囊私訊須以訪客身份開線");
     }
     const text = body.trim();
@@ -3891,14 +3943,23 @@ export const add_capsule_private_message = spacetimedb.reducer(
           })()
         : normalizeEmail(source.senderEmail) === normalizeEmail(pf.email); // 定向信比對 Email
     if (participant) {
-      if (threadGuestIdentity.isEqual(ctx.sender)) {
+      if (effectiveGuestIdentity.isEqual(ctx.sender)) {
         throw new SenderError("請指定要回覆的訪客線（訪客身份）");
       }
-      if (!capsuleThreadNonEmpty(ctx, sourceMessageId, threadGuestIdentity)) {
+      if (
+        !capsuleThreadNonEmptyByGuest(
+          ctx,
+          sourceMessageId,
+          effectiveGuestIdentity,
+          guestAccountId,
+        )
+      ) {
         throw new SenderError("請待該訪客先開啟此線後再回覆");
       }
     } else {
-      const guestMatchByIdentity = threadGuestIdentity.isEqual(ctx.sender);
+      const guestMatchByIdentity =
+        effectiveGuestIdentity.isEqual(ctx.sender) ||
+        threadGuestIdentity.isEqual(ctx.sender);
       const guestMatchByAccount =
         guestAccountId.length > 0 &&
         myAccountId.length > 0 &&
@@ -3918,7 +3979,11 @@ export const add_capsule_private_message = spacetimedb.reducer(
     let latestInThread: any = null;
     for (const row of ctx.db.capsulePrivateMessage.iter()) {
       if (row.sourceMessageId !== sourceMessageId) continue;
-      if (!row.threadGuestIdentity.isEqual(threadGuestIdentity)) continue;
+      const sameByIdentity = row.threadGuestIdentity.isEqual(effectiveGuestIdentity);
+      const sameByAccount =
+        guestAccountId.length > 0 &&
+        `${row.threadGuestAccountId ?? ""}`.trim() === guestAccountId;
+      if (!(sameByIdentity || sameByAccount)) continue;
       threadCount += 1;
       if (
         !latestInThread ||
@@ -3941,7 +4006,7 @@ export const add_capsule_private_message = spacetimedb.reducer(
     ctx.db.capsulePrivateMessage.insert({
       id: newMessageId(ctx.random),
       sourceMessageId,
-      threadGuestIdentity,
+      threadGuestIdentity: effectiveGuestIdentity,
       threadGuestAccountId: guestAccountId,
       authorIdentity: ctx.sender,
       authorAccountId: myAccountId,

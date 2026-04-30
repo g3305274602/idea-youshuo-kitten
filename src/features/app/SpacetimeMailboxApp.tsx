@@ -424,6 +424,8 @@ export default function SpacetimeMailboxApp({
   /** 進入個人空間前記錄來源分頁 */
 
   const chatInputRef = useRef<HTMLTextAreaElement | null>(null);
+  const prevChatThreadKeyRef = useRef<string | null>(null);
+  const prevActiveTabRef = useRef(activeTab);
   const adminWorkbenchState = useAdminWorkbenchState();
   const {
     sanctionBanDays,
@@ -2080,9 +2082,20 @@ export default function SpacetimeMailboxApp({
     isCapsuleParticipantUi || capsuleModalPeerChatUnlocked;
 
   const capsuleChatThreads = useMemo((): CapsuleChatThreadSummary[] => {
+    const canonicalGuest = (m: CapsulePrivateMessage) => {
+      const rawHex = m.threadGuestIdentity.toHexString();
+      const aid = String((m as any).threadGuestAccountId ?? "").trim();
+      if (!aid) return { guestHex: rawHex, guestAccountId: "" };
+      const byAid = profileByAccountId.get(aid);
+      return {
+        guestHex: byAid?.ownerIdentity?.toHexString() ?? rawHex,
+        guestAccountId: aid,
+      };
+    };
+
     const countsByKey = new Map<string, number>();
     for (const m of capsulePrivateRows) {
-      const gh = m.threadGuestIdentity.toHexString();
+      const gh = canonicalGuest(m).guestHex;
       const k = `${m.sourceMessageId}::${gh}`;
       countsByKey.set(k, (countsByKey.get(k) ?? 0) + 1);
     }
@@ -2090,7 +2103,8 @@ export default function SpacetimeMailboxApp({
     const summaries = new Map<string, CapsuleChatThreadSummary>();
 
     for (const m of capsulePrivateRows) {
-      const guestHex = m.threadGuestIdentity.toHexString();
+      const { guestHex, guestAccountId: canonicalGuestAccountId } =
+        canonicalGuest(m);
       const key = `${m.sourceMessageId}::${guestHex}`;
       const existing = summaries.get(key);
 
@@ -2145,12 +2159,16 @@ export default function SpacetimeMailboxApp({
       } else {
         const gProfile = publicProfileByIdentityHex.get(guestHex);
         const guestAccountId =
+          canonicalGuestAccountId ||
           gProfile?.accountId ||
           capsulePrivateRows.find(
             (x) =>
               x.sourceMessageId === m.sourceMessageId &&
-              x.threadGuestIdentity.toHexString() === guestHex &&
-              x.authorIdentity.toHexString() === guestHex &&
+              canonicalGuest(x).guestHex === guestHex &&
+              (x.authorIdentity.toHexString() === guestHex ||
+                (canonicalGuestAccountId &&
+                  `${x.authorAccountId ?? ""}`.trim() ===
+                    canonicalGuestAccountId)) &&
               !!(x.authorAccountId ?? "").trim(),
           )?.authorAccountId ||
           "";
@@ -2172,6 +2190,7 @@ export default function SpacetimeMailboxApp({
         key,
         sourceMessageId: m.sourceMessageId,
         threadGuestHex: guestHex,
+        threadGuestAccountId: canonicalGuestAccountId || undefined,
         counterpartLabel,
         counterpartIdentityHex,
         counterpartAccountId,
@@ -2193,11 +2212,13 @@ export default function SpacetimeMailboxApp({
     const list = [...summaries.values()];
     return list
       .map((row) => {
-        const guestId = Identity.fromString(row.threadGuestHex);
         const msgs = capsulePrivateRows.filter(
           (m) =>
             m.sourceMessageId === row.sourceMessageId &&
-            m.threadGuestIdentity.isEqual(guestId),
+            (m.threadGuestIdentity.toHexString() === row.threadGuestHex ||
+              (!!row.threadGuestAccountId &&
+                `${(m as any).threadGuestAccountId ?? ""}`.trim() ===
+                  row.threadGuestAccountId)),
         );
         if (msgs.length === 0) {
           return { ...row, hasNewMessageFromPeer: false };
@@ -2262,6 +2283,7 @@ export default function SpacetimeMailboxApp({
       key: selectedChatThreadKey,
       sourceMessageId: sourceId,
       threadGuestHex: guestHex,
+      threadGuestAccountId: (myAccountId ?? "").trim() || undefined,
       counterpartLabel:
         sourceCapsule?.authorDisplayName ||
         post?.snapshotPublisherName ||
@@ -2291,18 +2313,21 @@ export default function SpacetimeMailboxApp({
     selectedChatThreadKey,
     capsuleChatThreads,
     identity,
+    myAccountId,
     capsuleMessageRows,
     squarePostRows,
   ]);
 
   const selectedChatMessages = useMemo(() => {
     if (!selectedChatThread) return [];
-    const guestId = Identity.fromString(selectedChatThread.threadGuestHex);
     return capsulePrivateRows
       .filter(
         (m) =>
           m.sourceMessageId === selectedChatThread.sourceMessageId &&
-          m.threadGuestIdentity.isEqual(guestId),
+          (m.threadGuestIdentity.toHexString() === selectedChatThread.threadGuestHex ||
+            (!!selectedChatThread.threadGuestAccountId &&
+              `${(m as any).threadGuestAccountId ?? ""}`.trim() ===
+                selectedChatThread.threadGuestAccountId)),
       )
       .sort((a, b) =>
         Number(
@@ -2314,16 +2339,18 @@ export default function SpacetimeMailboxApp({
   const chatPeerUnlocked = selectedChatProgress >= 10;
 
   const { markThreadRead, cursorMap } = useChatReadCursors(
-    identity.toHexString(),
+    (myAccountId ?? "").trim() || identity.toHexString(),
   );
 
   const capsuleChatThreadsWithUnread = useMemo((): CapsuleChatThreadSummary[] => {
     return capsuleChatThreads.map((t) => {
-      const guestId = Identity.fromString(t.threadGuestHex);
       const msgs = capsulePrivateRows.filter(
         (m) =>
           m.sourceMessageId === t.sourceMessageId &&
-          m.threadGuestIdentity.isEqual(guestId),
+          (m.threadGuestIdentity.toHexString() === t.threadGuestHex ||
+            (!!t.threadGuestAccountId &&
+              `${(m as any).threadGuestAccountId ?? ""}`.trim() ===
+                t.threadGuestAccountId)),
       );
       const readCursor = cursorMap.get(t.key) ?? 0n;
       const hasUnread = computeThreadUnread(readCursor, msgs, myAccountId);
@@ -2358,6 +2385,29 @@ export default function SpacetimeMailboxApp({
     () => maxMessageMicros(selectedChatMessages),
     [selectedChatMessages],
   );
+
+  const clearChatDraftInput = useCallback(() => {
+    setChatDraft("");
+    if (chatInputRef.current) {
+      chatInputRef.current.style.height = "44px";
+    }
+  }, [setChatDraft]);
+
+  useEffect(() => {
+    const prev = prevChatThreadKeyRef.current;
+    if (prev !== null && prev !== selectedChatThreadKey) {
+      clearChatDraftInput();
+    }
+    prevChatThreadKeyRef.current = selectedChatThreadKey;
+  }, [selectedChatThreadKey, clearChatDraftInput]);
+
+  useEffect(() => {
+    const prev = prevActiveTabRef.current;
+    if (prev === "chat" && activeTab !== "chat") {
+      clearChatDraftInput();
+    }
+    prevActiveTabRef.current = activeTab;
+  }, [activeTab, clearChatDraftInput]);
 
   useEffect(() => {
     if (activeTab !== "chat" || !selectedChatThreadKey) return;

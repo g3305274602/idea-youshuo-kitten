@@ -1,18 +1,18 @@
 import { useCallback, useEffect, useState } from "react";
 import { loadReadCursorMap, saveReadCursorMap } from "../chatReadCursors";
 
-export function useChatReadCursors(identityHex: string | undefined) {
+export function useChatReadCursors(ownerKey: string | undefined) {
   const [cursorMap, setCursorMap] = useState<Map<string, bigint>>(
     () => new Map(),
   );
 
   useEffect(() => {
-    if (!identityHex) {
+    if (!ownerKey) {
       setCursorMap(new Map());
       return;
     }
-    setCursorMap(loadReadCursorMap(identityHex));
-  }, [identityHex]);
+    setCursorMap(loadReadCursorMap(ownerKey));
+  }, [ownerKey]);
 
   const markThreadRead = useCallback(
     (threadKey: string, maxMessageMicros: bigint) => {
@@ -21,11 +21,11 @@ export function useChatReadCursors(identityHex: string | undefined) {
         const cur = next.get(threadKey) ?? 0n;
         const merged = maxMessageMicros > cur ? maxMessageMicros : cur;
         next.set(threadKey, merged);
-        if (identityHex) saveReadCursorMap(identityHex, next);
+        if (ownerKey) saveReadCursorMap(ownerKey, next);
         return next;
       });
     },
-    [identityHex],
+    [ownerKey],
   );
 
   const getCursor = useCallback(
