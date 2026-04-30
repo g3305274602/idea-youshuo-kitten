@@ -87,12 +87,12 @@ export function SpaceSidebarSection({
                   </span>
                 ) : null}
               </div>
-              <div className="ys-mine-shuoshuo-row">
-                <p className="min-w-0 flex-1 truncate text-white/80">
-                  {profileNote?.trim() || "尚無說說"}
-                </p>
-              </div>
             </div>
+          </div>
+        </div>
+        <div className="mt-3 border-t border-white/10 pt-2.5">
+          <div className="ys-mine-shuoshuo-row">
+            <p className="min-w-0 w-full truncate text-white/80">{profileNote?.trim() || "尚無說說"}</p>
           </div>
         </div>
         <div className="mt-4 grid grid-cols-2 gap-2 text-center">

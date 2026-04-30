@@ -93,9 +93,19 @@ export function MineSidebarSection({
           </button>
           <div className="ys-mine-profile-hitbox">
             <div className="ys-mine-profile-main">
-              <div className="ys-mine-name-row">
-                <p className="ys-mine-name">{displayName}</p>
-              </div>
+              <button
+                type="button"
+                onClick={onOpenActions}
+                className="ys-mine-name-row w-full items-start text-left text-white/90 hover:text-white"
+                aria-label="開啟個人設定"
+              >
+                <p className="ys-mine-name overflow-visible whitespace-normal break-words text-clip">
+                  {displayName}
+                </p>
+                <span className="ml-auto mt-0.5 shrink-0 text-white/65">
+                  <Settings className="h-5 w-5" strokeWidth={2} aria-hidden />
+                </span>
+              </button>
               <div className="ys-mine-level-row">
                 <div className="ys-mine-level-chip">
                   <Star className="h-2.5 w-2.5" strokeWidth={2.6} aria-hidden />
@@ -126,35 +136,29 @@ export function MineSidebarSection({
                   </button>
                 ) : null}
               </div>
-              <div className="ys-mine-shuoshuo-row">
-                <button
-                  type="button"
-                  onClick={onEditIntro}
-                  className="min-w-0 flex-1 flex items-center gap-1.5 text-left truncate text-white/80 hover:text-white/95"
-                >
-                  {shuoshuo ? (
-                    <>
-                      <span className="min-w-0 flex-1 truncate">{shuoshuo}</span>
-                      <Edit3 className="h-3.5 w-3.5 shrink-0 text-white/50" aria-hidden />
-                    </>
-                  ) : (
-                    <>
-                      <span className="min-w-0 flex-1 truncate text-white/35">尚無說說</span>
-                      <Edit3 className="h-3.5 w-3.5 shrink-0 text-white/40" aria-hidden />
-                    </>
-                  )}
-                </button>
-              </div>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={onOpenActions}
-            className="ys-mine-profile-gear"
-            aria-label="個人設定"
-          >
-            <Settings className="h-5 w-5" strokeWidth={2} aria-hidden />
-          </button>
+        </div>
+        <div className="mt-3 border-t border-white/10 pt-2.5">
+          <div className="ys-mine-shuoshuo-row">
+            <button
+              type="button"
+              onClick={onEditIntro}
+              className="flex min-w-0 w-full items-center gap-1.5 truncate text-left text-white/80 hover:text-white/95"
+            >
+              {shuoshuo ? (
+                <>
+                  <span className="min-w-0 flex-1 truncate">{shuoshuo}</span>
+                  <Edit3 className="h-3.5 w-3.5 shrink-0 text-white/50" aria-hidden />
+                </>
+              ) : (
+                <>
+                  <span className="min-w-0 flex-1 truncate text-white/35">尚無說說</span>
+                  <Edit3 className="h-3.5 w-3.5 shrink-0 text-white/40" aria-hidden />
+                </>
+              )}
+            </button>
+          </div>
         </div>
       </div>
 
