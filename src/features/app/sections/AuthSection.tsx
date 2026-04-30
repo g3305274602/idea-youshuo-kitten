@@ -14,17 +14,23 @@ type AuthSectionProps = {
   registerGender: string;
   registerProfileNote: string;
   registerOtpCode: string;
-  registerOtpBusy: boolean;
+  /** 發送信箱驗證碼進行中（顯示發碼按鈕轉圈／鎖定） */
+  registerOtpSendBusy: boolean;
   registerOtpMessage: string;
   registerOtpCooldownUntilMs: number;
   registerOtpVerified: boolean;
   forgotOtpCode: string;
-  forgotOtpBusy: boolean;
+  /** 發送找回密碼驗證碼進行中（顯示發碼按鈕轉圈／鎖定） */
+  forgotOtpSendBusy: boolean;
   forgotOtpMessage: string;
   forgotOtpCooldownUntilMs: number;
   forgotOtpVerified: boolean;
   forgotNewPassword: string;
   forgotConfirmPassword: string;
+  /** 重設密碼送出進行中 */
+  forgotPwdResetBusy: boolean;
+  /** 驗證找回密碼驗證碼進行中 */
+  forgotOtpVerifyBusy: boolean;
   loading: boolean;
   error: string;
   onSubmit: () => void; // 這對應原先的 handleAuth
@@ -54,17 +60,19 @@ export function AuthSection({
   registerGender,
   registerProfileNote,
   registerOtpCode,
-  registerOtpBusy,
+  registerOtpSendBusy,
   registerOtpMessage,
   registerOtpCooldownUntilMs,
   registerOtpVerified,
   forgotOtpCode,
-  forgotOtpBusy,
+  forgotOtpSendBusy,
   forgotOtpMessage,
   forgotOtpCooldownUntilMs,
   forgotOtpVerified,
   forgotNewPassword,
   forgotConfirmPassword,
+  forgotPwdResetBusy,
+  forgotOtpVerifyBusy,
   loading,
   error,
   onSubmit,
@@ -105,12 +113,15 @@ export function AuthSection({
     0,
     Math.ceil((registerOtpCooldownUntilMs - nowMs) / 1000),
   );
-  const otpCanRequest = otpCooldownSec <= 0 && !registerOtpBusy;
+  const otpCanRequest = otpCooldownSec <= 0 && !registerOtpSendBusy;
   const forgotOtpCooldownSec = Math.max(
     0,
     Math.ceil((forgotOtpCooldownUntilMs - nowMs) / 1000),
   );
-  const forgotOtpCanRequest = forgotOtpCooldownSec <= 0 && !forgotOtpBusy;
+  const forgotOtpCanRequest =
+    forgotOtpCooldownSec <= 0 &&
+    !forgotOtpSendBusy &&
+    !forgotPwdResetBusy;
 
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-[#121319] p-6 font-sans text-white">
@@ -206,9 +217,18 @@ export function AuthSection({
                     type="button"
                     disabled={!otpCanRequest}
                     onClick={onRequestRegisterOtp}
-                    className="shrink-0 rounded-[12px] border border-white/20 bg-white/[0.08] px-3 py-2 text-[12px] font-semibold text-white disabled:opacity-45"
+                    className="shrink-0 rounded-[12px] border border-white/20 bg-white/[0.08] px-3 py-2 text-[12px] font-semibold text-white disabled:opacity-45 inline-flex items-center gap-1.5"
                   >
-                    {otpCooldownSec > 0 ? `${otpCooldownSec}s` : "發送驗證碼"}
+                    {registerOtpSendBusy ? (
+                      <>
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        發送中…
+                      </>
+                    ) : otpCooldownSec > 0 ? (
+                      `${otpCooldownSec}s`
+                    ) : (
+                      "發送驗證碼"
+                    )}
                   </button>
                 </div>
                 {registerOtpMessage ? (
@@ -221,13 +241,7 @@ export function AuthSection({
                     {registerOtpMessage}
                   </p>
                 ) : null}
-                {/* {registerOtpBusy ? (
-                  <p className="mt-1 text-[11px] text-white/50">正在驗證中…</p>
-                ) : registerOtpVerified ? (
-                  <p className="mt-1 text-[11px] text-emerald-300">已完成驗證</p>
-                ) : registerOtpCode.trim().length === 6 ? (
-                  <p className="mt-1 text-[11px] text-white/50">已輸入 6 位，將自動驗證</p>
-                ) : null} */}
+                {/* 如需額外文案：可在這裡用 registerOtpSendBusy / registerOtpVerified / registerOtpCode 做提示 */}
               </motion.div>
             ) : null}
           </AnimatePresence>
@@ -341,9 +355,18 @@ export function AuthSection({
                       type="button"
                       disabled={!forgotOtpCanRequest}
                       onClick={onRequestForgotOtp}
-                      className="shrink-0 rounded-[12px] border border-white/20 bg-white/[0.08] px-3 py-2 text-[12px] font-semibold text-white disabled:opacity-45"
+                      className="shrink-0 rounded-[12px] border border-white/20 bg-white/[0.08] px-3 py-2 text-[12px] font-semibold text-white disabled:opacity-45 inline-flex items-center gap-1.5"
                     >
-                      {forgotOtpCooldownSec > 0 ? `${forgotOtpCooldownSec}s` : "發送驗證碼"}
+                      {forgotOtpSendBusy ? (
+                        <>
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          發送中…
+                        </>
+                      ) : forgotOtpCooldownSec > 0 ? (
+                        `${forgotOtpCooldownSec}s`
+                      ) : (
+                        "發送驗證碼"
+                      )}
                     </button>
                   </div>
                   <input
@@ -363,10 +386,17 @@ export function AuthSection({
                   <button
                     type="button"
                     onClick={onSubmitForgotPassword}
-                    disabled={forgotOtpBusy}
-                    className="w-full rounded-[12px] border border-[#FFD54F]/40 bg-[#FFD54F]/20 px-3 py-2 text-[12px] font-semibold text-[#FFD54F] disabled:opacity-50"
+                    disabled={forgotPwdResetBusy || forgotOtpVerifyBusy}
+                    className="w-full rounded-[12px] border border-[#FFD54F]/40 bg-[#FFD54F]/20 px-3 py-2 text-[12px] font-semibold text-[#FFD54F] disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
                   >
-                    {forgotOtpBusy ? "處理中…" : "確認重設密碼"}
+                    {forgotPwdResetBusy ? (
+                      <>
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        處理中…
+                      </>
+                    ) : (
+                      "確認重設密碼"
+                    )}
                   </button>
                   {forgotOtpMessage ? (
                     <p className={cn("text-[12px]", forgotOtpVerified ? "text-emerald-300" : "text-white/65")}>

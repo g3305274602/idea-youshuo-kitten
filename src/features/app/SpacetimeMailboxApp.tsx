@@ -1725,14 +1725,16 @@ export default function SpacetimeMailboxApp({
     handleAuth,
     registerOtpCode,
     setRegisterOtpCode,
-    registerOtpBusy,
+    registerOtpSendBusy,
     registerOtpMessage,
     registerOtpCooldownUntilMs,
     registerOtpVerified,
     requestRegisterEmailOtp,
     forgotOtpCode,
     setForgotOtpCode,
-    forgotOtpBusy,
+    forgotOtpSendBusy,
+    forgotOtpVerifyBusy,
+    forgotPwdResetBusy,
     forgotOtpMessage,
     forgotOtpCooldownUntilMs,
     forgotOtpVerified,
@@ -2633,12 +2635,14 @@ export default function SpacetimeMailboxApp({
         registerGender={registerGender}
         registerProfileNote={registerProfileNote}
         registerOtpCode={registerOtpCode}
-        registerOtpBusy={registerOtpBusy}
+        registerOtpSendBusy={registerOtpSendBusy}
         registerOtpMessage={registerOtpMessage}
         registerOtpCooldownUntilMs={registerOtpCooldownUntilMs}
         registerOtpVerified={registerOtpVerified}
         forgotOtpCode={forgotOtpCode}
-        forgotOtpBusy={forgotOtpBusy}
+        forgotOtpSendBusy={forgotOtpSendBusy}
+        forgotOtpVerifyBusy={forgotOtpVerifyBusy}
+        forgotPwdResetBusy={forgotPwdResetBusy}
         forgotOtpMessage={forgotOtpMessage}
         forgotOtpCooldownUntilMs={forgotOtpCooldownUntilMs}
         forgotOtpVerified={forgotOtpVerified}

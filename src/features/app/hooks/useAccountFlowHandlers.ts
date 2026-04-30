@@ -172,14 +172,26 @@ export function useAccountFlowHandlers(params: UseAccountFlowHandlersParams) {
   }
 
   const [registerOtpCode, setRegisterOtpCode] = useState("");
-  const [registerOtpBusy, setRegisterOtpBusy] = useState(false);
+  /** 發送註冊驗證碼進行中 */
+  const [registerOtpSendBusy, setRegisterOtpSendBusy] = useState(false);
+  /** 驗證註冊驗證碼進行中 */
+  const [registerOtpVerifyBusy, setRegisterOtpVerifyBusy] = useState(false);
+  const registerOtpBusy =
+    registerOtpSendBusy || registerOtpVerifyBusy;
   const [registerOtpMessage, setRegisterOtpMessage] = useState("");
   const [registerOtpVerifiedEmail, setRegisterOtpVerifiedEmail] = useState("");
   const [registerOtpVerifiedCode, setRegisterOtpVerifiedCode] = useState("");
   const [registerOtpCooldownUntilMs, setRegisterOtpCooldownUntilMs] = useState(0);
   const [registerOtpRejectedCode, setRegisterOtpRejectedCode] = useState("");
   const [forgotOtpCode, setForgotOtpCode] = useState("");
-  const [forgotOtpBusy, setForgotOtpBusy] = useState(false);
+  /** 發送找回密碼驗證碼進行中 */
+  const [forgotOtpSendBusy, setForgotOtpSendBusy] = useState(false);
+  /** 驗證找回密碼驗證碼進行中 */
+  const [forgotOtpVerifyBusy, setForgotOtpVerifyBusy] = useState(false);
+  /** 重設密碼提交進行中 */
+  const [forgotPwdResetBusy, setForgotPwdResetBusy] = useState(false);
+  const forgotOtpBusy =
+    forgotOtpSendBusy || forgotOtpVerifyBusy || forgotPwdResetBusy;
   const [forgotOtpMessage, setForgotOtpMessage] = useState("");
   const [forgotOtpVerifiedEmail, setForgotOtpVerifiedEmail] = useState("");
   const [forgotOtpVerifiedCode, setForgotOtpVerifiedCode] = useState("");
@@ -353,7 +365,7 @@ export function useAccountFlowHandlers(params: UseAccountFlowHandlersParams) {
       setRegisterOtpMessage("請先輸入信箱");
       return;
     }
-    setRegisterOtpBusy(true);
+    setRegisterOtpSendBusy(true);
     setRegisterOtpMessage("");
     try {
       const code = String(Math.floor(100000 + Math.random() * 900000));
@@ -369,7 +381,7 @@ export function useAccountFlowHandlers(params: UseAccountFlowHandlersParams) {
       const msg = err instanceof Error ? err.message : String(err);
       setRegisterOtpMessage(msg || "發送驗證碼失敗");
     } finally {
-      setRegisterOtpBusy(false);
+      setRegisterOtpSendBusy(false);
     }
   };
 
@@ -379,7 +391,7 @@ export function useAccountFlowHandlers(params: UseAccountFlowHandlersParams) {
       setForgotOtpMessage("請先輸入信箱");
       return;
     }
-    setForgotOtpBusy(true);
+    setForgotOtpSendBusy(true);
     setForgotOtpMessage("");
     try {
       const code = String(Math.floor(100000 + Math.random() * 900000));
@@ -395,7 +407,7 @@ export function useAccountFlowHandlers(params: UseAccountFlowHandlersParams) {
       const msg = err instanceof Error ? err.message : String(err);
       setForgotOtpMessage(msg || "發送驗證碼失敗");
     } finally {
-      setForgotOtpBusy(false);
+      setForgotOtpSendBusy(false);
     }
   };
 
@@ -410,7 +422,7 @@ export function useAccountFlowHandlers(params: UseAccountFlowHandlersParams) {
       setRegisterOtpMessage("請輸入 6 位數驗證碼");
       return;
     }
-    setRegisterOtpBusy(true);
+    setRegisterOtpVerifyBusy(true);
     setRegisterOtpMessage("");
     try {
       await params.verifyEmailOtp({ email: em, purpose: "register", code });
@@ -423,7 +435,7 @@ export function useAccountFlowHandlers(params: UseAccountFlowHandlersParams) {
       setRegisterOtpRejectedCode(code);
       setRegisterOtpMessage(msg || "驗證失敗");
     } finally {
-      setRegisterOtpBusy(false);
+      setRegisterOtpVerifyBusy(false);
     }
   };
 
@@ -438,7 +450,7 @@ export function useAccountFlowHandlers(params: UseAccountFlowHandlersParams) {
       setForgotOtpMessage("請輸入 6 位數驗證碼");
       return;
     }
-    setForgotOtpBusy(true);
+    setForgotOtpVerifyBusy(true);
     setForgotOtpMessage("");
     try {
       await params.verifyEmailOtp({ email: em, purpose: "reset_password", code });
@@ -451,12 +463,12 @@ export function useAccountFlowHandlers(params: UseAccountFlowHandlersParams) {
       setForgotOtpRejectedCode(code);
       setForgotOtpMessage(msg || "驗證失敗");
     } finally {
-      setForgotOtpBusy(false);
+      setForgotOtpVerifyBusy(false);
     }
   };
 
   useEffect(() => {
-    if (registerOtpBusy) return;
+    if (registerOtpVerifyBusy) return;
     const code = registerOtpCode.trim();
     if (
       registerOtpVerifiedEmail === normalizedEmail &&
@@ -473,7 +485,7 @@ export function useAccountFlowHandlers(params: UseAccountFlowHandlersParams) {
     return () => window.clearTimeout(t);
   }, [
     registerOtpCode,
-    registerOtpBusy,
+    registerOtpVerifyBusy,
     registerOtpRejectedCode,
     registerOtpVerifiedEmail,
     registerOtpVerifiedCode,
@@ -481,7 +493,7 @@ export function useAccountFlowHandlers(params: UseAccountFlowHandlersParams) {
   ]);
 
   useEffect(() => {
-    if (forgotOtpBusy) return;
+    if (forgotOtpVerifyBusy || forgotPwdResetBusy) return;
     const code = forgotOtpCode.trim();
     if (
       forgotOtpVerifiedEmail === normalizedEmail &&
@@ -498,7 +510,8 @@ export function useAccountFlowHandlers(params: UseAccountFlowHandlersParams) {
     return () => window.clearTimeout(t);
   }, [
     forgotOtpCode,
-    forgotOtpBusy,
+    forgotOtpVerifyBusy,
+    forgotPwdResetBusy,
     forgotOtpRejectedCode,
     forgotOtpVerifiedEmail,
     forgotOtpVerifiedCode,
@@ -524,7 +537,7 @@ export function useAccountFlowHandlers(params: UseAccountFlowHandlersParams) {
       setForgotOtpMessage("兩次新密碼不一致");
       return;
     }
-    setForgotOtpBusy(true);
+    setForgotPwdResetBusy(true);
     setForgotOtpMessage("");
     try {
       await params.resetPasswordWithEmailOtp({ email: em, newPassword: np });
@@ -539,7 +552,7 @@ export function useAccountFlowHandlers(params: UseAccountFlowHandlersParams) {
       const msg = err instanceof Error ? err.message : String(err);
       setForgotOtpMessage(msg || "重設密碼失敗");
     } finally {
-      setForgotOtpBusy(false);
+      setForgotPwdResetBusy(false);
     }
   };
 
@@ -733,6 +746,8 @@ export function useAccountFlowHandlers(params: UseAccountFlowHandlersParams) {
     handleAuth,
     registerOtpCode,
     setRegisterOtpCode,
+    registerOtpSendBusy,
+    registerOtpVerifyBusy,
     registerOtpBusy,
     registerOtpMessage,
     registerOtpCooldownUntilMs,
@@ -741,6 +756,9 @@ export function useAccountFlowHandlers(params: UseAccountFlowHandlersParams) {
     verifyRegisterEmailOtp,
     forgotOtpCode,
     setForgotOtpCode,
+    forgotOtpSendBusy,
+    forgotOtpVerifyBusy,
+    forgotPwdResetBusy,
     forgotOtpBusy,
     forgotOtpMessage,
     forgotOtpCooldownUntilMs,
