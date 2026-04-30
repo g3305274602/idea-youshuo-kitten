@@ -307,13 +307,13 @@ export function AuthSection({
           </button>
 
           {view === "login" ? (
-            <div className="mt-3 rounded-[16px] border border-white/[0.08] bg-white/[0.03] p-3">
+            <div className={cn("mt-3 rounded-[16px] border-white/[0.08] px-3", forgotMode ? "border bg-white/[0.03] p-3" : "")}>
               <button
                 type="button"
                 onClick={() => setForgotMode((v) => !v)}
-                className="text-[12px] font-semibold text-[#FFD54F]"
+                className="text-[12px] font-semibold text-[#FFD54F] block ml-auto"
               >
-                {forgotMode ? "收起重設密碼" : "忘記密碼？信箱重設"}
+                {forgotMode ? "收起重設密碼" : "忘記密碼？"}
               </button>
               {forgotMode ? (
                 <div className="mt-2 space-y-2">

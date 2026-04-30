@@ -76,7 +76,7 @@ export function ComposeMessageMainSection({
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -20 }}
-          className="max-w-md w-full mx-auto px-2 pb-10"
+          className="max-w-md w-full mx-auto px-2 pt-8 pb-10"
         >
           <div className="mb-4 p-1.5 bg-black/30 rounded-[22px] backdrop-blur-md border border-white/10 flex gap-1">
             {modeOptions.map((opt) => (
@@ -148,10 +148,10 @@ export function ComposeMessageMainSection({
                   <label className="group flex items-center justify-between gap-3 cursor-pointer select-none">
                     <div className="min-w-0">
                       <p className="text-[12px] font-black tracking-wide text-white/90">
-                        同步顯示到我的空間
+                        同步顯示到我的空間（所有人可見）
                       </p>
                       <p className="mt-1 text-[11px] font-medium text-[#8E8E93]">
-                        關閉時僅自己可在空間看到；開啟後他人可在你的空間瀏覽（到開啟時間後）
+                      不開啟時僅自己可在空間看到
                       </p>
                     </div>
                     <div className="relative shrink-0">
@@ -191,12 +191,12 @@ export function ComposeMessageMainSection({
                   <input
                     name="scheduledAt"
                     type="datetime-local"
-                    className="w-full rounded-xl border border-white/10 bg-white/[0.06] px-3 py-3 font-bold text-white outline-none"
+                    className="w-full rounded-xl border border-white/10 bg-white/[0.06] px-3 py-1 font-bold text-white outline-none"
                   />
                 </div>
-                <div className="flex flex-col justify-start pt-6">
+                <div className="flex flex-col justify-start md:pt-6">
                   <label className="group flex items-center gap-3 cursor-pointer select-none">
-                    <div className="relative">
+                  <div className="relative">
                       <input
                         name="isWaitListVisible"
                         type="checkbox"

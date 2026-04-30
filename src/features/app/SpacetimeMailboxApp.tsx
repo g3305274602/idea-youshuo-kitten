@@ -2567,7 +2567,7 @@ export default function SpacetimeMailboxApp({
           className="mb-4 w-32 object-contain p-1"
         />
         <Loader2 className="h-8 w-8 animate-spin text-[#FFD54F] mb-4" />
-        <p className="text-[14px] font-bold">正在連線至時空數據庫...</p>
+        {/* <p className="text-[14px] font-bold">正在連線至時空數據庫...</p> */}
       </div>
     );
   }
@@ -3795,7 +3795,7 @@ export default function SpacetimeMailboxApp({
               <ChatMainSection {...chatMainProps} />
             ) : activeTab === "secret" ||
               (activeTab === "mine_square" && selectedSquarePost) ? (
-              <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col gap-3">
+              <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col gap-3 h-full">
                 {activeTab === "secret" && !selectedSquarePost ? (
                   <>
                     <SecretMainSection {...secretMainProps} />

@@ -74,7 +74,7 @@ export function SecretMainSection({
 }: SecretMainSectionProps) {
   if (!selectedSquarePost) {
     return (
-      <div className="mx-auto flex w-full max-w-md flex-1 flex-col items-center justify-center gap-4 px-4 py-8 md:max-w-lg md:py-10">
+      <div className="mx-auto flex w-full max-w-md flex-1 flex-col items-center justify-center gap-4 px-4 py-8 md:max-w-lg md:py-12">
         <div className="flex w-full max-w-sm shrink-0 flex-col items-center justify-center gap-3 rounded-3xl from-[#1A1B22]/95 via-[#121319]/95 to-[#0c0c12]/95 px-4 py-5 backdrop-blur-md">
           <div className="flex w-full justify-center">
             <SecretCapsuleDrawButton
