@@ -1,7 +1,18 @@
 import type React from "react";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { Activity, ChevronRight, Image, LayoutGrid, Lock, ShieldAlert, UserCog, X } from "lucide-react";
+import {
+  Activity,
+  ChevronDown,
+  ChevronRight,
+  ChevronUp,
+  Image,
+  LayoutGrid,
+  Lock,
+  ShieldAlert,
+  UserCog,
+  X,
+} from "lucide-react";
 import { Identity } from "spacetimedb";
 import { cn } from "../../../lib/utils";
 import type {
@@ -32,6 +43,13 @@ import {
   type SuperAdminTrendsBundle,
 } from "../../admin/superAdminTrendCharts";
 import { CdSelect } from "../components/CdSelect";
+import {
+  groupRowsBySeriesKey,
+  loadAvatarSeriesDisplayOrder,
+  mergePersistedSeriesOrder,
+  moveSeriesKeyInOrder,
+  saveAvatarSeriesDisplayOrder,
+} from "../avatarSeriesDisplayOrder";
 import { useEscapeClose } from "../hooks/useEscapeClose";
 
 function ReportCopyRow({ label, value }: { label: string; value: string }) {
@@ -521,6 +539,34 @@ export function AdminContent(props: AdminContentProps) {
     onAvatarDeleteItem,
     onAvatarCreateItem,
   } = props;
+
+  const avatarSeriesGroupedMap = useMemo(
+    () => groupRowsBySeriesKey(avatarCatalogRows),
+    [avatarCatalogRows],
+  );
+  const [avatarSeriesDisplayKeys, setAvatarSeriesDisplayKeys] = useState<string[]>([]);
+
+  useEffect(() => {
+    const grouped = avatarSeriesGroupedMap;
+    const keys = [...grouped.keys()];
+    setAvatarSeriesDisplayKeys((prev) =>
+      mergePersistedSeriesOrder(keys, grouped, prev.length ? prev : loadAvatarSeriesDisplayOrder()),
+    );
+  }, [avatarCatalogRows, avatarSeriesGroupedMap]);
+
+  const reorderAvatarSeries = (seriesKey: string, dir: -1 | 1) => {
+    setAvatarSeriesDisplayKeys((prev) => {
+      const grouped = avatarSeriesGroupedMap;
+      const base =
+        prev.length > 0
+          ? prev
+          : mergePersistedSeriesOrder([...grouped.keys()], grouped, loadAvatarSeriesDisplayOrder());
+      const next = moveSeriesKeyInOrder(base, seriesKey, dir);
+      saveAvatarSeriesDisplayOrder(next);
+      return next;
+    });
+  };
+
   const [avatarCreateOpen, setAvatarCreateOpen] = useState(false);
   const [newSeriesPrefix, setNewSeriesPrefix] = useState("");
   const [newSeriesDisplayName, setNewSeriesDisplayName] = useState("");
@@ -538,6 +584,15 @@ export function AdminContent(props: AdminContentProps) {
   const [seriesEditPriceInput, setSeriesEditPriceInput] = useState("");
   const [seriesEditSortOrderBaseInput, setSeriesEditSortOrderBaseInput] = useState("");
   const [seriesEditGenerateCountInput, setSeriesEditGenerateCountInput] = useState("5");
+  const resetAvatarCreateForm = () => {
+    setNewSeriesPrefix("");
+    setNewSeriesDisplayName("");
+    setNewBasePath("/avatars/");
+    setNewChargePoints(false);
+    setNewDefaultPricePointsInput("");
+    setNewSortOrderBaseInput("");
+    setNewGenerateCountInput("5");
+  };
   const [avatarDeleteConfirmOpen, setAvatarDeleteConfirmOpen] = useState(false);
   const [avatarDeleteTargetKey, setAvatarDeleteTargetKey] = useState("");
   const [accountOpsOpen, setAccountOpsOpen] = useState(false);
@@ -1206,13 +1261,14 @@ export function AdminContent(props: AdminContentProps) {
             <div>
               <p className="text-[15px] font-black text-white">頭像設定</p>
               <p className="mt-0.5 text-[11px] text-white/60">
-                管理員可改價與上下架，超級管理員可新增/刪除。
+                管理員可改價與上下架，超級管理員可新增/刪除。系列區塊右側「上移／下移」可調整整組顯示順序（使用者更換頭像時會依相同順序，存在本機瀏覽器）。
               </p>
             </div>
             {isSuperAdmin ? (
               <button
                 type="button"
                 onClick={() => {
+                  resetAvatarCreateForm();
                   onAvatarOpenCreateModal();
                   setAvatarCreateOpen(true);
                 }}
@@ -1226,32 +1282,16 @@ export function AdminContent(props: AdminContentProps) {
             {avatarCatalogRows.length === 0 ? (
               <p className="text-[12px] text-white/60">尚無頭像設定資料</p>
             ) : (
-              Object.entries(
-                avatarCatalogRows.reduce<
-                  Record<
-                    string,
-                    {
-                      avatarKey: string;
-                      seriesKey: string;
-                      seriesDisplayName: string;
-                      basePath: string;
-                      fileName: string;
-                      pricePoints: number;
-                      isPublished: boolean;
-                      sortOrder: number;
-                    }[]
-                  >
-                >((acc, row) => {
-                  const key = row.seriesKey || "未分組";
-                  const list = acc[key] ?? [];
-                  acc[key] = [...list, row];
-                  return acc;
-                }, {}),
-              ).map(([seriesKey, rows]) => {
+              avatarSeriesDisplayKeys.map((seriesKey) => {
+                const rows = avatarSeriesGroupedMap.get(seriesKey);
+                if (!rows?.length) return null;
                 const allPublished = rows.every((r) => r.isPublished);
                 const seriesDisplayName =
                   rows.find((r) => r.seriesDisplayName?.trim())?.seriesDisplayName?.trim() ||
                   seriesKey;
+                const pos = avatarSeriesDisplayKeys.indexOf(seriesKey);
+                const atFirst = pos <= 0;
+                const atLast = pos >= avatarSeriesDisplayKeys.length - 1;
                 return (
                   <div
                     key={seriesKey}
@@ -1270,6 +1310,26 @@ export function AdminContent(props: AdminContentProps) {
                         </span>
                       </div>
                       <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          title="系列區塊上移"
+                          aria-label="整組上移"
+                          disabled={avatarCatalogEditBusy || atFirst}
+                          onClick={() => reorderAvatarSeries(seriesKey, -1)}
+                          className="rounded-full border border-white/25 bg-white/10 p-1.5 text-white/85 disabled:opacity-40"
+                        >
+                          <ChevronUp className="h-3.5 w-3.5" aria-hidden />
+                        </button>
+                        <button
+                          type="button"
+                          title="系列區塊下移"
+                          aria-label="整組下移"
+                          disabled={avatarCatalogEditBusy || atLast}
+                          onClick={() => reorderAvatarSeries(seriesKey, 1)}
+                          className="rounded-full border border-white/25 bg-white/10 p-1.5 text-white/85 disabled:opacity-40"
+                        >
+                          <ChevronDown className="h-3.5 w-3.5" aria-hidden />
+                        </button>
                         <button
                           type="button"
                           className="rounded-full border border-white/25 bg-white/10 px-3 py-1.5 text-[11px] font-bold text-white/80"
@@ -1343,7 +1403,7 @@ export function AdminContent(props: AdminContentProps) {
                         </button>
                       </div>
                     </div>
-                    <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-5">
+                    <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
                       {rows
                         .slice()
                         .sort((a, b) => a.sortOrder - b.sortOrder)

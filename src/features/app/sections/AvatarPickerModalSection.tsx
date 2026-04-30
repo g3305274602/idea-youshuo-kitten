@@ -1,6 +1,11 @@
 import { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 
+import {
+  groupRowsBySeriesKey,
+  loadAvatarSeriesDisplayOrder,
+  mergePersistedSeriesOrder,
+} from "../avatarSeriesDisplayOrder";
 import { useEscapeClose } from "../hooks/useEscapeClose";
 
 type AvatarCatalogRow = {
@@ -49,13 +54,14 @@ export function AvatarPickerModalSection({
   useEscapeClose(open && !unlockLoading, onClose);
 
   const groupedRows = useMemo(() => {
-    const m = new Map<string, AvatarCatalogRow[]>();
-    for (const row of [...catalogRows].sort((a, b) => a.sortOrder - b.sortOrder)) {
-      const list = m.get(row.seriesKey) ?? [];
-      list.push(row);
-      m.set(row.seriesKey, list);
-    }
-    return [...m.entries()];
+    const sortedFlat = [...catalogRows].sort((a, b) => a.sortOrder - b.sortOrder);
+    const grouped = groupRowsBySeriesKey(sortedFlat);
+    const keys = [...grouped.keys()];
+    const orderedKeys = mergePersistedSeriesOrder(keys, grouped, loadAvatarSeriesDisplayOrder());
+    return orderedKeys.map((seriesKey) => {
+      const rows = (grouped.get(seriesKey) ?? []).slice().sort((a, b) => a.sortOrder - b.sortOrder);
+      return [seriesKey, rows] as const;
+    });
   }, [catalogRows]);
 
   return (
@@ -97,7 +103,7 @@ export function AvatarPickerModalSection({
                   <p className="text-[11px] font-bold tracking-wider text-[#8E8E93]">
                     {rows.find((r) => r.seriesDisplayName?.trim())?.seriesDisplayName || seriesKey}
                   </p>
-                  <div className="grid grid-cols-5 gap-2">
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
                     {rows.map((row) => {
                       const isUnlocked =
                         row.pricePoints <= 0 || unlockedKeys.has(row.avatarKey);
