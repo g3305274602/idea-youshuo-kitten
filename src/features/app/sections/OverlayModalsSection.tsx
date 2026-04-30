@@ -4,6 +4,7 @@ import { reportTargetTypeLabel } from "../adminReportDisplay";
 import { CdSelect } from "../components/CdSelect";
 import { useEscapeClose } from "../hooks/useEscapeClose";
 import type { Message } from "../types";
+import { GenderIcon } from "./PickerControls";
 
 type ChatPeerProfile = {
   displayName?: string;
@@ -56,12 +57,6 @@ type OverlayModalsSectionProps = {
   onSetReportDetail: (value: string) => void;
   onSubmitReport: () => void | Promise<void>;
 };
-
-function genderToZh(gender?: string) {
-  if (gender === "male") return "男";
-  if (gender === "female") return "女";
-  return "未填";
-}
 
 export function OverlayModalsSection({
   isChatPeerProfileVisible,
@@ -136,8 +131,9 @@ export function OverlayModalsSection({
                 {selectedChatPeerProfile.displayName || "未命名"}
               </p>
               <p className="mt-2 text-[12px] text-[#8E8E93]">性別 / 年齡</p>
-              <p className="text-[14px] text-white">
-                {genderToZh(selectedChatPeerProfile.gender)} /{" "}
+              <p className="inline-flex items-center gap-1.5 text-[14px] text-white">
+                <GenderIcon gender={selectedChatPeerProfile.gender} />
+                <span>/</span>
                 {calculateAgeFromDate(
                   selectedChatPeerProfile.birthDate?.toDate() || null,
                 )}{" "}

@@ -1,6 +1,7 @@
 import { MessageCircle } from "lucide-react";
 
 import { cn } from "../../../lib/utils";
+import secretfe1 from "../../../assets/icons/feature/secretfe1.png";
 import { anonPaperNoteLabel } from "../helpers";
 import { GenderIcon } from "./PickerControls";
 
@@ -11,6 +12,7 @@ type ChatThreadItem = {
   threadPrivateMessageCount: number;
   lastBody: string;
   hasUnread?: boolean;
+  avatarImageUrl?: string;
 };
 
 type ChatThreadsSidebarSectionProps = {
@@ -46,7 +48,9 @@ export function ChatThreadsSidebarSection({
           ? t.counterpartLabel
           : anonPaperNoteLabel(t.counterpartGender);
         const rightText =
-          n <= 9 ? `${n}則訊息` : t.lastBody;
+          n <= 9 ? `${n}則訊息` : `${n}則`;
+        const previewText = t.lastBody?.trim() || "（尚無內容）";
+        const avatarSrc = peerUnlocked ? t.avatarImageUrl || "" : secretfe1;
         return (
           <button
             key={t.key}
@@ -60,28 +64,41 @@ export function ChatThreadsSidebarSection({
                 : "hover:border-white/16",
             )}
           >
-            <div className="flex min-w-0 w-full items-center justify-between gap-2.5">
-              <div className="min-w-0 flex flex-1 items-center gap-1.5">
-                {peerUnlocked ? <GenderIcon gender={t.counterpartGender} /> : null}
-                <p className="min-w-0 flex-1 truncate text-[13px] font-semibold text-white/95">
-                  {rowTitle}
-                </p>
-                {t.hasUnread ? (
-                  <span
-                    className="ys-unread-dot"
-                    title="有新訊息"
-                    aria-label="有未讀新訊息"
+            <div className="flex min-w-0 w-full items-start gap-2.5">
+              <div className="mt-0.5 h-9 w-9 shrink-0 overflow-hidden rounded-xl border border-white/12 bg-white/[0.05]">
+                {avatarSrc ? (
+                  <img
+                    src={avatarSrc}
+                    alt=""
+                    className="h-full w-full object-cover"
+                    loading="lazy"
+                    decoding="async"
                   />
                 ) : null}
               </div>
-              <p
-                className={cn(
-                  "max-w-[50%] shrink-0 truncate text-right text-[12px] leading-tight",
-                  n <= 10 ? "text-[#8E8E93] tabular-nums" : "font-medium text-white/80",
-                )}
-              >
-                {rightText}
-              </p>
+              <div className="min-w-0 flex-1">
+                <div className="flex min-w-0 items-center justify-between gap-2">
+                  <div className="min-w-0 flex items-center gap-1.5">
+                    {peerUnlocked ? <GenderIcon gender={t.counterpartGender} /> : null}
+                    <p className="min-w-0 flex-1 truncate text-[13px] font-semibold text-white/95">
+                      {rowTitle}
+                    </p>
+                    {t.hasUnread ? (
+                      <span
+                        className="ys-unread-dot"
+                        title="有新訊息"
+                        aria-label="有未讀新訊息"
+                      />
+                    ) : null}
+                  </div>
+                  <p className="shrink-0 text-right text-[11px] tabular-nums text-[#8E8E93]">
+                    {rightText}
+                  </p>
+                </div>
+                <p className="mt-1 truncate text-[12px] leading-tight text-white/70">
+                  {previewText}
+                </p>
+              </div>
             </div>
           </button>
         );

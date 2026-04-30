@@ -2,6 +2,7 @@ import { AlertTriangle, Heart, Home, LayoutGrid, MessageCircle, User } from "luc
 import { useLayoutEffect, useRef } from "react";
 import type React from "react";
 import { cn } from "../../../lib/utils";
+import secretfe1 from "../../../assets/icons/feature/secretfe1.png";
 import { anonPaperNoteLabel } from "../helpers";
 import { isChatMessageFromSelfByAccount } from "../chatReadCursors";
 import { GenderIcon } from "./PickerControls";
@@ -22,6 +23,7 @@ type ChatMainSectionProps = {
   selectedChatProgress: number;
   selectedChatMessages: readonly ChatMessageItem[];
   myAccountId?: string;
+  peerAvatarImageUrl?: string;
   chatDraft: string;
   textLimit: number;
   capsuleTypeMeta: (capsuleType: number) => { chipClass: string; label: string };
@@ -46,6 +48,7 @@ export function ChatMainSection({
   selectedChatProgress,
   selectedChatMessages,
   myAccountId,
+  peerAvatarImageUrl,
   chatDraft,
   textLimit,
   capsuleTypeMeta,
@@ -88,6 +91,7 @@ export function ChatMainSection({
   const peerChatTitle = chatPeerUnlocked
     ? peerRealName || selectedChatThread.counterpartLabel
     : anonPaperNoteLabel(selectedChatThread.counterpartGender);
+  const headerAvatarUrl = chatPeerUnlocked ? peerAvatarImageUrl || "" : secretfe1;
 
   const unlockRemaining = Math.max(0, 10 - selectedChatProgress);
   const unlockPct = Math.min(100, (selectedChatProgress / 10) * 100);
@@ -97,29 +101,42 @@ export function ChatMainSection({
       <div className="ys-chat-header">
         <div className="flex flex-col gap-3">
           <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2">
-            <div className="min-w-[100px] flex-1">
-              <div className="flex items-baseline gap-2">
-                <h3 className="max-w-full truncate text-[1.125rem] font-bold leading-tight tracking-tight text-white sm:text-[1.25rem]">
-                  {peerChatTitle}
-                </h3>
-                {chatPeerUnlocked ? (
-                  <span className="shrink-0 translate-y-px">
-                    <GenderIcon
-                      gender={
-                        selectedChatPeerProfile?.gender ??
-                        selectedChatThread.counterpartGender
-                      }
-                    />
-                  </span>
-                ) : null}
+            <div className="min-w-[220px] flex-1">
+              <div className="flex items-center gap-2.5">
+                <div className="h-10 w-10 shrink-0 overflow-hidden rounded-xl border border-white/12 bg-white/[0.05]">
+                  <img
+                    src={headerAvatarUrl}
+                    alt=""
+                    className="h-full w-full object-cover"
+                    loading="lazy"
+                    decoding="async"
+                  />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-baseline gap-2">
+                    <h3 className="max-w-full truncate text-[1.125rem] font-bold leading-tight tracking-tight text-white sm:text-[1.25rem]">
+                      {peerChatTitle}
+                    </h3>
+                    {chatPeerUnlocked ? (
+                      <span className="shrink-0 translate-y-px">
+                        <GenderIcon
+                          gender={
+                            selectedChatPeerProfile?.gender ??
+                            selectedChatThread.counterpartGender
+                          }
+                        />
+                      </span>
+                    ) : null}
+                  </div>
+                  <p className={cn("mt-1 text-[11px] font-medium leading-snug text-[#8E8E93]", chatPeerUnlocked ? "hidden" : "")}>
+                    {chatPeerUnlocked
+                      ? ""
+                      : unlockRemaining > 0
+                        ? `再傳 ${unlockRemaining} 則可解鎖對方資料 · 目前 ${selectedChatProgress}/10`
+                        : "即將解鎖…"}
+                  </p>
+                </div>
               </div>
-              <p className="mt-1 text-[11px] font-medium leading-snug text-[#8E8E93]">
-                {chatPeerUnlocked
-                  ? ""
-                  : unlockRemaining > 0
-                    ? `再傳 ${unlockRemaining} 則可解鎖對方資料 · 目前 ${selectedChatProgress}/10`
-                    : "即將解鎖…"}
-              </p>
             </div>
 
             <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">

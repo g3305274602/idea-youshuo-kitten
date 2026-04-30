@@ -78,6 +78,7 @@ import SendScheduledMessageReducer from "./send_scheduled_message_reducer";
 import SetAdminRoleReducer from "./set_admin_role_reducer";
 import SetAgeYearsReducer from "./set_age_years_reducer";
 import SetAvatarKeyReducer from "./set_avatar_key_reducer";
+import SetCapsuleProfileVisibilityReducer from "./set_capsule_profile_visibility_reducer";
 import SetSquareReactionReducer from "./set_square_reaction_reducer";
 import UnfavoriteCapsuleReducer from "./unfavorite_capsule_reducer";
 import UnfavoriteSquarePostReducer from "./unfavorite_square_post_reducer";
@@ -559,6 +560,7 @@ const reducersSchema = __reducers(
   __reducerSchema("set_admin_role", SetAdminRoleReducer),
   __reducerSchema("set_age_years", SetAgeYearsReducer),
   __reducerSchema("set_avatar_key", SetAvatarKeyReducer),
+  __reducerSchema("set_capsule_profile_visibility", SetCapsuleProfileVisibilityReducer),
   __reducerSchema("set_square_reaction", SetSquareReactionReducer),
   __reducerSchema("unfavorite_capsule", UnfavoriteCapsuleReducer),
   __reducerSchema("unfavorite_square_post", UnfavoriteSquarePostReducer),

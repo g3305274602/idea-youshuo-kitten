@@ -50,6 +50,7 @@ import SendScheduledMessageReducer from "../send_scheduled_message_reducer";
 import SetAdminRoleReducer from "../set_admin_role_reducer";
 import SetAgeYearsReducer from "../set_age_years_reducer";
 import SetAvatarKeyReducer from "../set_avatar_key_reducer";
+import SetCapsuleProfileVisibilityReducer from "../set_capsule_profile_visibility_reducer";
 import SetSquareReactionReducer from "../set_square_reaction_reducer";
 import UnfavoriteCapsuleReducer from "../unfavorite_capsule_reducer";
 import UnfavoriteSquarePostReducer from "../unfavorite_square_post_reducer";
@@ -103,6 +104,7 @@ export type SendScheduledMessageParams = __Infer<typeof SendScheduledMessageRedu
 export type SetAdminRoleParams = __Infer<typeof SetAdminRoleReducer>;
 export type SetAgeYearsParams = __Infer<typeof SetAgeYearsReducer>;
 export type SetAvatarKeyParams = __Infer<typeof SetAvatarKeyReducer>;
+export type SetCapsuleProfileVisibilityParams = __Infer<typeof SetCapsuleProfileVisibilityReducer>;
 export type SetSquareReactionParams = __Infer<typeof SetSquareReactionReducer>;
 export type UnfavoriteCapsuleParams = __Infer<typeof UnfavoriteCapsuleReducer>;
 export type UnfavoriteSquarePostParams = __Infer<typeof UnfavoriteSquarePostReducer>;

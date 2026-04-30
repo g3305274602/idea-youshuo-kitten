@@ -48,6 +48,7 @@ type UseMessagingActionsParams = {
     threadGuestIdentity: Identity;
     body: string;
   }) => Promise<unknown>;
+  getCapsuleThreadMessageCount: (sourceMessageId: string, threadGuestHex: string) => number;
   setCapsulePrivateDraft: (v: string) => void;
   isCapsuleParticipantUi: boolean;
   identity: Identity;
@@ -57,6 +58,7 @@ type UseMessagingActionsParams = {
     | { sourceMessageId: string; threadGuestHex: string }
     | null
     | undefined;
+  selectedChatMessageCount: number;
   authIsWarned: boolean;
   myMuteEndAt?: bigint;
   setChatDraft: (v: string) => void;
@@ -65,6 +67,11 @@ type UseMessagingActionsParams = {
 };
 
 export function useMessagingActions(params: UseMessagingActionsParams) {
+  const pointsForPrivateMessage = (threadCountBefore: number): number => {
+    if (threadCountBefore <= 0) return 5;
+    if (threadCountBefore < 10) return 2;
+    return 0;
+  };
   const handleSessionInvalid = (msg: string) => {
     if (!isSessionInvalidErrorMessage(msg)) return false;
     params.setSquareActionError("登入已在其他裝置更新，請重新登入。");
@@ -182,13 +189,23 @@ export function useMessagingActions(params: UseMessagingActionsParams) {
     }
     params.setSquareActionError("");
     try {
+      const beforeCount = params.getCapsuleThreadMessageCount(
+        sourceMessageId,
+        threadGuestHex,
+      );
       await params.addCapsulePrivateMessage({
         sourceMessageId,
         threadGuestIdentity: Identity.fromString(threadGuestHex),
         body,
       });
       params.setCapsulePrivateDraft("");
-      params.onPointsToast(5, "私線回覆");
+      const delta = pointsForPrivateMessage(beforeCount);
+      if (delta > 0) {
+        params.onPointsToast(
+          delta,
+          beforeCount <= 0 ? "建立私線" : "私線回覆（未解鎖前）",
+        );
+      }
       if (!params.isCapsuleParticipantUi && threadGuestHex === params.identity.toHexString()) {
         params.jumpToChatFromCapsule(sourceMessageId);
       }
@@ -215,13 +232,20 @@ export function useMessagingActions(params: UseMessagingActionsParams) {
     }
     params.setSquareActionError("");
     try {
+      const beforeCount = params.selectedChatMessageCount;
       await params.addCapsulePrivateMessage({
         sourceMessageId: params.selectedChatThread.sourceMessageId,
         threadGuestIdentity: Identity.fromString(params.selectedChatThread.threadGuestHex),
         body,
       });
       params.setChatDraft("");
-      params.onPointsToast(5, "私線回覆");
+      const delta = pointsForPrivateMessage(beforeCount);
+      if (delta > 0) {
+        params.onPointsToast(
+          delta,
+          beforeCount <= 0 ? "建立私線" : "私線回覆（未解鎖前）",
+        );
+      }
       if (params.chatInputRef.current) {
         params.chatInputRef.current.style.height = "44px";
       }

@@ -973,7 +973,8 @@ const AVATAR_PRICE_MAX = 99999;
 const SQUARE_PUBLISH_COST = 10n;
 const CAPSULE_DRAW_COST = 10n;
 const REWARD_SEND_CAPSULE = 5n;
-const REWARD_PRIVATE_REPLY = 5n;
+const REWARD_PRIVATE_THREAD_OPEN = 5n;
+const REWARD_PRIVATE_PRE_UNLOCK = 2n;
 const DAILY_REWARD_POINTS = 188n;
 const DAILY_REWARD_DAYS = 3;
 const UTC8_OFFSET_MICROS = 8n * 60n * 60n * 1_000_000n;
@@ -3344,6 +3345,38 @@ export const restore_capsule_message = spacetimedb.reducer(
   },
 );
 
+/** 切換膠囊在個人空間是否可見（不影響是否刪除）。 */
+export const set_capsule_profile_visibility = spacetimedb.reducer(
+  { capsuleId: t.string(), isProfilePublic: t.bool() },
+  (ctx, { capsuleId, isProfilePublic }) => {
+    const pf = ctx.db.accountProfile.ownerIdentity.find(ctx.sender);
+    if (!pf) throw new SenderError("尚未登入");
+    const row = ctx.db.capsuleMessage.id.find(capsuleId);
+    if (!row) throw new SenderError("找不到膠囊");
+    const rowAid = `${row.authorAccountId ?? ""}`.trim();
+    const myAid = `${pf.accountId ?? ""}`.trim();
+    const canEditByAccount = rowAid.length > 0 && myAid.length > 0 && rowAid === myAid;
+    const canEditByEmail = normalizeEmail(row.authorEmail) === normalizeEmail(pf.email);
+    if (!(row.authorIdentity.isEqual(ctx.sender) || canEditByAccount || canEditByEmail)) {
+      throw new SenderError("僅膠囊作者可調整空間展示");
+    }
+    const state = ctx.db.capsuleMessageSpaceState.capsuleId.find(capsuleId);
+    if (state) {
+      ctx.db.capsuleMessageSpaceState.capsuleId.update({
+        ...state,
+        isProfilePublic,
+      });
+    } else {
+      ctx.db.capsuleMessageSpaceState.insert({
+        capsuleId,
+        authorIdentity: row.authorIdentity,
+        isProfilePublic,
+        isDeleted: false,
+      });
+    }
+  },
+);
+
 export const send_scheduled_message = spacetimedb.reducer(
   {
     recipientEmail: t.string(),
@@ -3865,7 +3898,12 @@ export const add_capsule_private_message = spacetimedb.reducer(
         throw new SenderError("請待該訪客先開啟此線後再回覆");
       }
     } else {
-      if (!threadGuestIdentity.isEqual(ctx.sender)) {
+      const guestMatchByIdentity = threadGuestIdentity.isEqual(ctx.sender);
+      const guestMatchByAccount =
+        guestAccountId.length > 0 &&
+        myAccountId.length > 0 &&
+        guestAccountId === myAccountId;
+      if (!(guestMatchByIdentity || guestMatchByAccount)) {
         throw new SenderError("訪客僅能於自己的線發言");
       }
     }
@@ -3910,13 +3948,24 @@ export const add_capsule_private_message = spacetimedb.reducer(
       body: body.trim(),
       createdAt: ctx.timestamp,
     });
-    creditPoints(ctx, {
-      accountId: pf.accountId,
-      ownerIdentity: ctx.sender,
-      points: REWARD_PRIVATE_REPLY,
-      reason: "capsule_private_reply_reward",
-      detail: sourceMessageId,
-    });
+    const rewardPoints =
+      threadCount === 0
+        ? REWARD_PRIVATE_THREAD_OPEN
+        : threadCount < 10
+          ? REWARD_PRIVATE_PRE_UNLOCK
+          : 0n;
+    if (rewardPoints > 0n) {
+      creditPoints(ctx, {
+        accountId: pf.accountId,
+        ownerIdentity: ctx.sender,
+        points: rewardPoints,
+        reason:
+          threadCount === 0
+            ? "capsule_private_thread_open_reward"
+            : "capsule_private_preunlock_reply_reward",
+        detail: sourceMessageId,
+      });
+    }
     refreshSquareSnapshotIfNeeded(ctx, sourceMessageId);
   },
 );

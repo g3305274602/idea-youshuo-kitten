@@ -144,6 +144,27 @@ export function ComposeMessageMainSection({
                     );
                   })}
                 </div>
+                <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-3.5 py-3">
+                  <label className="group flex items-center justify-between gap-3 cursor-pointer select-none">
+                    <div className="min-w-0">
+                      <p className="text-[12px] font-black tracking-wide text-white/90">
+                        同步顯示到我的空間
+                      </p>
+                      <p className="mt-1 text-[11px] font-medium text-[#8E8E93]">
+                        關閉時僅自己可在空間看到；開啟後他人可在你的空間瀏覽（到開啟時間後）
+                      </p>
+                    </div>
+                    <div className="relative shrink-0">
+                      <input
+                        name="isProfilePublic"
+                        type="checkbox"
+                        className="peer sr-only"
+                      />
+                      <div className="h-7 w-12 rounded-full border border-white/10 bg-white/[0.06] transition-all peer-checked:border-white/20 peer-checked:bg-emerald-500" />
+                      <div className="absolute left-1 top-1 h-5 w-5 rounded-full bg-white transition-all peer-checked:left-6 peer-checked:bg-stone-900" />
+                    </div>
+                  </label>
+                </div>
               </div>
             )}
 

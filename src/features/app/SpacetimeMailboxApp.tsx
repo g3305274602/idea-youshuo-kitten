@@ -122,6 +122,26 @@ import {
   useAdminWorkbenchState,
 } from "../admin/useAdminWorkbench";
 
+const TITLE_TIERS = [
+  { need: 1_000_000, lv: 100, label: "造物主", en: "CREATOR", tone: "creator" },
+  { need: 200_000, lv: 80, label: "宇宙", en: "UNIVERSE", tone: "universe" },
+  { need: 50_000, lv: 50, label: "星系", en: "GALAXY", tone: "galaxy" },
+  { need: 10_000, lv: 35, label: "恆星", en: "STAR", tone: "star" },
+  { need: 2_000, lv: 20, label: "行星", en: "PLANET", tone: "planet" },
+  { need: 500, lv: 10, label: "衛星", en: "SATELLITE", tone: "satellite" },
+  { need: 100, lv: 5, label: "流星", en: "METEOR", tone: "meteor" },
+  { need: 10, lv: 1, label: "微光", en: "GLIMMER", tone: "glimmer" },
+  { need: 0, lv: 0, label: "星塵", en: "STARDUST", tone: "stardust" },
+] as const;
+
+function resolveTitleMeta(points: number) {
+  return TITLE_TIERS.find((t) => points >= t.need) ?? TITLE_TIERS[TITLE_TIERS.length - 1];
+}
+
+function formatTitleWithLevel(meta: ReturnType<typeof resolveTitleMeta>): string {
+  return `Lv.${meta.lv} ${meta.label}`;
+}
+
 function calculateAgeFromDate(birthDate: Date | null): number {
   if (!birthDate) return 0;
   const today = new Date();
@@ -186,6 +206,9 @@ export default function SpacetimeMailboxApp({
   const appendLetterExchange = useReducer(reducers.appendLetterExchange);
   const addSquareComment = useReducer(reducers.addSquareComment);
   const drawCapsuleOnce = useReducer((reducers as any).drawCapsuleOnce);
+  const setCapsuleProfileVisibility = useReducer(
+    (reducers as any).setCapsuleProfileVisibility,
+  );
   const addCapsulePrivateMessage = useReducer(
     reducers.addCapsulePrivateMessage,
   );
@@ -724,6 +747,13 @@ export default function SpacetimeMailboxApp({
       ? (tables as any).accountPointsWallet
       : (tables as any).accountPointsWallet.where((r: any) => r.accountId.eq("__stop__")),
   );
+  const [spaceOwnerPointsRows] = useTable(
+    activeTab === "space" && spaceTargetInfo?.accountId
+      ? (tables as any).accountPointsWallet.where((r: any) =>
+          r.accountId.eq(String(spaceTargetInfo.accountId)),
+        )
+      : (tables as any).accountPointsWallet.where((r: any) => r.accountId.eq("__stop__")),
+  );
   const [myCreatedAtRows] = useTable(
     myEmail
       ? (tables as any).accountProfileCreatedAt.where((r: any) => r.email.eq(myEmail))
@@ -930,22 +960,15 @@ export default function SpacetimeMailboxApp({
     }
     return m;
   }, [adminPointsWalletRows]);
+  const spaceOwnerAvailablePoints = useMemo(() => {
+    const row = (spaceOwnerPointsRows as any[])[0];
+    return row?.balance != null ? Number(row.balance) : 0;
+  }, [spaceOwnerPointsRows]);
   const consumedPoints = useMemo(() => {
     return Math.max(0, availablePoints);
   }, [availablePoints]);
   const titleMeta = useMemo(() => {
-    const tiers = [
-      { need: 1_000_000, label: "造物主", en: "CREATOR", tone: "creator" },
-      { need: 200_000, label: "宇宙", en: "UNIVERSE", tone: "universe" },
-      { need: 50_000, label: "星系", en: "GALAXY", tone: "galaxy" },
-      { need: 10_000, label: "恆星", en: "STAR", tone: "star" },
-      { need: 2_000, label: "行星", en: "PLANET", tone: "planet" },
-      { need: 500, label: "衛星", en: "SATELLITE", tone: "satellite" },
-      { need: 100, label: "流星", en: "METEOR", tone: "meteor" },
-      { need: 10, label: "微光", en: "GLIMMER", tone: "glimmer" },
-      { need: 0, label: "星塵", en: "STARDUST", tone: "stardust" },
-    ] as const;
-    return tiers.find((t) => consumedPoints >= t.need) ?? tiers[tiers.length - 1];
+    return resolveTitleMeta(consumedPoints);
   }, [consumedPoints]);
 
   const avatarCatalogRows = useMemo(
@@ -971,6 +994,16 @@ export default function SpacetimeMailboxApp({
   const currentAvatarUrl = currentAvatarRow
     ? `${String(currentAvatarRow.basePath).replace(/\/?$/, "/")}${currentAvatarRow.fileName}`
     : "";
+  const avatarUrlByKey = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const row of avatarCatalogRows as any[]) {
+      const key = String(row.avatarKey ?? "").trim();
+      if (!key) continue;
+      const url = `${String(row.basePath).replace(/\/?$/, "/")}${row.fileName}`;
+      m.set(key, url);
+    }
+    return m;
+  }, [avatarCatalogRows]);
 
   const dailyRewardStatus = useMemo<
     "claimable" | "claimed" | "expired" | "hidden"
@@ -1259,7 +1292,27 @@ export default function SpacetimeMailboxApp({
   }, [spaceTargetInfo, myAccountId]);
   const spaceOwnerProfile =
     publicProfileByIdentityHex.get(currentSpaceOwnerHex) ??
-    profileByIdentityHex.get(currentSpaceOwnerHex);
+    profileByIdentityHex.get(currentSpaceOwnerHex) ??
+    (spaceTargetInfo?.accountId
+      ? profileByAccountId.get(spaceTargetInfo.accountId)
+      : undefined);
+  const spaceOwnerAvatarKey = isOwnSpace
+    ? currentAvatarKey
+    : String((spaceOwnerProfile as any)?.avatarKey ?? "");
+  const spaceOwnerAvatarRow = avatarCatalogRows.find(
+    (row) => row.avatarKey === spaceOwnerAvatarKey,
+  );
+  const spaceOwnerAvatarUrl = isOwnSpace
+    ? currentAvatarUrl
+    : spaceOwnerAvatarRow
+      ? `${String(spaceOwnerAvatarRow.basePath).replace(/\/?$/, "/")}${spaceOwnerAvatarRow.fileName}`
+      : "";
+  const spaceOwnerTitleMeta = isOwnSpace
+    ? titleMeta
+    : resolveTitleMeta(Math.max(0, spaceOwnerAvailablePoints));
+  const spaceOwnerProfileNote = isOwnSpace
+    ? (myProfile?.profileNote ?? "")
+    : ((spaceOwnerProfile as any)?.profileNote ?? "");
 
   const spaceCapsules = useMemo(() => {
     const targetAccountId = isOwnSpace
@@ -1836,6 +1889,10 @@ export default function SpacetimeMailboxApp({
       composePublishToSquare && composeCommentsEnabled;
     const composeSquareIncludeThread =
       composePublishToSquare && !composeMainOnly;
+    const isCapsuleProfilePublic =
+      composeMode === "capsule"
+        ? formData.get("isProfilePublic") === "on"
+        : false;
 
     if (composeMode === "direct" && !recipientEmail.trim()) {
       setComposeError("請填寫收件人");
@@ -1880,7 +1937,7 @@ export default function SpacetimeMailboxApp({
             capsuleType: composeCapsuleType,
             scheduledAt,
             isWaitListVisible,
-            isProfilePublic: false,
+            isProfilePublic: isCapsuleProfilePublic,
             publishToSquare: false,
             squareRepliesPublic: false,
             squareIncludeThread: false,
@@ -2273,6 +2330,24 @@ export default function SpacetimeMailboxApp({
       return { ...t, hasUnread };
     });
   }, [capsuleChatThreads, capsulePrivateRows, myAccountId, cursorMap]);
+  const chatThreadAvatarUrlByKey = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const t of capsuleChatThreadsWithUnread) {
+      const pfByAid = t.counterpartAccountId
+        ? profileByAccountId.get(t.counterpartAccountId)
+        : undefined;
+      const pfByHex = t.counterpartIdentityHex
+        ? profileByIdentityHex.get(t.counterpartIdentityHex)
+        : undefined;
+      const avatarKey = String(
+        (pfByAid as any)?.avatarKey ?? (pfByHex as any)?.avatarKey ?? "",
+      ).trim();
+      if (!avatarKey) continue;
+      const url = avatarUrlByKey.get(avatarKey);
+      if (url) m.set(t.key, url);
+    }
+    return m;
+  }, [capsuleChatThreadsWithUnread, profileByAccountId, profileByIdentityHex, avatarUrlByKey]);
 
   const chatUnreadThreadCount = useMemo(
     () => capsuleChatThreadsWithUnread.filter((t) => t.hasUnread).length,
@@ -2305,6 +2380,19 @@ export default function SpacetimeMailboxApp({
         ? profileByAccountId.get(selectedChatThread.counterpartAccountId)
         : undefined)
     : undefined;
+  const selectedChatPeerAvatarUrl = useMemo(() => {
+    if (!selectedChatThread) return "";
+    const pfByAid = selectedChatThread.counterpartAccountId
+      ? profileByAccountId.get(selectedChatThread.counterpartAccountId)
+      : undefined;
+    const pfByHex = selectedChatThread.counterpartIdentityHex
+      ? profileByIdentityHex.get(selectedChatThread.counterpartIdentityHex)
+      : undefined;
+    const avatarKey = String(
+      (pfByAid as any)?.avatarKey ?? (pfByHex as any)?.avatarKey ?? "",
+    ).trim();
+    return avatarKey ? avatarUrlByKey.get(avatarKey) || "" : "";
+  }, [selectedChatThread, profileByAccountId, profileByIdentityHex, avatarUrlByKey]);
 
   const isSourceCapsuleMine = useMemo(() => {
     if (!selectedChatThread) return false;
@@ -2681,12 +2769,20 @@ export default function SpacetimeMailboxApp({
     setSquareCommentDraft,
     capsulePrivateDraft,
     addCapsulePrivateMessage,
+    getCapsuleThreadMessageCount: (sourceMessageId: string, threadGuestHex: string) => {
+      return capsulePrivateRows.filter(
+        (m) =>
+          m.sourceMessageId === sourceMessageId &&
+          m.threadGuestIdentity.toHexString() === threadGuestHex,
+      ).length;
+    },
     setCapsulePrivateDraft,
     isCapsuleParticipantUi,
     identity,
     jumpToChatFromCapsule,
     chatDraft,
     selectedChatThread,
+    selectedChatMessageCount: selectedChatMessages.length,
     authIsWarned: auth.isWarned,
     myMuteEndAt: myMuteSanction?.endAt?.microsSinceUnixEpoch,
     setChatDraft,
@@ -3026,6 +3122,7 @@ export default function SpacetimeMailboxApp({
     selectedChatProgress,
     selectedChatMessages,
     myAccountId,
+    peerAvatarImageUrl: selectedChatPeerAvatarUrl,
     chatDraft,
     textLimit: TEXT_LIMIT,
     capsuleTypeMeta,
@@ -3384,7 +3481,7 @@ export default function SpacetimeMailboxApp({
 
           <div
             className={cn(
-              "flex min-h-0 flex-1 flex-col px-2 py-2",
+              "overflow-y-auto min-h-0 flex-1 px-2 py-2 apple-scroll",
               activeTab === "secret" || activeTab === "mine_square"
                 ? "overflow-hidden"
                 : "",
@@ -3465,7 +3562,7 @@ export default function SpacetimeMailboxApp({
                 dailyRewardStatus={dailyRewardStatus}
                 dailyRewardLoading={dailyRewardLoading}
                 onClaimDailyReward={() => void handleClaimDailyReward()}
-                titleLabel={titleMeta.label}
+                titleLabel={formatTitleWithLevel(titleMeta)}
                 titleWatermark={titleMeta.en}
                 titleTone={titleMeta.tone}
               />
@@ -3491,9 +3588,20 @@ export default function SpacetimeMailboxApp({
                 displayName={
                   isOwnSpace ? myProfile?.displayName : spaceTargetInfo?.displayName
                 }
+                avatarImageUrl={spaceOwnerAvatarUrl}
+                profileGender={
+                  isOwnSpace
+                    ? myProfile?.gender
+                    : (spaceOwnerProfile?.gender ?? spaceTargetInfo?.gender ?? spaceOwnerInfo.gender)
+                }
+                profileNote={spaceOwnerProfileNote}
+                titleLabel={formatTitleWithLevel(spaceOwnerTitleMeta)}
                 capsuleCount={spaceCapsules.length}
                 squareCount={spaceSquares.length}
-                watermarkText={isOwnSpace ? titleMeta.en : ""}
+                availablePoints={isOwnSpace ? availablePoints : undefined}
+                titleWatermark={spaceOwnerTitleMeta.en}
+                titleTone={spaceOwnerTitleMeta.tone}
+                watermarkText={spaceOwnerTitleMeta.en}
               />
             ) : activeTab === "admin" || activeTab === "admin_ops" ? (
               <AdminWorkbench viewProps={adminViewProps} slot="sidebar" />
@@ -3505,7 +3613,10 @@ export default function SpacetimeMailboxApp({
               />
             ) : activeTab === "chat" ? (
               <ChatThreadsSidebarSection
-                threads={capsuleChatThreadsWithUnread}
+                threads={capsuleChatThreadsWithUnread.map((t) => ({
+                  ...t,
+                  avatarImageUrl: chatThreadAvatarUrlByKey.get(t.key) || "",
+                }))}
                 selectedKey={selectedChatThreadKey}
                 onSelect={(key) => {
                   setChatBackTab(null);
@@ -3634,7 +3745,37 @@ export default function SpacetimeMailboxApp({
                 spaceTargetDisplayName={spaceTargetInfo?.displayName}
                 spaceFeed={spaceFeed}
                 capsuleTypeMeta={capsuleTypeMeta}
+                avatarImageUrl={spaceOwnerAvatarUrl}
+                profileGender={
+                  isOwnSpace
+                    ? myProfile?.gender
+                    : (spaceOwnerProfile?.gender ?? spaceTargetInfo?.gender ?? spaceOwnerInfo.gender)
+                }
+                profileNote={spaceOwnerProfileNote}
+                titleLabel={formatTitleWithLevel(spaceOwnerTitleMeta)}
+                titleWatermark={spaceOwnerTitleMeta.en}
+                titleTone={spaceOwnerTitleMeta.tone}
+                availablePoints={isOwnSpace ? availablePoints : undefined}
+                isCapsulePublicInSpace={isCapsulePublicInSpace}
                 onDeleteCapsule={(capsuleId) => void handleDeleteCapsuleMessage(capsuleId)}
+                onToggleCapsuleVisibility={(capsuleId, nextPublic) =>
+                  void (async () => {
+                    try {
+                      await setCapsuleProfileVisibility({
+                        capsuleId,
+                        isProfilePublic: nextPublic,
+                      } as any);
+                      setDailyRewardToast(
+                        nextPublic
+                          ? "已在空間展示這顆膠囊"
+                          : "已從空間隱藏這顆膠囊",
+                      );
+                    } catch (err: unknown) {
+                      const msg = err instanceof Error ? err.message : String(err);
+                      setSquareActionError(msg || "更新空間展示狀態失敗");
+                    }
+                  })()
+                }
                 onUnpublishSquare={(sourceMessageId) => void handleUnpublishSquare(sourceMessageId)}
                 onJumpToChatFromCapsule={jumpToChatFromCapsule}
                 onViewOriginalSquarePost={(sourceMessageId) => {

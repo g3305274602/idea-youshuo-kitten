@@ -1,8 +1,27 @@
-import { User } from "lucide-react";
+import { Coins, Star, User } from "lucide-react";
+
+import { cn } from "../../../lib/utils";
+import { GenderIcon } from "./PickerControls";
 
 type SpaceSidebarSectionProps = {
   isOwnSpace: boolean;
   displayName?: string;
+  avatarImageUrl?: string;
+  profileGender?: string;
+  profileNote?: string;
+  titleLabel?: string;
+  titleWatermark?: string;
+  titleTone?:
+    | "stardust"
+    | "glimmer"
+    | "meteor"
+    | "satellite"
+    | "planet"
+    | "star"
+    | "galaxy"
+    | "universe"
+    | "creator";
+  availablePoints?: number;
   capsuleCount: number;
   squareCount: number;
   watermarkText?: string;
@@ -11,25 +30,69 @@ type SpaceSidebarSectionProps = {
 export function SpaceSidebarSection({
   isOwnSpace,
   displayName,
+  avatarImageUrl,
+  profileGender,
+  profileNote,
+  titleLabel,
+  titleWatermark = "",
+  titleTone = "stardust",
+  availablePoints = 0,
   capsuleCount,
   squareCount,
   watermarkText = "",
 }: SpaceSidebarSectionProps) {
   return (
     <div className="flex flex-col gap-4 px-2 pb-4 pt-0">
-      <div className="cd-card-raised relative overflow-hidden rounded-2xl p-4">
-        {watermarkText ? (
-          <span className="ys-title-watermark ys-title-watermark--planet">{watermarkText}</span>
+      <div className={cn("ys-mine-profile-card", `ys-mine-profile-card--${titleTone}`)}>
+        {watermarkText || titleWatermark ? (
+          <span className={cn("ys-title-watermark", `ys-title-watermark--${titleTone}`)}>
+            {titleWatermark || watermarkText}
+          </span>
         ) : null}
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/12 bg-gradient-to-br from-[#F06292]/30 to-violet-600/20">
-            <User className="h-6 w-6 text-white" />
+        <div className="ys-mine-profile-card-row">
+          <div className={cn("ys-mine-avatar-slot", `ys-mine-avatar-slot--${titleTone}`)}>
+            {avatarImageUrl ? (
+              <img
+                src={avatarImageUrl}
+                alt=""
+                className="h-full w-full rounded-[24px] object-cover"
+                loading="lazy"
+                decoding="async"
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center">
+                <User className="h-6 w-6 text-white/80" />
+              </div>
+            )}
           </div>
-          <div className="min-w-0">
-            <p className="truncate text-[15px] font-bold text-white">
-              {isOwnSpace ? displayName : displayName || "一位朋友"}
-            </p>
-            <p className="text-[10px] font-medium text-[#8E8E93]">朋友動態</p>
+          <div className="ys-mine-profile-hitbox">
+            <div className="ys-mine-profile-main">
+              <div className="ys-mine-name-row">
+                <p className="ys-mine-name">{displayName?.trim() || (isOwnSpace ? "我" : "一位朋友")}</p>
+              </div>
+              <div className="ys-mine-level-row">
+                <div className="ys-mine-level-chip">
+                  <Star className="h-2.5 w-2.5" strokeWidth={2.6} aria-hidden />
+                  <span>{titleLabel?.trim() || "星塵"}</span>
+                </div>
+                {isOwnSpace ? (
+                  <span className="ys-mine-points-chip" role="img" aria-label={`可用積分，目前 ${availablePoints}`}>
+                    <Coins className="h-3 w-3" strokeWidth={2.2} aria-hidden />
+                    <span>{availablePoints}</span>
+                  </span>
+                ) : null}
+                {!isOwnSpace ? (
+                  <span className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-white/12 bg-white/[0.06]">
+                    <GenderIcon gender={profileGender} />
+                  </span>
+                ) : null}
+              </div>
+              <div className="ys-mine-shuoshuo-row">
+                <p className="min-w-0 flex-1 truncate text-white/80">
+                  {profileNote?.trim() || "尚無說說"}
+                </p>
+              </div>
+            </div>
           </div>
         </div>
         <div className="mt-4 grid grid-cols-2 gap-2 text-center">
