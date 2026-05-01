@@ -95,8 +95,9 @@ import { useChatReadCursors } from "./hooks/useChatReadCursors";
 import { useMailboxReadState } from "./hooks/useMailboxReadState";
 import {
   computeThreadUnread,
+  gatherCapsulePrivateGuestThreadMessagesClient,
   isChatMessageFromSelfByAccount,
-  matchesCapsulePrivateGuestThread,
+  matchesCapsulePrivateGuestThreadStrict,
   maxMessageMicros,
 } from "./chatReadCursors";
 import { useAccountFlowHandlers } from "./hooks/useAccountFlowHandlers";
@@ -155,6 +156,20 @@ function calculateAgeFromDate(birthDate: Date | null): number {
   return age;
 }
 
+/** 與後端 resolve 訪客線一致：有帳號時以 profile 上現用 identity hex 對齊。 */
+function resolvedEffectiveGuestHex(
+  canonicalThreadGuestHex: string,
+  threadGuestAccountId: string | undefined,
+  profileByAccountId: ReadonlyMap<string, AccountProfile>,
+): string {
+  const aid = `${threadGuestAccountId ?? ""}`.trim();
+  if (!aid) return canonicalThreadGuestHex;
+  return (
+    profileByAccountId.get(aid)?.ownerIdentity?.toHexString() ??
+    canonicalThreadGuestHex
+  );
+}
+
 /** 將 session／跳轉寫入的 `sourceId::guestHex` 對齊到目前側欄合成的規範 key，避免換裝或 profile 回填後發送時顯示「聊天線失效」。 */
 function resolveCanonicalChatThreadSelectionKey(
   prev: string,
@@ -162,6 +177,7 @@ function resolveCanonicalChatThreadSelectionKey(
   capsulePrivateRows: readonly CapsulePrivateMessage[],
   identityHex: string,
   myAccountId: string | undefined,
+  profileByAccountId: ReadonlyMap<string, AccountProfile>,
 ): string | null {
   if (capsuleChatThreads.some((t) => t.key === prev)) return prev;
   const parts = prev.split("::");
@@ -198,10 +214,16 @@ function resolveCanonicalChatThreadSelectionKey(
     if (byAid) return byAid.key;
 
     const byThreadMembership = cand.find((t) =>
-      matchesCapsulePrivateGuestThread(
+      matchesCapsulePrivateGuestThreadStrict(
         legacyRow,
+        capsulePrivateRows,
         sourceId,
         t.threadGuestHex,
+        resolvedEffectiveGuestHex(
+          t.threadGuestHex,
+          t.threadGuestAccountId,
+          profileByAccountId,
+        ),
         t.threadGuestAccountId,
       ),
     );
@@ -2097,16 +2119,37 @@ export default function SpacetimeMailboxApp({
   );
 
   const uniqueCapsuleGuestHexes = useMemo(() => {
+    if (!capsuleUiPostId) return [];
     const meHex = identity.toHexString();
+    const pubAid =
+      `${capsuleMessageRows.find((c) => c.id === capsuleUiPostId)?.authorAccountId ?? ""}`.trim() ||
+      `${squarePostRows.find((p) => p.sourceMessageId === capsuleUiPostId)?.publisherAccountId ?? ""}`.trim();
     const s = new Set<string>();
     for (const m of capsulePrivateForActiveUi) {
-      const guestHex = m.threadGuestIdentity.toHexString();
-      // 回覆對象只保留「其他訪客」：排除自己、去重、忽略空值
-      if (!guestHex || guestHex === meHex) continue;
-      s.add(guestHex);
+      const rawHex = m.threadGuestIdentity.toHexString();
+      const tgAidCol = `${(m as { threadGuestAccountId?: string }).threadGuestAccountId ?? ""}`.trim();
+      const authorAid = `${m.authorAccountId ?? ""}`.trim();
+      const fromPublisherAuthor = !!(pubAid && authorAid && authorAid === pubAid);
+      const inferredAid = tgAidCol || (!fromPublisherAuthor ? authorAid : "");
+      let canonical = rawHex;
+      if (inferredAid) {
+        const pf = profileByAccountId.get(inferredAid);
+        const ox = pf?.ownerIdentity?.toHexString()?.trim();
+        if (ox) canonical = ox;
+      }
+      for (const hx of [rawHex, canonical]) {
+        if (hx && hx !== meHex) s.add(hx);
+      }
     }
     return [...s];
-  }, [capsulePrivateForActiveUi, identity]);
+  }, [
+    capsulePrivateForActiveUi,
+    capsuleUiPostId,
+    identity,
+    profileByAccountId,
+    capsuleMessageRows,
+    squarePostRows,
+  ]);
 
   useEffect(() => {
     if (!isCapsuleParticipantUi) return;
@@ -2124,12 +2167,25 @@ export default function SpacetimeMailboxApp({
   const hasMyGuestThreadOnCurrentCapsule = useMemo(() => {
     if (!capsuleUiPostId) return false;
     const meHex = identity.toHexString();
-    return capsulePrivateRows.some(
-      (m) =>
-        m.sourceMessageId === capsuleUiPostId &&
-        m.threadGuestIdentity.toHexString() === meHex,
+    const myAid = `${myAccountId ?? ""}`.trim();
+    const req = meHex;
+    const eff = resolvedEffectiveGuestHex(req, myAid || undefined, profileByAccountId);
+    return (
+      gatherCapsulePrivateGuestThreadMessagesClient(
+        capsulePrivateRows,
+        capsuleUiPostId,
+        req,
+        eff,
+        myAid || undefined,
+      ).length > 0
     );
-  }, [capsuleUiPostId, capsulePrivateRows, identity]);
+  }, [
+    capsuleUiPostId,
+    capsulePrivateRows,
+    identity,
+    myAccountId,
+    profileByAccountId,
+  ]);
 
   const canShowCapsuleModalFirstMessageInput =
     !isCapsuleParticipantUi && !hasMyGuestThreadOnCurrentCapsule;
@@ -2137,35 +2193,47 @@ export default function SpacetimeMailboxApp({
   const capsuleModalPeerChatUnlocked = useMemo(() => {
     if (!capsulePost || !identity) return false;
     const meHex = identity.toHexString();
-    const n = capsulePrivateRows.filter(
-      (m) =>
-        m.sourceMessageId === capsulePost.id &&
-        m.threadGuestIdentity.toHexString() === meHex,
+    const myAid = `${myAccountId ?? ""}`.trim();
+    const eff = resolvedEffectiveGuestHex(meHex, myAid || undefined, profileByAccountId);
+    const n = gatherCapsulePrivateGuestThreadMessagesClient(
+      capsulePrivateRows,
+      capsulePost.id,
+      meHex,
+      eff,
+      myAid || undefined,
     ).length;
     return n >= 10;
-  }, [capsulePost, identity, capsulePrivateRows]);
+  }, [capsulePost, identity, capsulePrivateRows, myAccountId, profileByAccountId]);
 
   const capsuleOverlayShowAuthorRealName =
     isCapsuleParticipantUi || capsuleModalPeerChatUnlocked;
 
   const capsuleChatThreads = useMemo((): CapsuleChatThreadSummary[] => {
+    const pubAidBySource = new Map<string, string>();
+    for (const c of capsuleMessageRows) {
+      const a = `${c.authorAccountId ?? ""}`.trim();
+      if (a) pubAidBySource.set(c.id, a);
+    }
+    for (const p of squarePostRows) {
+      const a = `${p.publisherAccountId ?? ""}`.trim();
+      if (a) pubAidBySource.set(p.sourceMessageId, a);
+    }
+
     const canonicalGuest = (m: CapsulePrivateMessage) => {
       const rawHex = m.threadGuestIdentity.toHexString();
-      const aid = String((m as any).threadGuestAccountId ?? "").trim();
-      if (!aid) return { guestHex: rawHex, guestAccountId: "" };
-      const byAid = profileByAccountId.get(aid);
+      const tgAidCol = String((m as { threadGuestAccountId?: string })
+        .threadGuestAccountId ?? "").trim();
+      const authorAid = `${m.authorAccountId ?? ""}`.trim();
+      const srcPub = `${pubAidBySource.get(m.sourceMessageId) ?? ""}`.trim();
+      const fromPublisherAuthor = !!(srcPub && authorAid && authorAid === srcPub);
+      const inferredAid = tgAidCol || (!fromPublisherAuthor ? authorAid : "");
+      if (!inferredAid) return { guestHex: rawHex, guestAccountId: "" };
+      const byAid = profileByAccountId.get(inferredAid);
       return {
         guestHex: byAid?.ownerIdentity?.toHexString() ?? rawHex,
-        guestAccountId: aid,
+        guestAccountId: inferredAid,
       };
     };
-
-    const countsByKey = new Map<string, number>();
-    for (const m of capsulePrivateRows) {
-      const gh = canonicalGuest(m).guestHex;
-      const k = `${m.sourceMessageId}::${gh}`;
-      countsByKey.set(k, (countsByKey.get(k) ?? 0) + 1);
-    }
 
     const summaries = new Map<string, CapsuleChatThreadSummary>();
 
@@ -2267,7 +2335,7 @@ export default function SpacetimeMailboxApp({
         sourceCapsuleType: sourceCapsule?.capsuleType ?? 4,
         lastBody: preview || "（尚無內容）",
         lastAtMicros: m.createdAt.microsSinceUnixEpoch,
-        threadPrivateMessageCount: countsByKey.get(key) ?? 0,
+        threadPrivateMessageCount: 0,
         hasNewMessageFromPeer: false,
       };
 
@@ -2279,16 +2347,20 @@ export default function SpacetimeMailboxApp({
     const list = [...summaries.values()];
     return list
       .map((row) => {
-        const msgs = capsulePrivateRows.filter(
-          (m) =>
-            m.sourceMessageId === row.sourceMessageId &&
-            (m.threadGuestIdentity.toHexString() === row.threadGuestHex ||
-              (!!row.threadGuestAccountId &&
-                `${(m as any).threadGuestAccountId ?? ""}`.trim() ===
-                  row.threadGuestAccountId)),
+        const eff = resolvedEffectiveGuestHex(
+          row.threadGuestHex,
+          row.threadGuestAccountId,
+          profileByAccountId,
+        );
+        const msgs = gatherCapsulePrivateGuestThreadMessagesClient(
+          capsulePrivateRows,
+          row.sourceMessageId,
+          row.threadGuestHex,
+          eff,
+          row.threadGuestAccountId,
         );
         if (msgs.length === 0) {
-          return { ...row, hasNewMessageFromPeer: false };
+          return { ...row, threadPrivateMessageCount: 0, hasNewMessageFromPeer: false };
         }
         const sorted = [...msgs].sort(
           (a, b) =>
@@ -2298,8 +2370,14 @@ export default function SpacetimeMailboxApp({
             ),
         );
         const last = sorted[sorted.length - 1]!;
+        const lastRaw = (last.body ?? "").trim();
+        const lastPreview =
+          lastRaw.length > 42 ? `${lastRaw.slice(0, 42)}…` : lastRaw;
         return {
           ...row,
+          lastBody: lastPreview || row.lastBody,
+          lastAtMicros: last.createdAt.microsSinceUnixEpoch,
+          threadPrivateMessageCount: msgs.length,
           hasNewMessageFromPeer: !isChatMessageFromSelfByAccount(
             last.authorAccountId,
             myAccountId,
@@ -2311,6 +2389,7 @@ export default function SpacetimeMailboxApp({
     capsulePrivateRows,
     squarePostRows,
     capsuleMessageRows,
+    identity,
     myAccountId,
     publicProfileByIdentityHex,
     profileByAccountId,
@@ -2387,21 +2466,23 @@ export default function SpacetimeMailboxApp({
 
   const selectedChatMessages = useMemo(() => {
     if (!selectedChatThread) return [];
-    return capsulePrivateRows
-      .filter(
-        (m) =>
-          m.sourceMessageId === selectedChatThread.sourceMessageId &&
-          (m.threadGuestIdentity.toHexString() === selectedChatThread.threadGuestHex ||
-            (!!selectedChatThread.threadGuestAccountId &&
-              `${(m as any).threadGuestAccountId ?? ""}`.trim() ===
-                selectedChatThread.threadGuestAccountId)),
-      )
-      .sort((a, b) =>
-        Number(
-          a.createdAt.microsSinceUnixEpoch - b.createdAt.microsSinceUnixEpoch,
-        ),
-      );
-  }, [capsulePrivateRows, selectedChatThread]);
+    const eff = resolvedEffectiveGuestHex(
+      selectedChatThread.threadGuestHex,
+      selectedChatThread.threadGuestAccountId,
+      profileByAccountId,
+    );
+    return gatherCapsulePrivateGuestThreadMessagesClient(
+      capsulePrivateRows,
+      selectedChatThread.sourceMessageId,
+      selectedChatThread.threadGuestHex,
+      eff,
+      selectedChatThread.threadGuestAccountId,
+    ).sort((a, b) =>
+      Number(
+        a.createdAt.microsSinceUnixEpoch - b.createdAt.microsSinceUnixEpoch,
+      ),
+    );
+  }, [capsulePrivateRows, selectedChatThread, profileByAccountId]);
   const selectedChatProgress = Math.min(10, selectedChatMessages.length);
   const chatPeerUnlocked = selectedChatProgress >= 10;
 
@@ -2411,19 +2492,23 @@ export default function SpacetimeMailboxApp({
 
   const capsuleChatThreadsWithUnread = useMemo((): CapsuleChatThreadSummary[] => {
     return capsuleChatThreads.map((t) => {
-      const msgs = capsulePrivateRows.filter(
-        (m) =>
-          m.sourceMessageId === t.sourceMessageId &&
-          (m.threadGuestIdentity.toHexString() === t.threadGuestHex ||
-            (!!t.threadGuestAccountId &&
-              `${(m as any).threadGuestAccountId ?? ""}`.trim() ===
-                t.threadGuestAccountId)),
+      const eff = resolvedEffectiveGuestHex(
+        t.threadGuestHex,
+        t.threadGuestAccountId,
+        profileByAccountId,
+      );
+      const msgs = gatherCapsulePrivateGuestThreadMessagesClient(
+        capsulePrivateRows,
+        t.sourceMessageId,
+        t.threadGuestHex,
+        eff,
+        t.threadGuestAccountId,
       );
       const readCursor = cursorMap.get(t.key) ?? 0n;
       const hasUnread = computeThreadUnread(readCursor, msgs, myAccountId);
       return { ...t, hasUnread };
     });
-  }, [capsuleChatThreads, capsulePrivateRows, myAccountId, cursorMap]);
+  }, [capsuleChatThreads, capsulePrivateRows, myAccountId, cursorMap, profileByAccountId]);
   const chatThreadAvatarUrlByKey = useMemo(() => {
     const m = new Map<string, string>();
     for (const t of capsuleChatThreadsWithUnread) {
@@ -2536,6 +2621,7 @@ export default function SpacetimeMailboxApp({
             capsulePrivateRows,
             identity.toHexString(),
             myAccountId,
+            profileByAccountId,
           )
         : null,
     );
@@ -2545,6 +2631,7 @@ export default function SpacetimeMailboxApp({
     capsulePrivateRows,
     identity,
     myAccountId,
+    profileByAccountId,
   ]);
 
   useEffect(() => {
@@ -2562,14 +2649,10 @@ export default function SpacetimeMailboxApp({
           emailsEqual(row.recipientEmail, myProfile.email))) ||
       (capsule ? capsule.authorIdentity.isEqual(identity) : false);
     if (participant) {
-      const guests = new Set<string>();
-      for (const m of capsulePrivateRows) {
-        if (m.sourceMessageId !== capsuleUiPostId) continue;
-        guests.add(m.threadGuestIdentity.toHexString());
-      }
-      const guestList = [...guests];
       setCapsuleThreadGuestHex((prev) =>
-        prev && guests.has(prev) ? prev : (guestList[0] ?? null),
+        prev && uniqueCapsuleGuestHexes.includes(prev)
+          ? prev
+          : (uniqueCapsuleGuestHexes[0] ?? null),
       );
     } else {
       setCapsuleThreadGuestHex(identity.toHexString());
@@ -2582,6 +2665,7 @@ export default function SpacetimeMailboxApp({
     outboxRows,
     capsulePrivateRows,
     capsuleMessageRows,
+    uniqueCapsuleGuestHexes,
   ]);
 
   /** Rules of Hooks: keep this before any login/boot early return. */
@@ -2590,12 +2674,16 @@ export default function SpacetimeMailboxApp({
       if (!myAccountId) return false;
       const me = identity.toHexString();
       const iAmPublisher = publisherAccountId === myAccountId;
+      const myAidTrim = `${myAccountId ?? ""}`.trim();
       for (const t of capsuleChatThreads) {
         if (t.sourceMessageId !== sourceMessageId) continue;
         if (t.threadPrivateMessageCount < 10) continue;
         if (iAmPublisher) {
           if (t.threadGuestHex !== me) return true;
-        } else if (t.threadGuestHex === me) {
+        } else if (
+          `${t.threadGuestAccountId ?? ""}`.trim() === myAidTrim ||
+          (myAidTrim === "" && t.threadGuestHex === me)
+        ) {
           return true;
         }
       }
@@ -2900,13 +2988,17 @@ export default function SpacetimeMailboxApp({
         rowAid ||
         (threadGuestHex === meHex && myAid ? myAid : "").trim() ||
         undefined;
-      return capsulePrivateRows.filter((m) =>
-        matchesCapsulePrivateGuestThread(
-          m,
-          sourceMessageId,
-          threadGuestHex,
-          threadGuestAccountId,
-        ),
+      const eff = resolvedEffectiveGuestHex(
+        threadGuestHex,
+        threadGuestAccountId,
+        profileByAccountId,
+      );
+      return gatherCapsulePrivateGuestThreadMessagesClient(
+        capsulePrivateRows,
+        sourceMessageId,
+        threadGuestHex,
+        eff,
+        threadGuestAccountId,
       ).length;
     },
     setCapsulePrivateDraft,

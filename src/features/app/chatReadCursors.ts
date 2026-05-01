@@ -12,21 +12,81 @@ export function isChatMessageFromSelfByAccount(
   return !!m && !!a && a === m;
 }
 
+function rowCapsuleGuestAccountId(m: CapsulePrivateMessage): string {
+  return `${(m as { threadGuestAccountId?: string }).threadGuestAccountId ?? ""}`.trim();
+}
+
+function rowAuthorAccountId(m: CapsulePrivateMessage): string {
+  return `${m.authorAccountId ?? ""}`.trim();
+}
+
 /**
- * 與後端 add_capsule_private_message 對「同一條訪客線」合併方式一致：
- * threadGuestIdentity 相符，或以 threadGuestAccountId 對齊（避免因身份鍵換裝不一致而打散線程）。
+ * 與後端 `gatherCapsulePrivateGuestThreadMessages` 同構（以 hex／帳號比對），換裝置後請求 identity 漂移時仍可還原同線全集。
+ *
+ * `requestedGuestHex`：`add_capsule_private_message` reducer 請求裡傳入的線身份（側欄 `threadGuestHex`）。
+ * `effectiveGuestHex`：`accountProfile` 上對應 `guestAccountId` 的現用 ownerIdentity hex，無則等於請求側 hex。
  */
-export function matchesCapsulePrivateGuestThread(
-  m: CapsulePrivateMessage,
+export function gatherCapsulePrivateGuestThreadMessagesClient(
+  allRows: readonly CapsulePrivateMessage[],
   sourceMessageId: string,
-  threadGuestHex: string,
+  requestedGuestHex: string,
+  effectiveGuestHex: string,
+  guestAccountId?: string | null,
+): CapsulePrivateMessage[] {
+  const gid = `${guestAccountId ?? ""}`.trim();
+  const rowsHere = allRows.filter((r) => r.sourceMessageId === sourceMessageId);
+  const inPart = new Set<string>();
+  const igHex = new Set<string>();
+  igHex.add(effectiveGuestHex);
+  igHex.add(requestedGuestHex);
+
+  for (const row of rowsHere) {
+    const tga = rowCapsuleGuestAccountId(row);
+    const aaa = rowAuthorAccountId(row);
+    const tgHex = row.threadGuestIdentity.toHexString();
+    let anchor =
+      tgHex === effectiveGuestHex || tgHex === requestedGuestHex;
+    anchor ||= !!(gid && tga === gid);
+    anchor ||= !!(gid && aaa === gid);
+    if (!anchor) continue;
+    inPart.add(row.id);
+    igHex.add(tgHex);
+  }
+
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const row of rowsHere) {
+      if (inPart.has(row.id)) continue;
+      const tgHex = row.threadGuestIdentity.toHexString();
+      const tga = rowCapsuleGuestAccountId(row);
+      if (igHex.has(tgHex) || (gid.length > 0 && tga === gid)) {
+        inPart.add(row.id);
+        igHex.add(tgHex);
+        changed = true;
+      }
+    }
+  }
+
+  return rowsHere.filter((r) => inPart.has(r.id));
+}
+
+/** 輕量單列是否屬某訪客線（需已提供 effective／requested／帳號 context） */
+export function matchesCapsulePrivateGuestThreadStrict(
+  m: CapsulePrivateMessage,
+  allRows: readonly CapsulePrivateMessage[],
+  sourceMessageId: string,
+  requestedGuestHex: string,
+  effectiveGuestHex: string,
   threadGuestAccountId?: string,
 ): boolean {
-  if (m.sourceMessageId !== sourceMessageId) return false;
-  if (m.threadGuestIdentity.toHexString() === threadGuestHex) return true;
-  const wantAid = `${threadGuestAccountId ?? ""}`.trim();
-  const rowAid = `${(m as { threadGuestAccountId?: string }).threadGuestAccountId ?? ""}`.trim();
-  return !!wantAid && !!rowAid && wantAid === rowAid;
+  return gatherCapsulePrivateGuestThreadMessagesClient(
+    allRows,
+    sourceMessageId,
+    requestedGuestHex,
+    effectiveGuestHex,
+    threadGuestAccountId ?? undefined,
+  ).some((r) => r.id === m.id);
 }
 
 export function loadReadCursorMap(identityHex: string): Map<string, bigint> {
