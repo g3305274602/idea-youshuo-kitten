@@ -1,6 +1,10 @@
 import type React from "react";
 import { Identity } from "spacetimedb";
 import {
+  isServerPrivateAlternatingRestriction,
+  TOAST_PRIVATE_ALTERNATING_WAIT_PEER,
+} from "../constants";
+import {
   forceReauthRedirect,
   isSessionInvalidErrorMessage,
 } from "../sessionGuard";
@@ -10,6 +14,8 @@ type UseMessagingActionsParams = {
   setLoading: (v: boolean) => void;
   setSquareActionError: (v: string) => void;
   onPointsToast: (delta: number, action: string, settled?: boolean) => void;
+  /** 與 points toast 共用底欄漂浮提示（約 2.2s） */
+  onNoticeToast?: (message: string) => void;
   publishRepliesPublic: boolean;
   publishIncludeThread: boolean;
   publishIncludeCapsulePrivate: boolean;
@@ -67,6 +73,14 @@ type UseMessagingActionsParams = {
 };
 
 export function useMessagingActions(params: UseMessagingActionsParams) {
+  const toastAlternatingIfNeeded = (err: unknown) => {
+    if (!params.onNoticeToast || !isServerPrivateAlternatingRestriction(err)) {
+      return false;
+    }
+    params.onNoticeToast(TOAST_PRIVATE_ALTERNATING_WAIT_PEER);
+    return true;
+  };
+
   const pointsForPrivateMessage = (threadCountBefore: number): number => {
     if (threadCountBefore <= 0) return 5;
     if (threadCountBefore < 10) return 2;
@@ -212,6 +226,10 @@ export function useMessagingActions(params: UseMessagingActionsParams) {
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       if (handleSessionInvalid(msg)) return;
+      if (toastAlternatingIfNeeded(err)) {
+        params.setSquareActionError("");
+        return;
+      }
       params.setSquareActionError(msg || "膠囊私訊送出失敗");
     }
   };
@@ -256,6 +274,10 @@ export function useMessagingActions(params: UseMessagingActionsParams) {
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       if (handleSessionInvalid(msg)) return;
+      if (toastAlternatingIfNeeded(err)) {
+        params.setSquareActionError("");
+        return;
+      }
       params.setSquareActionError(msg || "聊天訊息送出失敗");
     }
   };

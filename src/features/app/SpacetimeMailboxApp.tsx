@@ -96,6 +96,7 @@ import { useMailboxReadState } from "./hooks/useMailboxReadState";
 import {
   computeThreadUnread,
   isChatMessageFromSelfByAccount,
+  matchesCapsulePrivateGuestThread,
   maxMessageMicros,
 } from "./chatReadCursors";
 import { useAccountFlowHandlers } from "./hooks/useAccountFlowHandlers";
@@ -153,6 +154,65 @@ function calculateAgeFromDate(birthDate: Date | null): number {
   }
   return age;
 }
+
+/** 將 session／跳轉寫入的 `sourceId::guestHex` 對齊到目前側欄合成的規範 key，避免換裝或 profile 回填後發送時顯示「聊天線失效」。 */
+function resolveCanonicalChatThreadSelectionKey(
+  prev: string,
+  capsuleChatThreads: CapsuleChatThreadSummary[],
+  capsulePrivateRows: readonly CapsulePrivateMessage[],
+  identityHex: string,
+  myAccountId: string | undefined,
+): string | null {
+  if (capsuleChatThreads.some((t) => t.key === prev)) return prev;
+  const parts = prev.split("::");
+  if (parts.length !== 2) return null;
+  const sourceId = parts[0]!;
+  const staleSuffix = parts[1]!;
+  const cand = capsuleChatThreads.filter((t) => t.sourceMessageId === sourceId);
+  if (cand.length === 0) return null;
+
+  const byThreadHex = cand.find((t) => t.threadGuestHex === staleSuffix);
+  if (byThreadHex) return byThreadHex.key;
+
+  const myAid = `${myAccountId ?? ""}`.trim();
+  const mineCandidates = cand.filter(
+    (t) =>
+      t.threadGuestHex === identityHex ||
+      (!!myAid && `${t.threadGuestAccountId ?? ""}`.trim() === myAid),
+  );
+  if (staleSuffix === identityHex && mineCandidates.length === 1) {
+    return mineCandidates[0]!.key;
+  }
+
+  const legacyRow = capsulePrivateRows.find(
+    (m) =>
+      m.sourceMessageId === sourceId &&
+      m.threadGuestIdentity.toHexString() === staleSuffix,
+  );
+  if (legacyRow) {
+    const legacyAid =
+      `${(legacyRow as { threadGuestAccountId?: string }).threadGuestAccountId ?? ""}`.trim();
+    const byAid = legacyAid
+      ? cand.find((t) => `${t.threadGuestAccountId ?? ""}`.trim() === legacyAid)
+      : undefined;
+    if (byAid) return byAid.key;
+
+    const byThreadMembership = cand.find((t) =>
+      matchesCapsulePrivateGuestThread(
+        legacyRow,
+        sourceId,
+        t.threadGuestHex,
+        t.threadGuestAccountId,
+      ),
+    );
+    if (byThreadMembership) return byThreadMembership.key;
+  }
+
+  if (mineCandidates.length === 1) return mineCandidates[0]!.key;
+
+  return null;
+}
+
 export default function SpacetimeMailboxApp({
   identity,
 }: {
@@ -503,6 +563,11 @@ export default function SpacetimeMailboxApp({
     },
     [],
   );
+
+  /** 非積分之簡短提示（與積分提示共用底部漂浮條、約 2.2s） */
+  const emitNoticeToast = useCallback((message: string) => {
+    setDailyRewardToast(message);
+  }, []);
 
   /** 給舉報人看的結果通知（存入 resolutionNote） */
   const PRESET_REPORTER: Record<string, string> = {
@@ -2463,25 +2528,23 @@ export default function SpacetimeMailboxApp({
       setSelectedAdminReportId(null);
       return;
     }
-    setSelectedChatThreadKey((prev) => {
-      if (!prev) return null;
-      if (capsuleChatThreads.some((t) => t.key === prev)) return prev;
-      const parts = prev.split("::");
-      if (parts.length === 2 && parts[1] === identity.toHexString()) {
-        const sourceId = parts[0]!;
-        const hasSource =
-          capsuleMessageRows.some((c) => c.id === sourceId) ||
-          squarePostRows.some((p) => p.sourceMessageId === sourceId);
-        if (hasSource) return prev;
-      }
-      return null;
-    });
+    setSelectedChatThreadKey((prev) =>
+      prev
+        ? resolveCanonicalChatThreadSelectionKey(
+            prev,
+            capsuleChatThreads,
+            capsulePrivateRows,
+            identity.toHexString(),
+            myAccountId,
+          )
+        : null,
+    );
   }, [
     activeTab,
     capsuleChatThreads,
+    capsulePrivateRows,
     identity,
-    capsuleMessageRows,
-    squarePostRows,
+    myAccountId,
   ]);
 
   useEffect(() => {
@@ -2804,6 +2867,7 @@ export default function SpacetimeMailboxApp({
     setLoading,
     setSquareActionError,
     onPointsToast: emitPointsToast,
+    onNoticeToast: emitNoticeToast,
     publishRepliesPublic,
     publishIncludeThread,
     publishIncludeCapsulePrivate,
@@ -2824,10 +2888,25 @@ export default function SpacetimeMailboxApp({
     capsulePrivateDraft,
     addCapsulePrivateMessage,
     getCapsuleThreadMessageCount: (sourceMessageId: string, threadGuestHex: string) => {
-      return capsulePrivateRows.filter(
+      const meHex = identity.toHexString();
+      const myAid = `${myAccountId ?? ""}`.trim();
+      const fromRowAid = capsulePrivateRows.find(
         (m) =>
           m.sourceMessageId === sourceMessageId &&
           m.threadGuestIdentity.toHexString() === threadGuestHex,
+      );
+      const rowAid = `${(fromRowAid as { threadGuestAccountId?: string } | undefined)?.threadGuestAccountId ?? ""}`.trim();
+      const threadGuestAccountId =
+        rowAid ||
+        (threadGuestHex === meHex && myAid ? myAid : "").trim() ||
+        undefined;
+      return capsulePrivateRows.filter((m) =>
+        matchesCapsulePrivateGuestThread(
+          m,
+          sourceMessageId,
+          threadGuestHex,
+          threadGuestAccountId,
+        ),
       ).length;
     },
     setCapsulePrivateDraft,

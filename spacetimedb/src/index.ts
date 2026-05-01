@@ -830,19 +830,79 @@ function resolveThreadGuestIdentityAndAccount(
   return null;
 }
 
+/**
+ * 同一則來源底下的「同一條訪客線」：舊資料可能只做 identity、或換裝後 thread_guest／帳號欄位不一致，
+ * 必須用閉包合併（依 thread_guest 身份鍵相接 + threadGuestAccountId + 該 guest 本人 authorAccountId），
+ * 否則 threadCount 會永遠 < 10、「前 10 句輪流」規則不會解除。
+ */
+function gatherCapsulePrivateGuestThreadMessages(
+  ctx: { db: any },
+  sourceMessageId: string,
+  requestedGuestIdentity: Identity,
+  effectiveGuestIdentity: Identity,
+  guestAccountId: string,
+): any[] {
+  const gid = (guestAccountId || "").trim();
+
+  type RowLike = any;
+  const rowsHere: RowLike[] = [];
+  for (const row of ctx.db.capsulePrivateMessage.iter()) {
+    if (row.sourceMessageId !== sourceMessageId) continue;
+    rowsHere.push(row);
+  }
+
+  const inPart = new Set<string>();
+  const igHex = new Set<string>();
+  igHex.add(effectiveGuestIdentity.toHexString());
+  igHex.add(requestedGuestIdentity.toHexString());
+
+  for (const row of rowsHere) {
+    const tga = `${row.threadGuestAccountId ?? ""}`.trim();
+    const aaa = `${row.authorAccountId ?? ""}`.trim();
+    let anchor =
+      row.threadGuestIdentity.isEqual(effectiveGuestIdentity) ||
+      row.threadGuestIdentity.isEqual(requestedGuestIdentity);
+    anchor ||= !!(gid && tga === gid);
+    anchor ||= !!(gid && aaa === gid);
+    if (!anchor) continue;
+    inPart.add(row.id);
+    igHex.add(row.threadGuestIdentity.toHexString());
+  }
+
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const row of rowsHere) {
+      if (inPart.has(row.id)) continue;
+      const tgHex = row.threadGuestIdentity.toHexString();
+      const tga = `${row.threadGuestAccountId ?? ""}`.trim();
+      if (igHex.has(tgHex) || (gid.length > 0 && tga === gid)) {
+        inPart.add(row.id);
+        igHex.add(tgHex);
+        changed = true;
+      }
+    }
+  }
+
+  return rowsHere.filter((r) => inPart.has(r.id));
+}
+
 function capsuleThreadNonEmptyByGuest(
   ctx: { db: any },
   sourceMessageId: string,
-  guestId: Identity,
+  effectiveGuestIdentity: Identity,
   guestAccountId: string,
+  requestedGuestIdentity: Identity,
 ): boolean {
-  const aid = guestAccountId.trim();
-  for (const row of ctx.db.capsulePrivateMessage.iter()) {
-    if (row.sourceMessageId !== sourceMessageId) continue;
-    if (row.threadGuestIdentity.isEqual(guestId)) return true;
-    if (aid && `${row.threadGuestAccountId ?? ""}`.trim() === aid) return true;
-  }
-  return false;
+  return (
+    gatherCapsulePrivateGuestThreadMessages(
+      ctx,
+      sourceMessageId,
+      requestedGuestIdentity,
+      effectiveGuestIdentity,
+      guestAccountId,
+    ).length > 0
+  );
 }
 
 // function canReadCapsulePrivateMessage(
@@ -3952,6 +4012,7 @@ export const add_capsule_private_message = spacetimedb.reducer(
           sourceMessageId,
           effectiveGuestIdentity,
           guestAccountId,
+          threadGuestIdentity,
         )
       ) {
         throw new SenderError("請待該訪客先開啟此線後再回覆");
@@ -3964,7 +4025,7 @@ export const add_capsule_private_message = spacetimedb.reducer(
         guestAccountId.length > 0 &&
         myAccountId.length > 0 &&
         guestAccountId === myAccountId;
-      if (!(guestMatchByIdentity || guestMatchByAccount)) {
+      if (!(guestMatchByAccount || guestMatchByIdentity)) {
         throw new SenderError("訪客僅能於自己的線發言");
       }
     }
@@ -3973,18 +4034,18 @@ export const add_capsule_private_message = spacetimedb.reducer(
      * 前 10 句遵守「你一句我一句」：
      * - 打招呼後若對方尚未回覆，不可連續再發。
      * - 第 11 句起解除此限制。
+     * thread 筆數與線程會員必須與「換裝後合併訪客線」一致，否則 threadCount 永遠被低估無法解禁。
      */
-    let threadCount = 0;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let latestInThread: any = null;
-    for (const row of ctx.db.capsulePrivateMessage.iter()) {
-      if (row.sourceMessageId !== sourceMessageId) continue;
-      const sameByIdentity = row.threadGuestIdentity.isEqual(effectiveGuestIdentity);
-      const sameByAccount =
-        guestAccountId.length > 0 &&
-        `${row.threadGuestAccountId ?? ""}`.trim() === guestAccountId;
-      if (!(sameByIdentity || sameByAccount)) continue;
-      threadCount += 1;
+    const guestThreadMsgs = gatherCapsulePrivateGuestThreadMessages(
+      ctx,
+      sourceMessageId,
+      threadGuestIdentity,
+      effectiveGuestIdentity,
+      guestAccountId,
+    );
+    const threadCount = guestThreadMsgs.length;
+    let latestInThread = null as (typeof guestThreadMsgs)[number] | null;
+    for (const row of guestThreadMsgs) {
       if (
         !latestInThread ||
         row.createdAt.microsSinceUnixEpoch >
@@ -3994,12 +4055,14 @@ export const add_capsule_private_message = spacetimedb.reducer(
       }
     }
     const latestAuthorAid = `${latestInThread?.authorAccountId ?? ""}`.trim();
-    const isLatestMineByAccount =
-      latestAuthorAid.length > 0 &&
-      myAccountId.length > 0 &&
-      latestAuthorAid === myAccountId;
-    const isLatestMineByIdentity = !!latestInThread?.authorIdentity?.isEqual?.(ctx.sender);
-    if (threadCount < 10 && (isLatestMineByAccount || isLatestMineByIdentity)) {
+    let latestMessageIsMine = false;
+    if (latestAuthorAid.length > 0 && myAccountId.length > 0) {
+      latestMessageIsMine = latestAuthorAid === myAccountId;
+    } else if (latestInThread?.authorIdentity) {
+      latestMessageIsMine =
+        !!latestInThread.authorIdentity?.isEqual?.(ctx.sender);
+    }
+    if (threadCount < 10 && latestMessageIsMine) {
       throw new SenderError("前 10 句需你一句我一句，請等對方回覆");
     }
 

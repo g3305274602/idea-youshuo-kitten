@@ -12,6 +12,23 @@ export function isChatMessageFromSelfByAccount(
   return !!m && !!a && a === m;
 }
 
+/**
+ * 與後端 add_capsule_private_message 對「同一條訪客線」合併方式一致：
+ * threadGuestIdentity 相符，或以 threadGuestAccountId 對齊（避免因身份鍵換裝不一致而打散線程）。
+ */
+export function matchesCapsulePrivateGuestThread(
+  m: CapsulePrivateMessage,
+  sourceMessageId: string,
+  threadGuestHex: string,
+  threadGuestAccountId?: string,
+): boolean {
+  if (m.sourceMessageId !== sourceMessageId) return false;
+  if (m.threadGuestIdentity.toHexString() === threadGuestHex) return true;
+  const wantAid = `${threadGuestAccountId ?? ""}`.trim();
+  const rowAid = `${(m as { threadGuestAccountId?: string }).threadGuestAccountId ?? ""}`.trim();
+  return !!wantAid && !!rowAid && wantAid === rowAid;
+}
+
 export function loadReadCursorMap(identityHex: string): Map<string, bigint> {
   try {
     const raw = localStorage.getItem(STORAGE_PREFIX + identityHex);

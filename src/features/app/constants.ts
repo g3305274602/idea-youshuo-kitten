@@ -22,6 +22,18 @@ export const LEGACY_LAST_ACTIVE_TAB_KEY = "YS_LAST_ACTIVE_TAB";
 
 export const TEXT_LIMIT = 300;
 
+/** 與後端 SenderError（add_capsule_private_message）對齊；用於前端辨識鎖定期輪流規則。 */
+export const SERVER_CAP_PRIVATE_ALTERNATING_SUBSTR = "前 10 句需你一句我一句";
+
+/** 鎖定期統一 toast 文案（前 10 則輪流通話）。 */
+export const TOAST_PRIVATE_ALTERNATING_WAIT_PEER =
+  "鎖定期須輪流：請等待對方回覆";
+
+export function isServerPrivateAlternatingRestriction(message: unknown): boolean {
+  const s = message instanceof Error ? message.message : String(message ?? "");
+  return s.includes(SERVER_CAP_PRIVATE_ALTERNATING_SUBSTR);
+}
+
 export const CAPSULE_TYPE_OPTIONS = [
   { type: 1, label: "求助" },
   { type: 2, label: "吐槽" },
