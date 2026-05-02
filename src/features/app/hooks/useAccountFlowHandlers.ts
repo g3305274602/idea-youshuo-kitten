@@ -155,20 +155,27 @@ export function useAccountFlowHandlers(params: UseAccountFlowHandlersParams) {
   }
 
   async function callOtpGateway<T>(path: string, body: Record<string, unknown>): Promise<T> {
-    const res = await fetch(`${EMAIL_OTP_GATEWAY_URL}${path}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    const json = (await res.json().catch(() => ({}))) as {
-      message?: string;
-      data?: T;
-      details?: string;
-    };
-    if (!res.ok) {
-      throw new Error(json.message || json.details || "OTP 服務暫時不可用");
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8_000);
+    try {
+      const res = await fetch(`${EMAIL_OTP_GATEWAY_URL}${path}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+      const json = (await res.json().catch(() => ({}))) as {
+        message?: string;
+        data?: T;
+        details?: string;
+      };
+      if (!res.ok) {
+        throw new Error(json.message || json.details || "OTP 服務暫時不可用");
+      }
+      return (json.data ?? ({} as T)) as T;
+    } finally {
+      clearTimeout(timeout);
     }
-    return (json.data ?? ({} as T)) as T;
   }
 
   const [registerOtpCode, setRegisterOtpCode] = useState("");
@@ -309,20 +316,24 @@ export function useAccountFlowHandlers(params: UseAccountFlowHandlersParams) {
           20_000,
         );
       } else {
-        // 註冊：先嘗試驗證 OTP（尚未自動驗證時立即觸發）
+        // 註冊：若尚未驗證，先嘗試驗證 OTP
         if (registerOtpVerifiedEmail !== currentEmail) {
           if (registerOtpCode.trim().length !== 6) {
             params.setError("請輸入 6 位數驗證碼");
+            params.setLoading(false);
             return;
           }
+          // 直接呼叫 reducer 避免 React state 非同步問題
           try {
-            await verifyRegisterEmailOtp(registerOtpCode);
-          } catch {
-            return; // verifyRegisterEmailOtp 已設定錯誤訊息
-          }
-          // 驗證完後再次檢查
-          if (registerOtpVerifiedEmail !== currentEmail) {
-            params.setError("驗證碼驗證失敗，請重試");
+            await params.verifyEmailOtp({
+              email: currentEmail,
+              purpose: "register",
+              code: registerOtpCode.trim(),
+            });
+          } catch (err: unknown) {
+            const msg = err instanceof Error ? err.message : String(err);
+            params.setError(msg || "驗證失敗");
+            params.setLoading(false);
             return;
           }
         }
@@ -392,7 +403,11 @@ export function useAccountFlowHandlers(params: UseAccountFlowHandlersParams) {
       setRegisterOtpMessage("驗證碼已送出，請查收信箱");
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      setRegisterOtpMessage(msg || "發送驗證碼失敗");
+      setRegisterOtpMessage(
+        msg.includes("abort") || msg.includes("timeout")
+          ? "郵件服務連線逾時，請確認 email gateway 已啟動"
+          : msg || "發送驗證碼失敗",
+      );
     } finally {
       setRegisterOtpSendBusy(false);
     }
@@ -418,7 +433,11 @@ export function useAccountFlowHandlers(params: UseAccountFlowHandlersParams) {
       setForgotOtpMessage("重設驗證碼已送出，請查收信箱");
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      setForgotOtpMessage(msg || "發送驗證碼失敗");
+      setForgotOtpMessage(
+        msg.includes("abort") || msg.includes("timeout")
+          ? "郵件服務連線逾時，請確認 email gateway 已啟動"
+          : msg || "發送驗證碼失敗",
+      );
     } finally {
       setForgotOtpSendBusy(false);
     }
