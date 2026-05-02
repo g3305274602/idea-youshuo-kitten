@@ -109,7 +109,7 @@ export function AvatarPickerModalSection({
                   <p className="text-[11px] font-bold tracking-wider text-[#8E8E93]">
                     {rows.find((r) => r.seriesDisplayName?.trim())?.seriesDisplayName || seriesKey}
                   </p>
-                  <div className="grid grid-cols-5 gap-3 sm:grid-cols-6 md:grid-cols-7 lg:grid-cols-8 xl:grid-cols-10">
+                  <div className="grid grid-cols-5 gap-3 sm:grid-cols-6 md:grid-cols-7 lg:grid-cols-8 xl:grid-cols-[repeat(auto-fit,_minmax(76px,_1fr))]">
                     {rows.map((row) => {
                       const isUnlocked =
                         row.pricePoints <= 0 || unlockedKeys.has(row.avatarKey);
@@ -126,7 +126,7 @@ export function AvatarPickerModalSection({
                             }
                             setConfirmKey(row.avatarKey);
                           }}
-                          className={`relative aspect-square min-h-[4rem] overflow-hidden rounded-2xl border ${
+                          className={`relative aspect-square min-h-[3.5rem] overflow-hidden rounded-2xl border ${
                             selected
                               ? "border-[#FFD54F] ring-2 ring-[#FFD54F]/35"
                               : "border-white/15"
