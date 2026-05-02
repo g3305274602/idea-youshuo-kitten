@@ -714,23 +714,25 @@ export function useAccountFlowHandlers(params: UseAccountFlowHandlersParams) {
   };
 
   const submitAgeGate = async () => {
-    if (params.calculatedAge < 16 || params.calculatedAge > 126) {
-      params.setAgeGateError("年龄需在 16–126 之间");
-      return;
-    }
     params.setAgeGateSaving(true);
+    params.setAgeGateError("");
     try {
-      const utcDate = new Date(
-        Date.UTC(params.birthYear, params.birthMonth - 1, params.birthDay),
-      );
+      // 直接讀取當下最新值，避免 useEffect 非同步初始化造成的問題
+      const y = params.birthYear;
+      const m = params.birthMonth;
+      const d = params.birthDay;
+      const utcDate = new Date(Date.UTC(y, m - 1, d));
+      const gender = normalizeBinaryGender(params.ageGateGender);
       await params.updateAccountProfile({
         displayName: params.myProfile?.displayName || "",
-        gender: normalizeBinaryGender(params.ageGateGender),
+        gender,
         birthDate: Timestamp.fromDate(utcDate),
         profileNote: params.myProfile?.profileNote || "",
       });
     } catch (err: any) {
-      params.setAgeGateError(err.message || "提交失败");
+      const msg = err.message || String(err);
+      console.error("[submitAgeGate]", msg);
+      params.setAgeGateError(msg || "提交失败");
     } finally {
       params.setAgeGateSaving(false);
     }
