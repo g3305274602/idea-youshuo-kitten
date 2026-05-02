@@ -49,6 +49,7 @@ import AdminSetUserSanctionStatusReducer from "./admin_set_user_sanction_status_
 import AdminUpdateAccountProfileAndPointsReducer from "./admin_update_account_profile_and_points_reducer";
 import AdminUpdateAppealTicketReducer from "./admin_update_appeal_ticket_reducer";
 import AdminUpdateAvatarCatalogItemReducer from "./admin_update_avatar_catalog_item_reducer";
+import AdminUpdateAvatarSeriesOrderReducer from "./admin_update_avatar_series_order_reducer";
 import AdminUpdateReportTicketReducer from "./admin_update_report_ticket_reducer";
 import AdminUpsertAvatarCatalogItemReducer from "./admin_upsert_avatar_catalog_item_reducer";
 import AppendLetterExchangeReducer from "./append_letter_exchange_reducer";
@@ -102,6 +103,7 @@ import AdminAuditLogRow from "./admin_audit_log_table";
 import AdminRoleRow from "./admin_role_table";
 import AppealTicketRow from "./appeal_ticket_table";
 import AvatarCatalogItemRow from "./avatar_catalog_item_table";
+import AvatarSeriesOrderRow from "./avatar_series_order_table";
 import CapsuleFavoriteRow from "./capsule_favorite_table";
 import CapsuleMessageRow from "./capsule_message_table";
 import CapsuleMessageSpaceStateRow from "./capsule_message_space_state_table";
@@ -261,7 +263,6 @@ const tablesSchema = __schema({
     ],
     constraints: [
       { name: 'admin_role_account_id_key', constraint: 'unique', columns: ['accountId'] },
-      { name: 'admin_role_admin_identity_key', constraint: 'unique', columns: ['adminIdentity'] },
     ],
   }, AdminRoleRow),
   appealTicket: __table({
@@ -295,6 +296,17 @@ const tablesSchema = __schema({
       { name: 'avatar_catalog_item_avatar_key_key', constraint: 'unique', columns: ['avatarKey'] },
     ],
   }, AvatarCatalogItemRow),
+  avatarSeriesOrder: __table({
+    name: 'avatar_series_order',
+    indexes: [
+      { accessor: 'seriesKey', name: 'avatar_series_order_series_key_idx_btree', algorithm: 'btree', columns: [
+        'seriesKey',
+      ] },
+    ],
+    constraints: [
+      { name: 'avatar_series_order_series_key_key', constraint: 'unique', columns: ['seriesKey'] },
+    ],
+  }, AvatarSeriesOrderRow),
   capsuleFavorite: __table({
     name: 'capsule_favorite',
     indexes: [
@@ -531,6 +543,7 @@ const reducersSchema = __reducers(
   __reducerSchema("admin_update_account_profile_and_points", AdminUpdateAccountProfileAndPointsReducer),
   __reducerSchema("admin_update_appeal_ticket", AdminUpdateAppealTicketReducer),
   __reducerSchema("admin_update_avatar_catalog_item", AdminUpdateAvatarCatalogItemReducer),
+  __reducerSchema("admin_update_avatar_series_order", AdminUpdateAvatarSeriesOrderReducer),
   __reducerSchema("admin_update_report_ticket", AdminUpdateReportTicketReducer),
   __reducerSchema("admin_upsert_avatar_catalog_item", AdminUpsertAvatarCatalogItemReducer),
   __reducerSchema("append_letter_exchange", AppendLetterExchangeReducer),

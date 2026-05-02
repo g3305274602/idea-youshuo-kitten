@@ -45,10 +45,8 @@ import {
 import { CdSelect } from "../components/CdSelect";
 import {
   groupRowsBySeriesKey,
-  loadAvatarSeriesDisplayOrder,
   mergePersistedSeriesOrder,
   moveSeriesKeyInOrder,
-  saveAvatarSeriesDisplayOrder,
 } from "../avatarSeriesDisplayOrder";
 import { useEscapeClose } from "../hooks/useEscapeClose";
 
@@ -414,7 +412,7 @@ type AdminContentProps = {
   onSetAdminGrantRole: (value: string) => void;
   onSetAdminGrantActive: (value: boolean) => void;
   onSetAdminAddOpen: (open: boolean) => void;
-  onAdminDeleteRoleRecord: (adminIdentity: Identity) => Promise<void>;
+  onAdminDeleteRoleRecord: (row: AdminRole) => Promise<void>;
   onSetAdminAccountSearch: (value: string) => void;
   onSetAdminTargetIdentityHex: (value: string) => void;
   onQuickBanTargetAccount: () => void | Promise<void>;
@@ -456,6 +454,8 @@ type AdminContentProps = {
     sortOrderBase: number;
     generateCount: number;
   }) => void | Promise<void>;
+  avatarSeriesOrderKeys: readonly string[];
+  onSaveAvatarSeriesOrder: (seriesKeys: string[]) => Promise<void>;
 };
 
 export function AdminContent(props: AdminContentProps) {
@@ -538,6 +538,8 @@ export function AdminContent(props: AdminContentProps) {
     onAvatarOpenCreateModal,
     onAvatarDeleteItem,
     onAvatarCreateItem,
+    avatarSeriesOrderKeys,
+    onSaveAvatarSeriesOrder,
   } = props;
 
   const avatarSeriesGroupedMap = useMemo(
@@ -549,22 +551,20 @@ export function AdminContent(props: AdminContentProps) {
   useEffect(() => {
     const grouped = avatarSeriesGroupedMap;
     const keys = [...grouped.keys()];
-    setAvatarSeriesDisplayKeys((prev) =>
-      mergePersistedSeriesOrder(keys, grouped, prev.length ? prev : loadAvatarSeriesDisplayOrder()),
+    setAvatarSeriesDisplayKeys(() =>
+      mergePersistedSeriesOrder(keys, grouped, avatarSeriesOrderKeys),
     );
-  }, [avatarCatalogRows, avatarSeriesGroupedMap]);
+  }, [avatarCatalogRows, avatarSeriesGroupedMap, avatarSeriesOrderKeys]);
 
-  const reorderAvatarSeries = (seriesKey: string, dir: -1 | 1) => {
-    setAvatarSeriesDisplayKeys((prev) => {
-      const grouped = avatarSeriesGroupedMap;
-      const base =
-        prev.length > 0
-          ? prev
-          : mergePersistedSeriesOrder([...grouped.keys()], grouped, loadAvatarSeriesDisplayOrder());
-      const next = moveSeriesKeyInOrder(base, seriesKey, dir);
-      saveAvatarSeriesDisplayOrder(next);
-      return next;
-    });
+  const reorderAvatarSeries = async (seriesKey: string, dir: -1 | 1) => {
+    const grouped = avatarSeriesGroupedMap;
+    const base =
+      avatarSeriesDisplayKeys.length > 0
+        ? avatarSeriesDisplayKeys
+        : mergePersistedSeriesOrder([...grouped.keys()], grouped, avatarSeriesOrderKeys);
+    const next = moveSeriesKeyInOrder(base, seriesKey, dir);
+    setAvatarSeriesDisplayKeys(next);
+    await onSaveAvatarSeriesOrder(next);
   };
 
   const [avatarCreateOpen, setAvatarCreateOpen] = useState(false);
@@ -1261,7 +1261,7 @@ export function AdminContent(props: AdminContentProps) {
             <div>
               <p className="text-[15px] font-black text-white">頭像設定</p>
               <p className="mt-0.5 text-[11px] text-white/60">
-                管理員可改價與上下架，超級管理員可新增/刪除。系列區塊右側「上移／下移」可調整整組顯示順序（使用者更換頭像時會依相同順序，存在本機瀏覽器）。
+                管理員可改價與上下架，超級管理員可新增/刪除。系列區塊右側「上移／下移」可調整整組顯示順序。
               </p>
             </div>
             {isSuperAdmin ? (
@@ -1800,7 +1800,7 @@ export function AdminContent(props: AdminContentProps) {
                       setAvatarDeleteTargetKey("");
                     }}
                   >
-                    確認刪除
+                    {avatarCatalogEditBusy ? "刪除中…" : "確認刪除"}
                   </button>
                 </div>
               </motion.div>
@@ -2304,13 +2304,13 @@ export function AdminContent(props: AdminContentProps) {
                           <button
                             type="button"
                             disabled={adminActionLoading}
-                            onClick={async () => {
+                            onClick={() => {
                               if (
                                 !window.confirm(`確定從管理表刪除 ${em} 的記錄？此操作不影響帳號本身。`)
                               ) {
                                 return;
                               }
-                              await onAdminDeleteRoleRecord(r.adminIdentity);
+                              void onAdminDeleteRoleRecord(r);
                             }}
                             className="rounded border border-red-300 bg-red-50 px-2 py-0.5 text-[10px] font-semibold text-red-700 disabled:opacity-60"
                           >

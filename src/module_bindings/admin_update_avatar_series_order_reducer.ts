@@ -10,11 +10,6 @@ import {
   type Infer as __Infer,
 } from "spacetimedb";
 
-export default __t.row({
-  adminIdentity: __t.identity().name("admin_identity"),
-  accountId: __t.string().primaryKey().name("account_id"),
-  role: __t.string(),
-  isActive: __t.bool().name("is_active"),
-  createdAt: __t.timestamp().name("created_at"),
-  updatedAt: __t.timestamp().name("updated_at"),
-});
+export default {
+  seriesKeys: __t.array(__t.string()),
+};

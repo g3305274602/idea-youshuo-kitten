@@ -328,6 +328,12 @@ export function ChatMainSection({
             <button
               type="button"
               onClick={onSendChatMessage}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  onSendChatMessage();
+                }
+              }}
               className="shrink-0 rounded-xl px-4 py-2 text-[13px] ys-btn-primary"
             >
               送出

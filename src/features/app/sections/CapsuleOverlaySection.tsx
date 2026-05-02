@@ -360,6 +360,12 @@ export function CapsuleOverlaySection(props: CapsuleOverlaySectionProps) {
                         <button
                           type="button"
                           onClick={() => void handleAddSquareComment(capsuleSquarePost.sourceMessageId)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" && !e.shiftKey) {
+                              e.preventDefault();
+                              void handleAddSquareComment(capsuleSquarePost.sourceMessageId);
+                            }
+                          }}
                           className="shrink-0 rounded-xl px-4 py-2 text-[13px] ys-btn-primary"
                         >
                           送出

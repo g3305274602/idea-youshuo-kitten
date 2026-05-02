@@ -141,6 +141,13 @@ export const AvatarCatalogItem = __t.object("AvatarCatalogItem", {
 });
 export type AvatarCatalogItem = __Infer<typeof AvatarCatalogItem>;
 
+export const AvatarSeriesOrder = __t.object("AvatarSeriesOrder", {
+  seriesKey: __t.string(),
+  sortOrder: __t.u32(),
+  updatedAt: __t.timestamp(),
+});
+export type AvatarSeriesOrder = __Infer<typeof AvatarSeriesOrder>;
+
 export const CapsuleFavorite = __t.object("CapsuleFavorite", {
   id: __t.string(),
   capsuleId: __t.string(),

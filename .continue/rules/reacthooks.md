@@ -1,0 +1,25 @@
+---
+description: A description of your rule
+---
+
+# React Hooks
+
+## 硬規則
+
+在 `tsx` 中，**所有**以 `use` 開頭的呼叫（含 `useState` / `useEffect` / `useMemo` / `useCallback`、以及自訂 `useXxx` hooks）**必須**出現在任何**條件式 early return** 之前，例如：
+
+- `if (isBooting) return ...`
+- `if (view === "login" || !myProfile) return ...`
+- 任何 `if (cond) return <Something />;`
+
+**禁止**在 early return 之後再新增 `useCallback` / 自訂 hook，否則在「先顯示載入／登入 → 再進儀表板」時，前一次 render 與後一次 render 的 **hooks 數量或順序**會不一致，導致：
+
+- `Warning: React has detected a change in the order of Hooks`
+- `Uncaught Error: Rendered more hooks than during the previous render`
+
+參考檔內註解：`/** 必須放在 login/register early return 之前，否則違反 Hooks 規則 */`（`unifiedFavoriteItems` 附近）。
+
+## 實作建議
+
+- 若回調邏輯屬導航／清選中狀態，可**上移**到第一個 `if (isBooting)` 之前，或**抽出**到 `useNavigationActions` 等「已在頂層呼叫」的 hook 模組內回傳。
+- 大規模重構時，優先讓**整條**「儀表板專用」子樹變成子元件，使子元件內可安全使用多個 hooks，但父元件**不得**在條件分支內變更 hooks 數量。

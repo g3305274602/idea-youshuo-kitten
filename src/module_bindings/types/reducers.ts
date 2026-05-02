@@ -21,6 +21,7 @@ import AdminSetUserSanctionStatusReducer from "../admin_set_user_sanction_status
 import AdminUpdateAccountProfileAndPointsReducer from "../admin_update_account_profile_and_points_reducer";
 import AdminUpdateAppealTicketReducer from "../admin_update_appeal_ticket_reducer";
 import AdminUpdateAvatarCatalogItemReducer from "../admin_update_avatar_catalog_item_reducer";
+import AdminUpdateAvatarSeriesOrderReducer from "../admin_update_avatar_series_order_reducer";
 import AdminUpdateReportTicketReducer from "../admin_update_report_ticket_reducer";
 import AdminUpsertAvatarCatalogItemReducer from "../admin_upsert_avatar_catalog_item_reducer";
 import AppendLetterExchangeReducer from "../append_letter_exchange_reducer";
@@ -75,6 +76,7 @@ export type AdminSetUserSanctionStatusParams = __Infer<typeof AdminSetUserSancti
 export type AdminUpdateAccountProfileAndPointsParams = __Infer<typeof AdminUpdateAccountProfileAndPointsReducer>;
 export type AdminUpdateAppealTicketParams = __Infer<typeof AdminUpdateAppealTicketReducer>;
 export type AdminUpdateAvatarCatalogItemParams = __Infer<typeof AdminUpdateAvatarCatalogItemReducer>;
+export type AdminUpdateAvatarSeriesOrderParams = __Infer<typeof AdminUpdateAvatarSeriesOrderReducer>;
 export type AdminUpdateReportTicketParams = __Infer<typeof AdminUpdateReportTicketReducer>;
 export type AdminUpsertAvatarCatalogItemParams = __Infer<typeof AdminUpsertAvatarCatalogItemReducer>;
 export type AppendLetterExchangeParams = __Infer<typeof AppendLetterExchangeReducer>;

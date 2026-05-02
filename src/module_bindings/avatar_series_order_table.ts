@@ -11,10 +11,7 @@ import {
 } from "spacetimedb";
 
 export default __t.row({
-  adminIdentity: __t.identity().name("admin_identity"),
-  accountId: __t.string().primaryKey().name("account_id"),
-  role: __t.string(),
-  isActive: __t.bool().name("is_active"),
-  createdAt: __t.timestamp().name("created_at"),
+  seriesKey: __t.string().primaryKey().name("series_key"),
+  sortOrder: __t.u32().name("sort_order"),
   updatedAt: __t.timestamp().name("updated_at"),
 });

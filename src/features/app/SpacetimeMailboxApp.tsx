@@ -235,6 +235,27 @@ function resolveCanonicalChatThreadSelectionKey(
   return null;
 }
 
+/** 給舉報人看的結果通知（存入 resolutionNote） */
+const PRESET_REPORTER: Record<string, string> = {
+  dismiss: "感謝您的監督，此內容未發現明確違規，我們會持續關注！^v^",
+  warn: "感謝您的舉報！我們已對該帳號發出警告，請放心我們會繼續追蹤。",
+  mute7: "感謝您的舉報！我們已對違規帳號採取禁言 7 天的處置。",
+  mute30: "感謝您的舉報！我們已對屢次違規帳號採取禁言 30 天的處置。",
+  ban7: "感謝您的舉報！我們已對嚴重違規帳號採取封禁 7 天的處置。",
+  ban30: "感謝您的舉報！我們已對嚴重違規帳號採取封禁 30 天的處置。",
+  banPermanent: "感謝您的舉報！我們已對屢次嚴重違規帳號採取永久封禁處置。",
+};
+/** 給被處分帳號看的說明（存入 sanction.detailText） */
+const PRESET_SANCTION: Record<string, string> = {
+  dismiss: "",
+  warn: "您的帳號因言論不當已收到警告，請遵守社群守則，謝謝合作！",
+  mute7: "因違反社群規範，您的帳號已被禁言 7 天，禁言期間無法發送聊聊訊息。",
+  mute30: "因屢次違反社群規範，您的帳號已被禁言 30 天，請反思並遵守守則。",
+  ban7: "因嚴重違規，您的帳號已被封禁 7 天，如有異議可申訴。",
+  ban30: "因嚴重違規，您的帳號已被封禁 30 天，如有異議可申訴。",
+  banPermanent: "因屢次嚴重違規，您的帳號已被永久封禁。",
+};
+
 export default function SpacetimeMailboxApp({
   identity,
 }: {
@@ -318,6 +339,9 @@ export default function SpacetimeMailboxApp({
   );
   const adminDeleteAvatarCatalogItem = useReducer(
     (reducers as any).adminDeleteAvatarCatalogItem,
+  );
+  const adminUpdateAvatarSeriesOrder = useReducer(
+    (reducers as any).adminUpdateAvatarSeriesOrder,
   );
   const unlockAvatarItem = useReducer((reducers as any).unlockAvatarItem);
   const setAvatarKey = useReducer((reducers as any).setAvatarKey);
@@ -540,6 +564,8 @@ export default function SpacetimeMailboxApp({
     setAdminEditOpen,
     adminEditIdentityHex,
     setAdminEditIdentityHex,
+    adminEditAccountId,
+    setAdminEditAccountId,
     adminEditEmail,
     setAdminEditEmail,
     adminEditRole,
@@ -591,26 +617,7 @@ export default function SpacetimeMailboxApp({
     setDailyRewardToast(message);
   }, []);
 
-  /** 給舉報人看的結果通知（存入 resolutionNote） */
-  const PRESET_REPORTER: Record<string, string> = {
-    dismiss: "感謝您的監督，此內容未發現明確違規，我們會持續關注！^v^",
-    warn: "感謝您的舉報！我們已對該帳號發出警告，請放心我們會繼續追蹤。",
-    mute7: "感謝您的舉報！我們已對違規帳號採取禁言 7 天的處置。",
-    mute30: "感謝您的舉報！我們已對屢次違規帳號採取禁言 30 天的處置。",
-    ban7: "感謝您的舉報！我們已對嚴重違規帳號採取封禁 7 天的處置。",
-    ban30: "感謝您的舉報！我們已對嚴重違規帳號採取封禁 30 天的處置。",
-    banPermanent: "感謝您的舉報！我們已對屢次嚴重違規帳號採取永久封禁處置。",
-  };
-  /** 給被處分帳號看的說明（存入 sanction.detailText） */
-  const PRESET_SANCTION: Record<string, string> = {
-    dismiss: "",
-    warn: "您的帳號因言論不當已收到警告，請遵守社群守則，謝謝合作！",
-    mute7: "因違反社群規範，您的帳號已被禁言 7 天，禁言期間無法發送聊聊訊息。",
-    mute30: "因屢次違反社群規範，您的帳號已被禁言 30 天，請反思並遵守守則。",
-    ban7: "因嚴重違規，您的帳號已被封禁 7 天，如有異議可申訴。",
-    ban30: "因嚴重違規，您的帳號已被封禁 30 天，如有異議可申訴。",
-    banPermanent: "因屢次嚴重違規，您的帳號已被永久封禁。",
-  };
+
   /** 剛解封播報（側欄卡片）；輪詢無新開啟時清空，或點選／收起單則 */
   /** 已寄出：未到開啟時間之訊息編輯 */
   /** 已寄出刪除：自訂二次確認對話框 */
@@ -895,6 +902,8 @@ export default function SpacetimeMailboxApp({
     updateAvatarCatalogItem,
     createAvatarSeriesBatch,
     deleteAvatarCatalogItem,
+    updateAvatarSeriesOrder,
+    avatarSeriesOrderRows,
   } = useAdminWorkbenchRuntime({
     activeTab,
     identity,
@@ -919,12 +928,14 @@ export default function SpacetimeMailboxApp({
     adminGrantRole,
     adminGrantActive,
     adminEditIdentityHex,
+    adminEditAccountId,
     adminEditRole,
     adminEditActive,
     setAdminActionLoading,
     setAdminActionError,
     setAdminGrantEmail,
     setAdminEditIdentityHex,
+    setAdminEditAccountId,
     setAdminEditEmail,
     setAdminEditRole,
     setAdminEditActive,
@@ -940,6 +951,7 @@ export default function SpacetimeMailboxApp({
     adminCreateAvatarSeriesBatch,
     adminUpdateAvatarCatalogItem,
     adminDeleteAvatarCatalogItem,
+    adminUpdateAvatarSeriesOrder,
     presetReporterDismiss: PRESET_REPORTER.dismiss,
   });
 
@@ -955,6 +967,10 @@ export default function SpacetimeMailboxApp({
       ? tables.capsuleFavorite.where((r) => r.collectorIdentity.eq(identity))
       : tables.capsuleFavorite.where((r) => r.id.eq("__stop__")),
   );
+
+  const avatarSeriesOrderKeys = useMemo(() => {
+    return [...avatarSeriesOrderRows].sort((a, b) => a.sortOrder - b.sortOrder).map(r => r.seriesKey);
+  }, [avatarSeriesOrderRows]);
 
   // 初始狀態也要跟著改：如果目前沒有生日，預設停在「剛好 16 歲」的那一年
   // 自動計算年齡 (保持不變)
@@ -3197,6 +3213,10 @@ export default function SpacetimeMailboxApp({
     updateAvatarCatalogItem: (args) => void updateAvatarCatalogItem(args),
     createAvatarSeriesBatch: (args) => void createAvatarSeriesBatch(args),
     deleteAvatarCatalogItem: (avatarKey) => void deleteAvatarCatalogItem(avatarKey),
+    avatarSeriesOrderKeys,
+    saveAvatarSeriesOrder: async (seriesKeys) => {
+      await adminUpdateAvatarSeriesOrder({ seriesKeys });
+    },
   });
 
   const composeMessageMainProps = {
@@ -4130,6 +4150,7 @@ export default function SpacetimeMailboxApp({
         unlockedKeys={unlockedAvatarKeySet}
         unlockLoading={avatarActionLoading}
         actionError={avatarActionError}
+        seriesOrderKeys={avatarSeriesOrderKeys}
         onClose={() => setAvatarPickerOpen(false)}
         onSelectAvatar={(avatarKey) => void handleSelectAvatar(avatarKey)}
         onUnlockAvatar={(avatarKey) => void handleUnlockAvatar(avatarKey)}
@@ -4194,6 +4215,7 @@ export default function SpacetimeMailboxApp({
                 placeholder="臨時密碼"
                 className="cd-field text-[13px]"
                 disabled={forcePwdSaving}
+                autoComplete="current-password"
               />
               <input
                 type="password"
@@ -4202,6 +4224,7 @@ export default function SpacetimeMailboxApp({
                 placeholder="新密碼（6-128 字元）"
                 className="cd-field text-[13px]"
                 disabled={forcePwdSaving}
+                autoComplete="new-password"
               />
               <input
                 type="password"
@@ -4210,6 +4233,7 @@ export default function SpacetimeMailboxApp({
                 placeholder="確認新密碼"
                 className="cd-field text-[13px]"
                 disabled={forcePwdSaving}
+                autoComplete="new-password"
               />
               {forcePwdError ? (
                 <p className="text-[12px] font-semibold text-red-300">{forcePwdError}</p>

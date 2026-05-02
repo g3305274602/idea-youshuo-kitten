@@ -369,6 +369,12 @@ export function OverlayModalsSection({
                 <button
                   type="button"
                   onClick={() => void onSubmitReport()}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      void onSubmitReport();
+                    }
+                  }}
                   disabled={reportSaving}
                   className="flex-1 rounded-xl border border-red-500/40 bg-red-500/30 px-4 py-2.5 text-[14px] font-bold text-red-100 transition-all active:translate-y-px disabled:opacity-50"
                 >

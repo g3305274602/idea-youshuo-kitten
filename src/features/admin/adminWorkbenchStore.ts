@@ -24,6 +24,7 @@ type AdminWorkbenchStore = {
   adminGrantActive: boolean;
   adminEditOpen: boolean;
   adminEditIdentityHex: string;
+  adminEditAccountId: string;
   adminEditEmail: string;
   adminEditRole: string;
   adminEditActive: boolean;
@@ -49,6 +50,7 @@ type AdminWorkbenchStore = {
   setAdminGrantActive: (value: SetStateAction<boolean>) => void;
   setAdminEditOpen: (value: SetStateAction<boolean>) => void;
   setAdminEditIdentityHex: (value: string) => void;
+  setAdminEditAccountId: (value: string) => void;
   setAdminEditEmail: (value: string) => void;
   setAdminEditRole: (value: string) => void;
   setAdminEditActive: (value: SetStateAction<boolean>) => void;
@@ -77,6 +79,7 @@ export const useAdminWorkbenchStore = create<AdminWorkbenchStore>()((set) => ({
   adminGrantActive: true,
   adminEditOpen: false,
   adminEditIdentityHex: "",
+  adminEditAccountId: "",
   adminEditEmail: "",
   adminEditRole: "moderator",
   adminEditActive: true,
@@ -106,6 +109,7 @@ export const useAdminWorkbenchStore = create<AdminWorkbenchStore>()((set) => ({
   setAdminEditOpen: (value) =>
     set((state) => ({ adminEditOpen: resolveState(value, state.adminEditOpen) })),
   setAdminEditIdentityHex: (value) => set({ adminEditIdentityHex: value }),
+  setAdminEditAccountId: (value) => set({ adminEditAccountId: value }),
   setAdminEditEmail: (value) => set({ adminEditEmail: value }),
   setAdminEditRole: (value) => set({ adminEditRole: value }),
   setAdminEditActive: (value) =>

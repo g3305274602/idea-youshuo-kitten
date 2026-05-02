@@ -1,4 +1,4 @@
-import { pbkdf2 } from "@noble/hashes/pbkdf2.js";
+﻿import { pbkdf2 } from "@noble/hashes/pbkdf2.js";
 import { sha256 } from "@noble/hashes/sha2.js";
 import { schema, t, table, SenderError, type Random } from "spacetimedb/server";
 import { Identity, Timestamp } from "spacetimedb";
@@ -385,8 +385,8 @@ const capsulePrivateMessage = table(
 const adminRole = table(
   { name: "admin_role", public: true },
   {
-    adminIdentity: t.identity().primaryKey(),
-    accountId: t.string().unique(),
+    adminIdentity: t.identity().index("btree"),
+    accountId: t.string().primaryKey(),
     role: t.string(),
     isActive: t.bool().default(true),
     createdAt: t.timestamp(),
@@ -422,6 +422,15 @@ const avatarCatalogItem = table(
     createdAt: t.timestamp(),
     updatedAt: t.timestamp(),
     seriesDisplayName: t.string().default(" "),
+  },
+);
+
+const avatarSeriesOrder = table(
+  { name: "avatar_series_order", public: true },
+  {
+    seriesKey: t.string().primaryKey(),
+    sortOrder: t.u32(),
+    updatedAt: t.timestamp(),
   },
 );
 
@@ -610,6 +619,7 @@ const spacetimedb = schema({
   adminRole,
   adminAuditLog,
   avatarCatalogItem,
+  avatarSeriesOrder,
   accountAvatarUnlock,
   accountPointsWallet,
   accountPointsLedger,
@@ -1552,8 +1562,10 @@ function requireAdmin(ctx: { db: any; sender: Identity }) {
 }
 
 function requireSuperAdmin(ctx: { db: any; sender: Identity }) {
-  const row = ctx.db.adminRole.adminIdentity.find(ctx.sender);
-  if (!row || !row.isActive) throw new SenderError("僅超級管理員可操作");
+  const pf = ctx.db.accountProfile.ownerIdentity.find(ctx.sender);
+  if (!pf) throw new SenderError("???");
+  const row = ctx.db.adminRole.accountId.find(pf.accountId);
+  if (!row || !row.isActive) throw new SenderError("不是管理員");
   if (
     String(row.role ?? "")
       .trim()
@@ -1586,7 +1598,7 @@ function findOrphanSuperAdmins(ctx: { db: any }): any[] {
         .toLowerCase() !== "super_admin"
     )
       continue;
-    const pf = ctx.db.accountProfile.ownerIdentity.find(row.adminIdentity);
+    const pf = ctx.db.accountProfile.accountId.find(row.accountId);
     if (!pf) rows.push(row);
   }
   return rows;
@@ -2151,6 +2163,51 @@ export const admin_update_avatar_catalog_item = spacetimedb.reducer(
   },
 );
 
+export const admin_update_avatar_series_order = spacetimedb.reducer(
+  {
+    seriesKeys: t.array(t.string()),
+  },
+  (ctx, { seriesKeys }) => {
+    requireAdmin(ctx);
+    const knownSeries = new Set<string>();
+    for (const row of ctx.db.avatarCatalogItem.iter()) {
+      knownSeries.add(row.seriesKey);
+    }
+    const normalizedKeys = seriesKeys.map((raw) => normalizeSeriesKey(raw));
+    for (const seriesKey of normalizedKeys) {
+      if (!knownSeries.has(seriesKey)) {
+        throw new SenderError(`找不到系列 ${seriesKey}`);
+      }
+    }
+
+    for (let index = 0; index < normalizedKeys.length; index += 1) {
+      const seriesKey = normalizedKeys[index]!;
+      const existing = ctx.db.avatarSeriesOrder.seriesKey.find(seriesKey);
+      if (existing) {
+        ctx.db.avatarSeriesOrder.seriesKey.update({
+          ...existing,
+          sortOrder: index,
+          updatedAt: ctx.timestamp,
+        });
+      } else {
+        ctx.db.avatarSeriesOrder.insert({
+          seriesKey,
+          sortOrder: index,
+          updatedAt: ctx.timestamp,
+        });
+      }
+    }
+
+    writeAdminAudit(
+      ctx,
+      "avatar_series_order_update",
+      "avatar_series_order",
+      normalizedKeys.join(","),
+      "",
+    );
+  },
+);
+
 export const admin_delete_avatar_catalog_item = spacetimedb.reducer(
   { avatarKey: t.string() },
   (ctx, { avatarKey }) => {
@@ -2424,14 +2481,10 @@ export const login_account = spacetimedb.reducer(
       
       // 🔑 管理員權限必須遷移，因為 admin_role 的 Primary Key 是 Identity
       const roleRow = ctx.db.adminRole.accountId.find(profile.accountId);
-      if (roleRow) {
-        ctx.db.adminRole.adminIdentity.delete(currentStoredIdentity);
-        ctx.db.adminRole.insert({
+            if (roleRow) {
+        ctx.db.adminRole.accountId.update({
+          ...roleRow,
           adminIdentity: newIdentity,
-          accountId: roleRow.accountId,
-          role: roleRow.role,
-          isActive: roleRow.isActive,
-          createdAt: roleRow.createdAt,
           updatedAt: ctx.timestamp,
         });
       }
@@ -2481,11 +2534,11 @@ export const change_password = spacetimedb.reducer(
 
 export const set_admin_role = spacetimedb.reducer(
   {
-    adminIdentity: t.identity(),
+    accountId: t.string(),
     role: t.string(),
     isActive: t.bool(),
   },
-  (ctx, { adminIdentity, role, isActive }) => {
+  (ctx, { accountId, role, isActive }) => {
     // 1. 先獲取「發起者」的 Profile，因為後續 insert 需要 accountId
     const senderPf = ctx.db.accountProfile.ownerIdentity.find(ctx.sender);
     if (!senderPf) throw new SenderError("尚未登入，請先註冊並登入帳號");
@@ -2493,17 +2546,19 @@ export const set_admin_role = spacetimedb.reducer(
     const nextRole = role.trim().toLowerCase();
     if (!ADMIN_ROLES.has(nextRole)) throw new SenderError("管理員角色錯誤");
 
+    const targetAid = (accountId ?? "").trim();
+    if (!targetAid) throw new SenderError("缺少目標 accountId");
+
     const noAdminYet = !hasAnyAdmin(ctx);
     if (noAdminYet) {
-      // --- 這裡就是你報錯的地方 (Bootstrap 流程) ---
-      if (!adminIdentity.isEqual(ctx.sender)) {
+      // --- Bootstrap 流程：只能把自己設為管理員 ---
+      if (targetAid !== senderPf.accountId) {
         throw new SenderError("系統初始狀態僅可將自己設為管理員");
       }
 
-      // 修正：這裡的 insert 也要加上 accountId
       ctx.db.adminRole.insert({
         adminIdentity: ctx.sender,
-        accountId: senderPf.accountId, // <--- 補上這一行
+        accountId: senderPf.accountId,
         role: nextRole,
         isActive: true,
         createdAt: ctx.timestamp,
@@ -2517,18 +2572,16 @@ export const set_admin_role = spacetimedb.reducer(
         ctx.sender.toHexString(),
         `${nextRole}:active:${senderPf.email}`,
       );
-      return; // 結束執行
+      return;
     }
 
-    // --- 以下是你截圖中已經寫對的「一般授權」邏輯 ---
+    // --- 一般授權邏輯 ---
     requireSuperAdmin(ctx);
 
-    const targetProfile =
-      ctx.db.accountProfile.ownerIdentity.find(adminIdentity);
+    const targetProfile = ctx.db.accountProfile.accountId.find(targetAid);
     if (!targetProfile) throw new SenderError("找不到該帳號，請確認對方已註冊");
-    const aid = targetProfile.accountId;
 
-    const existing = ctx.db.adminRole.accountId.find(aid);
+    const existing = ctx.db.adminRole.accountId.find(targetAid);
     if (existing) {
       if (
         String(existing.role ?? "").toLowerCase() === "super_admin" &&
@@ -2536,19 +2589,17 @@ export const set_admin_role = spacetimedb.reducer(
       ) {
         throw new SenderError("super_admin 不可直接移除管理權，請先降級");
       }
-      ctx.db.adminRole.adminIdentity.delete(existing.adminIdentity);
-      ctx.db.adminRole.insert({
-        adminIdentity: adminIdentity,
-        accountId: aid,
+      ctx.db.adminRole.accountId.update({
+        ...existing,
+        adminIdentity: targetProfile.ownerIdentity,
         role: nextRole,
         isActive,
-        createdAt: existing.createdAt,
         updatedAt: ctx.timestamp,
       });
     } else {
       ctx.db.adminRole.insert({
-        adminIdentity: adminIdentity,
-        accountId: aid,
+        adminIdentity: targetProfile.ownerIdentity,
+        accountId: targetAid,
         role: nextRole,
         isActive,
         createdAt: ctx.timestamp,
@@ -2560,7 +2611,7 @@ export const set_admin_role = spacetimedb.reducer(
       ctx,
       "set_admin_role",
       "admin_role",
-      adminIdentity.toHexString(),
+      targetAid,
       `${nextRole}:${isActive ? "active" : "inactive"}:${targetProfile.email}`,
     );
   },
@@ -2572,7 +2623,7 @@ export const admin_purge_all_roles = spacetimedb.reducer({}, (ctx) => {
   const rows = [...ctx.db.adminRole.iter()];
   let n = 0;
   for (const row of rows) {
-    ctx.db.adminRole.adminIdentity.delete(row.adminIdentity);
+    ctx.db.adminRole.accountId.delete(row.accountId);
     n += 1;
   }
   writeAdminAudit(
@@ -2586,18 +2637,18 @@ export const admin_purge_all_roles = spacetimedb.reducer({}, (ctx) => {
 
 /** 從 admin_role 刪除單筆記錄（僅超管；只允許刪除已停用的管理員記錄） */
 export const admin_delete_role_record = spacetimedb.reducer(
-  { adminIdentity: t.identity() },
-  (ctx, { adminIdentity }) => {
+  { accountId: t.string() },
+  (ctx, { accountId }) => {
     requireSuperAdmin(ctx);
-    const row = ctx.db.adminRole.adminIdentity.find(adminIdentity);
+    const row = ctx.db.adminRole.accountId.find(accountId);
     if (!row) throw new SenderError("找不到管理員記錄");
     if (row.isActive) throw new SenderError("請先移除管理權後再刪除記錄");
-    ctx.db.adminRole.adminIdentity.delete(adminIdentity);
+        ctx.db.adminRole.accountId.delete(accountId);
     writeAdminAudit(
       ctx,
       "delete_role_record",
       "admin_role",
-      adminIdentity.toHexString(),
+      accountId,
       "",
     );
   },
@@ -2627,7 +2678,7 @@ export const claim_orphan_super_admin = spacetimedb.reducer((ctx) => {
   const orphan = orphanSupers[0]!;
 
   // 4. 執行轉移：刪除舊的 Identity 紀錄
-  ctx.db.adminRole.adminIdentity.delete(orphan.adminIdentity);
+  ctx.db.adminRole.accountId.delete(orphan.accountId);
 
   // 5. 執行插入：使用目前的 Identity 並補上必填的 accountId
   ctx.db.adminRole.insert({
@@ -3086,7 +3137,7 @@ export const admin_apply_user_sanction = spacetimedb.reducer(
       throw new SenderError("處分類型錯誤");
     }
     if (st === "ban") {
-      const targetAdmin = ctx.db.adminRole.adminIdentity.find(targetIdentity);
+      const targetAdmin = [...ctx.db.adminRole.adminIdentity.filter(targetIdentity)][0];
       if (
         targetAdmin &&
         targetAdmin.isActive &&

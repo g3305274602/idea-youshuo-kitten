@@ -252,6 +252,12 @@ export function SecretMainSection({
             <button
               type="button"
               onClick={() => onAddSquareComment(selectedSquarePost.sourceMessageId)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  onAddSquareComment(selectedSquarePost.sourceMessageId);
+                }
+              }}
               className="shrink-0 rounded-xl border border-yellow-200/70 bg-[#FFD54F] px-4 py-2 text-[13px] font-black text-stone-900"
             >
               送出

@@ -11,7 +11,7 @@ import {
 } from "spacetimedb";
 
 export default {
-  adminIdentity: __t.identity(),
+  accountId: __t.string(),
   role: __t.string(),
   isActive: __t.bool(),
 };

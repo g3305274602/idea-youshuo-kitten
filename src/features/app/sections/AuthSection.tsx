@@ -173,6 +173,7 @@ export function AuthSection({
                   value={registerDisplayName}
                   onChange={(e) => onRegisterDisplayNameChange(e.target.value)}
                   maxLength={32}
+                  autoComplete="nickname"
                   className="w-full px-4 py-[18px] bg-white/[0.04] backdrop-blur-md border border-white/[0.08] rounded-[16px] focus:ring-1 focus:ring-white/40 outline-none font-sans text-[17px] text-white placeholder:text-white/20"
                   placeholder="暱稱"
                 />
@@ -187,6 +188,7 @@ export function AuthSection({
               value={email}
               required
               onChange={(e) => onEmailChange(e.target.value)}
+              autoComplete="username"
               className="w-full px-4 py-[18px] bg-white/[0.04] backdrop-blur-md border border-white/[0.08] rounded-[16px] focus:ring-1 focus:ring-white/40 outline-none transition-all font-sans text-[17px] text-white placeholder:text-white/20"
               placeholder="信箱"
             />
@@ -210,6 +212,7 @@ export function AuthSection({
                     onChange={(e) =>
                       onRegisterOtpCodeChange(e.target.value.replace(/\D+/g, "").slice(0, 6))
                     }
+                    autoComplete="one-time-code"
                     className="min-w-0 flex-1 rounded-[12px] border border-white/[0.1] bg-white/[0.04] px-3 py-2 text-[15px] text-white placeholder:text-white/25 outline-none focus:ring-1 focus:ring-white/40"
                     placeholder="輸入 6 位驗證碼"
                   />
@@ -253,6 +256,7 @@ export function AuthSection({
               value={password}
               required
               onChange={(e) => onPasswordChange(e.target.value)}
+              autoComplete={view === "login" ? "current-password" : "new-password"}
               className="w-full px-4 py-[18px] pr-12 bg-white/[0.04] backdrop-blur-md border border-white/[0.08] rounded-[16px] focus:ring-1 focus:ring-white/40 outline-none transition-all font-sans text-[17px] text-white placeholder:text-white/20"
               placeholder={view === "login" ? "密碼" : "設定密碼"}
             />
@@ -279,6 +283,7 @@ export function AuthSection({
                     type={showPassword ? "text" : "password"}
                     value={confirmPassword}
                     onChange={(e) => onConfirmPasswordChange(e.target.value)}
+                    autoComplete="new-password"
                     className={cn(
                       "w-full px-4 py-[18px] pr-12 bg-white/[0.04] backdrop-blur-md border rounded-[16px] focus:ring-1 outline-none transition-all font-sans text-[17px] text-white placeholder:text-white/20",
                       confirmPassword && password !== confirmPassword
@@ -348,6 +353,7 @@ export function AuthSection({
                       onChange={(e) =>
                         onForgotOtpCodeChange(e.target.value.replace(/\D+/g, "").slice(0, 6))
                       }
+                      autoComplete="one-time-code"
                       className="min-w-0 flex-1 rounded-[12px] border border-white/[0.1] bg-white/[0.04] px-3 py-2 text-[15px] text-white placeholder:text-white/25 outline-none focus:ring-1 focus:ring-white/40"
                       placeholder="輸入 6 位驗證碼"
                     />
@@ -373,6 +379,7 @@ export function AuthSection({
                     type="password"
                     value={forgotNewPassword}
                     onChange={(e) => onForgotNewPasswordChange(e.target.value)}
+                    autoComplete="new-password"
                     className="w-full rounded-[12px] border border-white/[0.1] bg-white/[0.04] px-3 py-2 text-[15px] text-white placeholder:text-white/25 outline-none focus:ring-1 focus:ring-white/40"
                     placeholder="新密碼（6-128 字元）"
                   />
@@ -380,6 +387,7 @@ export function AuthSection({
                     type="password"
                     value={forgotConfirmPassword}
                     onChange={(e) => onForgotConfirmPasswordChange(e.target.value)}
+                    autoComplete="new-password"
                     className="w-full rounded-[12px] border border-white/[0.1] bg-white/[0.04] px-3 py-2 text-[15px] text-white placeholder:text-white/25 outline-none focus:ring-1 focus:ring-white/40"
                     placeholder="確認新密碼"
                   />

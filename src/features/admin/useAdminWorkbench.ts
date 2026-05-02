@@ -115,6 +115,7 @@ export function useAdminWorkbenchTables({
       ? (tables as any).avatarCatalogItem
       : (tables as any).avatarCatalogItem.where((r: any) => r.avatarKey.eq("__stop__")),
   );
+  const [avatarSeriesOrderRows] = useTable((tables as any).avatarSeriesOrder);
 
   const hasAnyAdmin = useMemo(
     () => adminRoleRows.some((r) => r.isActive),
@@ -134,6 +135,7 @@ export function useAdminWorkbenchTables({
     userSanctionRows,
     accountProfileCreatedAtRows,
     avatarCatalogRows,
+    avatarSeriesOrderRows,
     hasAnyAdmin,
   };
 }
@@ -155,6 +157,7 @@ type UseAdminWorkbenchDerivedParams = {
   adminAccountSearch: string;
   adminTargetIdentityHex: string;
   rawIsAdmin: boolean;
+  avatarSeriesOrderRows: readonly { seriesKey: string; sortOrder: number }[];
 };
 
 export function useAdminWorkbenchDerived({
@@ -174,6 +177,7 @@ export function useAdminWorkbenchDerived({
   adminAccountSearch,
   adminTargetIdentityHex,
   rawIsAdmin,
+  avatarSeriesOrderRows,
 }: UseAdminWorkbenchDerivedParams) {
   const allProfiles = adminProfiles;
   const displayNameByEmail = useMemo(() => {
@@ -185,6 +189,12 @@ export function useAdminWorkbenchDerived({
   const profileByIdentityHex = useMemo(() => {
     const m = new Map<string, AccountProfile>();
     for (const p of allProfiles) m.set(p.ownerIdentity.toHexString(), p);
+    return m;
+  }, [allProfiles]);
+
+  const profileByAccountId = useMemo(() => {
+    const m = new Map<string, AccountProfile>();
+    for (const p of allProfiles) m.set(p.accountId, p);
     return m;
   }, [allProfiles]);
 
@@ -380,24 +390,24 @@ export function useAdminWorkbenchDerived({
   const orphanSuperAdminRows = useMemo(
     () =>
       activeAdminRows.filter(
-        (r) => r.role === "super_admin" && !profileByIdentityHex.has(r.adminIdentity.toHexString()),
+        (r) => r.role === "super_admin" && !profileByAccountId.has(r.accountId),
       ),
-    [activeAdminRows, profileByIdentityHex],
+    [activeAdminRows, profileByAccountId],
   );
   const hasReachableSuperAdmin = useMemo(
     () =>
       activeAdminRows.some(
-        (r) => r.role === "super_admin" && profileByIdentityHex.has(r.adminIdentity.toHexString()),
+        (r) => r.role === "super_admin" && profileByAccountId.has(r.accountId),
       ),
-    [activeAdminRows, profileByIdentityHex],
+    [activeAdminRows, profileByAccountId],
   );
   const canClaimOrphanSuperAdmin =
     !rawIsAdmin && !hasReachableSuperAdmin && orphanSuperAdminRows.length === 1;
 
   const adminSearchRows = useMemo(() => {
-    const activeAdminSet = new Set(activeAdminRows.map((r) => r.adminIdentity.toHexString()));
+    const activeAdminSet = new Set(activeAdminRows.map((r) => r.accountId));
     const candidates = allProfiles.filter(
-      (p) => !activeAdminSet.has(p.ownerIdentity.toHexString()),
+      (p) => !activeAdminSet.has(p.accountId),
     );
     const q = adminAccountSearch.trim().toLowerCase();
     if (!q) return candidates.slice(0, 40);
@@ -444,14 +454,20 @@ export function useAdminWorkbenchDerived({
 
   const adminRoleLabel: Record<string, string> = {
     super_admin: "超級管理員",
-    moderator: "管理員",
+    moderator: "版主",
     reviewer: "審核員",
   };
+
+  const avatarSeriesOrderKeys = useMemo(() => {
+    const sorted = [...avatarSeriesOrderRows].sort((a, b) => a.sortOrder - b.sortOrder);
+    return sorted.map(r => r.seriesKey);
+  }, [avatarSeriesOrderRows]);
 
   return {
     allProfiles,
     displayNameByEmail,
     profileByIdentityHex,
+    profileByAccountId,
     adminEmailByHex,
     adminReportsSorted,
     activeAdminRows,
@@ -467,12 +483,14 @@ export function useAdminWorkbenchDerived({
     adminGrantEmailCandidates,
     selectedAdminTargetProfile,
     adminRoleLabel,
+    avatarSeriesOrderKeys,
     superAdminTrends,
   };
 }
 
 type UseAdminWorkbenchActionsParams = {
   identity: Identity;
+  myAccountId: string | null;
   hasAnyAdmin: boolean;
   canClaimOrphanSuperAdmin: boolean;
   selectedAdminReport: ReportTicket | null;
@@ -490,6 +508,7 @@ type UseAdminWorkbenchActionsParams = {
   adminGrantRole: string;
   adminGrantActive: boolean;
   adminEditIdentityHex: string;
+  adminEditAccountId: string;
   adminEditRole: string;
   adminEditActive: boolean;
   adminTargetIdentityHex: string;
@@ -499,11 +518,12 @@ type UseAdminWorkbenchActionsParams = {
   setAdminActionError: (value: string) => void;
   setAdminGrantEmail: (value: string) => void;
   setAdminEditIdentityHex: (value: string) => void;
+  setAdminEditAccountId: (value: string) => void;
   setAdminEditEmail: (value: string) => void;
   setAdminEditRole: (value: string) => void;
   setAdminEditActive: (value: boolean) => void;
   setAdminEditOpenWithStack: (open: boolean) => void;
-  setAdminRole: (args: { adminIdentity: Identity; role: string; isActive: boolean }) => Promise<unknown>;
+  setAdminRole: (args: { accountId: string; role: string; isActive: boolean }) => Promise<unknown>;
   claimOrphanSuperAdmin: () => Promise<unknown>;
   adminUpdateReportTicket: (args: {
     reportId: string;
@@ -526,7 +546,7 @@ type UseAdminWorkbenchActionsParams = {
   }) => Promise<unknown>;
   adminDeleteCapsule: (args: { capsuleId: string }) => Promise<unknown>;
   adminDeleteSquarePost: (args: { sourceMessageId: string }) => Promise<unknown>;
-  adminDeleteRoleRecord: (args: { adminIdentity: Identity }) => Promise<unknown>;
+  adminDeleteRoleRecord: (args: { accountId: string }) => Promise<unknown>;
   adminUpdateAvatarCatalogItem: (args: {
     avatarKey: string;
     pricePoints: number;
@@ -542,11 +562,13 @@ type UseAdminWorkbenchActionsParams = {
     sortOrderBase: number;
     generateCount: number;
   }) => Promise<unknown>;
+  adminUpdateAvatarSeriesOrder: (args: { seriesKeys: string[] }) => Promise<unknown>;
   presetReporterDismiss: string;
 };
 
 export function useAdminWorkbenchActions({
   identity,
+  myAccountId,
   hasAnyAdmin,
   canClaimOrphanSuperAdmin,
   selectedAdminReport,
@@ -564,6 +586,7 @@ export function useAdminWorkbenchActions({
   adminGrantRole,
   adminGrantActive,
   adminEditIdentityHex,
+  adminEditAccountId,
   adminEditRole,
   adminEditActive,
   adminTargetIdentityHex,
@@ -573,6 +596,7 @@ export function useAdminWorkbenchActions({
   setAdminActionError,
   setAdminGrantEmail,
   setAdminEditIdentityHex,
+  setAdminEditAccountId,
   setAdminEditEmail,
   setAdminEditRole,
   setAdminEditActive,
@@ -588,15 +612,16 @@ export function useAdminWorkbenchActions({
   adminUpdateAvatarCatalogItem,
   adminDeleteAvatarCatalogItem,
   adminCreateAvatarSeriesBatch,
+  adminUpdateAvatarSeriesOrder,
   presetReporterDismiss,
 }: UseAdminWorkbenchActionsParams) {
   const bootstrapAdminSelf = async () => {
-    if (hasAnyAdmin) return;
+    if (hasAnyAdmin || !myAccountId) return;
     setAdminActionLoading(true);
     setAdminActionError("");
     try {
       await setAdminRole({
-        adminIdentity: identity,
+        accountId: myAccountId,
         role: "super_admin",
         isActive: true,
       });
@@ -722,7 +747,7 @@ export function useAdminWorkbenchActions({
     setAdminActionError("");
     try {
       await setAdminRole({
-        adminIdentity: target.ownerIdentity,
+        accountId: target.accountId,
         role: adminGrantRole.trim() || "moderator",
         isActive: adminGrantActive,
       });
@@ -740,7 +765,7 @@ export function useAdminWorkbenchActions({
     setAdminActionError("");
     try {
       await setAdminRole({
-        adminIdentity: row.adminIdentity,
+        accountId: row.accountId,
         role: row.role,
         isActive,
       });
@@ -754,6 +779,7 @@ export function useAdminWorkbenchActions({
 
   const openAdminEditModal = (row: AdminRole, email: string) => {
     setAdminEditIdentityHex(row.adminIdentity.toHexString());
+    setAdminEditAccountId(row.accountId);
     setAdminEditEmail(email);
     setAdminEditRole(row.role);
     setAdminEditActive(row.isActive);
@@ -761,12 +787,12 @@ export function useAdminWorkbenchActions({
   };
 
   const submitAdminEdit = async () => {
-    if (!adminEditIdentityHex) return;
+    if (!adminEditAccountId) return;
     setAdminActionLoading(true);
     setAdminActionError("");
     try {
       await setAdminRole({
-        adminIdentity: Identity.fromString(adminEditIdentityHex),
+        accountId: adminEditAccountId,
         role: adminEditRole.trim() || "moderator",
         isActive: adminEditActive,
       });
@@ -850,11 +876,11 @@ export function useAdminWorkbenchActions({
     }
   };
 
-  const removeRoleRecordAsAdmin = async (adminIdentity: Identity) => {
+  const removeRoleRecordAsAdmin = async (row: AdminRole) => {
     setAdminActionLoading(true);
     setAdminActionError("");
     try {
-      await adminDeleteRoleRecord({ adminIdentity });
+      await adminDeleteRoleRecord({ accountId: row.accountId });
     } catch (e: unknown) {
       setAdminActionError(e instanceof Error ? e.message : "刪除失敗");
     } finally {
@@ -898,6 +924,18 @@ export function useAdminWorkbenchActions({
     }
   };
 
+  const updateAvatarSeriesOrder = async (args: { seriesKeys: string[] }) => {
+    setAdminActionLoading(true);
+    setAdminActionError("");
+    try {
+      await adminUpdateAvatarSeriesOrder(args);
+    } catch (e: unknown) {
+      setAdminActionError(e instanceof Error ? e.message : "更新頭像系列排序失敗");
+    } finally {
+      setAdminActionLoading(false);
+    }
+  };
+
   const deleteAvatarCatalogItem = async (avatarKey: string) => {
     setAdminActionLoading(true);
     setAdminActionError("");
@@ -928,6 +966,7 @@ export function useAdminWorkbenchActions({
     updateAvatarCatalogItem,
     createAvatarSeriesBatch,
     deleteAvatarCatalogItem,
+    updateAvatarSeriesOrder,
     avatarCatalogRows,
   };
 }
@@ -956,17 +995,19 @@ type UseAdminWorkbenchRuntimeParams = {
   adminGrantRole: string;
   adminGrantActive: boolean;
   adminEditIdentityHex: string;
+  adminEditAccountId: string;
   adminEditRole: string;
   adminEditActive: boolean;
   setAdminActionLoading: (value: boolean) => void;
   setAdminActionError: (value: string) => void;
   setAdminGrantEmail: (value: string) => void;
   setAdminEditIdentityHex: (value: string) => void;
+  setAdminEditAccountId: (value: string) => void;
   setAdminEditEmail: (value: string) => void;
   setAdminEditRole: (value: string) => void;
   setAdminEditActive: (value: boolean) => void;
   setAdminEditOpenWithStack: (open: boolean) => void;
-  setAdminRole: (args: { adminIdentity: Identity; role: string; isActive: boolean }) => Promise<unknown>;
+  setAdminRole: (args: { accountId: string; role: string; isActive: boolean }) => Promise<unknown>;
   claimOrphanSuperAdmin: () => Promise<unknown>;
   adminUpdateReportTicket: (args: {
     reportId: string;
@@ -989,7 +1030,7 @@ type UseAdminWorkbenchRuntimeParams = {
   }) => Promise<unknown>;
   adminDeleteCapsule: (args: { capsuleId: string }) => Promise<unknown>;
   adminDeleteSquarePost: (args: { sourceMessageId: string }) => Promise<unknown>;
-  adminDeleteRoleRecord: (args: { adminIdentity: Identity }) => Promise<unknown>;
+  adminDeleteRoleRecord: (args: { accountId: string }) => Promise<unknown>;
   adminUpdateAvatarCatalogItem: (args: {
     avatarKey: string;
     pricePoints: number;
@@ -1005,6 +1046,7 @@ type UseAdminWorkbenchRuntimeParams = {
     sortOrderBase: number;
     generateCount: number;
   }) => Promise<unknown>;
+  adminUpdateAvatarSeriesOrder: (args: { seriesKeys: string[] }) => Promise<unknown>;
   presetReporterDismiss: string;
 };
 
@@ -1042,10 +1084,12 @@ export function useAdminWorkbenchRuntime(params: UseAdminWorkbenchRuntimeParams)
     adminAccountSearch: params.adminAccountSearch,
     adminTargetIdentityHex: params.adminTargetIdentityHex,
     rawIsAdmin: tables.rawIsAdmin,
+    avatarSeriesOrderRows: tables.avatarSeriesOrderRows as readonly { seriesKey: string; sortOrder: number }[],
   });
 
   const actions = useAdminWorkbenchActions({
     identity: params.identity,
+    myAccountId: params.myAccountId,
     hasAnyAdmin: derived.hasAnyAdmin,
     canClaimOrphanSuperAdmin: derived.canClaimOrphanSuperAdmin,
     selectedAdminReport: derived.selectedAdminReport,
@@ -1063,6 +1107,7 @@ export function useAdminWorkbenchRuntime(params: UseAdminWorkbenchRuntimeParams)
     adminGrantRole: params.adminGrantRole,
     adminGrantActive: params.adminGrantActive,
     adminEditIdentityHex: params.adminEditIdentityHex,
+    adminEditAccountId: params.adminEditAccountId,
     adminEditRole: params.adminEditRole,
     adminEditActive: params.adminEditActive,
     adminTargetIdentityHex: params.adminTargetIdentityHex,
@@ -1072,6 +1117,7 @@ export function useAdminWorkbenchRuntime(params: UseAdminWorkbenchRuntimeParams)
     setAdminActionError: params.setAdminActionError,
     setAdminGrantEmail: params.setAdminGrantEmail,
     setAdminEditIdentityHex: params.setAdminEditIdentityHex,
+    setAdminEditAccountId: params.setAdminEditAccountId,
     setAdminEditEmail: params.setAdminEditEmail,
     setAdminEditRole: params.setAdminEditRole,
     setAdminEditActive: params.setAdminEditActive,
@@ -1087,6 +1133,7 @@ export function useAdminWorkbenchRuntime(params: UseAdminWorkbenchRuntimeParams)
     adminUpdateAvatarCatalogItem: params.adminUpdateAvatarCatalogItem,
     adminDeleteAvatarCatalogItem: params.adminDeleteAvatarCatalogItem,
     adminCreateAvatarSeriesBatch: params.adminCreateAvatarSeriesBatch,
+    adminUpdateAvatarSeriesOrder: params.adminUpdateAvatarSeriesOrder,
     presetReporterDismiss: params.presetReporterDismiss,
   });
 

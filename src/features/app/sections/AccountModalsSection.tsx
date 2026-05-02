@@ -149,6 +149,7 @@ export function AccountModalsSection({
                   value={passwordOld}
                   onChange={(e) => onSetPasswordOld(e.target.value)}
                   placeholder="舊密碼"
+                  autoComplete="current-password"
                   className="cd-field"
                 />
                 <input
@@ -156,6 +157,7 @@ export function AccountModalsSection({
                   value={passwordNew}
                   onChange={(e) => onSetPasswordNew(e.target.value)}
                   placeholder="新密碼（6–128）"
+                  autoComplete="new-password"
                   className="cd-field"
                 />
                 <input
@@ -163,6 +165,7 @@ export function AccountModalsSection({
                   value={passwordConfirm}
                   onChange={(e) => onSetPasswordConfirm(e.target.value)}
                   placeholder="再輸入一次新密碼"
+                  autoComplete="new-password"
                   className="cd-field"
                 />
               </div>

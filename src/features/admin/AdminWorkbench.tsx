@@ -119,7 +119,7 @@ type CreateAdminViewPropsParams = {
   setAdminAddOpenWithStack: (v: boolean) => void;
   openAdminEditModal: (row: any, email: string) => void;
   setSingleAdminActive: (row: any, active: boolean) => void;
-  removeRoleRecordAsAdmin: (adminIdentity: any) => Promise<void>;
+  removeRoleRecordAsAdmin: (row: any) => Promise<void>;
   setAdminAccountSearch: (v: string) => void;
   setAdminTargetIdentityHex: (v: string) => void;
   quickBanTargetAccount: () => void;
@@ -166,6 +166,8 @@ type CreateAdminViewPropsParams = {
     generateCount: number;
   }) => void;
   deleteAvatarCatalogItem: (avatarKey: string) => void;
+  avatarSeriesOrderKeys: readonly string[];
+  saveAvatarSeriesOrder: (seriesKeys: string[]) => Promise<void>;
 };
 
 export function createAdminViewProps(params: CreateAdminViewPropsParams) {
@@ -297,6 +299,8 @@ export function createAdminViewProps(params: CreateAdminViewPropsParams) {
       onAvatarOpenCreateModal: () => {},
       onAvatarDeleteItem: params.deleteAvatarCatalogItem,
       onAvatarCreateItem: params.createAvatarSeriesBatch,
+      avatarSeriesOrderKeys: params.avatarSeriesOrderKeys,
+      onSaveAvatarSeriesOrder: params.saveAvatarSeriesOrder,
     },
     modalProps: {
       adminReportModalOpen: params.isAdminReportModalVisible,

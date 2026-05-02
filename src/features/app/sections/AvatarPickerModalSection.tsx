@@ -27,6 +27,7 @@ type AvatarPickerModalSectionProps = {
   unlockedKeys: ReadonlySet<string>;
   unlockLoading: boolean;
   actionError: string;
+  seriesOrderKeys?: readonly string[];
   onClose: () => void;
   onSelectAvatar: (avatarKey: string) => void | Promise<void>;
   onUnlockAvatar: (avatarKey: string) => void | Promise<void>;
@@ -46,6 +47,7 @@ export function AvatarPickerModalSection({
   unlockedKeys,
   unlockLoading,
   actionError,
+  seriesOrderKeys,
   onClose,
   onSelectAvatar,
   onUnlockAvatar,
@@ -57,7 +59,11 @@ export function AvatarPickerModalSection({
     const sortedFlat = [...catalogRows].sort((a, b) => a.sortOrder - b.sortOrder);
     const grouped = groupRowsBySeriesKey(sortedFlat);
     const keys = [...grouped.keys()];
-    const orderedKeys = mergePersistedSeriesOrder(keys, grouped, loadAvatarSeriesDisplayOrder());
+    const orderedKeys = mergePersistedSeriesOrder(
+      keys,
+      grouped,
+      seriesOrderKeys ?? loadAvatarSeriesDisplayOrder(),
+    );
     return orderedKeys.map((seriesKey) => {
       const rows = (grouped.get(seriesKey) ?? []).slice().sort((a, b) => a.sortOrder - b.sortOrder);
       return [seriesKey, rows] as const;
@@ -88,7 +94,7 @@ export function AvatarPickerModalSection({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 12 }}
             onClick={(e) => e.stopPropagation()}
-            className="cd-modal-panel w-full max-w-[min(100%,26rem)] p-4"
+            className="cd-modal-panel w-full max-w-[min(100%,26rem)] p-4 lg:max-w-[min(100%,48rem)]"
           >
             <h3 id="avatar-picker-title" className="text-[18px] font-bold text-white">
               更換頭像
@@ -97,13 +103,13 @@ export function AvatarPickerModalSection({
               可用積分：{availablePoints}
             </p>
 
-            <div className="mt-3 max-h-[58vh] space-y-3 overflow-y-auto pr-1 apple-scroll">
+            <div className="mt-3 max-h-[58vh] space-y-3 overflow-y-auto pr-1 apple-scroll" style={{ contain: 'layout style paint' }}>
               {groupedRows.map(([seriesKey, rows]) => (
                 <section key={seriesKey} className="space-y-1.5">
                   <p className="text-[11px] font-bold tracking-wider text-[#8E8E93]">
                     {rows.find((r) => r.seriesDisplayName?.trim())?.seriesDisplayName || seriesKey}
                   </p>
-                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+                  <div className="grid grid-cols-5 gap-3 sm:grid-cols-6 md:grid-cols-7 lg:grid-cols-8 xl:grid-cols-10">
                     {rows.map((row) => {
                       const isUnlocked =
                         row.pricePoints <= 0 || unlockedKeys.has(row.avatarKey);
@@ -120,7 +126,7 @@ export function AvatarPickerModalSection({
                             }
                             setConfirmKey(row.avatarKey);
                           }}
-                          className={`relative aspect-square overflow-hidden rounded-2xl border ${
+                          className={`relative aspect-square min-h-[4rem] overflow-hidden rounded-2xl border ${
                             selected
                               ? "border-[#FFD54F] ring-2 ring-[#FFD54F]/35"
                               : "border-white/15"
@@ -130,6 +136,8 @@ export function AvatarPickerModalSection({
                           <img
                             src={src}
                             alt=""
+                            width={64}
+                            height={64}
                             className={`h-full w-full object-contain ${isUnlocked ? "" : "opacity-45"}`}
                             loading="lazy"
                             decoding="async"

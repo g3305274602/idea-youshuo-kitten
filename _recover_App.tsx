@@ -4923,6 +4923,12 @@ function SpacetimeMailboxApp({ identity }: { identity: Identity }) {
                         <button
                           type="button"
                           onClick={() => void handleSendChatMessage()}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" && !e.shiftKey) {
+                              e.preventDefault();
+                              void handleSendChatMessage();
+                            }
+                          }}
                           className="shrink-0 rounded-xl border-2 border-stone-900 bg-[#f4dc3a] px-4 py-2.5 text-[13px] font-black text-stone-900"
                         >
                           送出

@@ -1,0 +1,26 @@
+---
+description: A description of your rule
+---
+
+# SpacetimeDB：schema 變更與發佈（強制）
+
+## 目標
+
+在保留線上資料的前提下升級模組；**絕不因「發佈失敗」就自動改用清庫指令**。
+
+## Schema 變更（`spacetimedb/src/index.ts`）
+
+1. **新增欄位**：一律加在該表 `table({...}, { ... })` 欄位物件的**最末尾**；禁止為了排版**重排既有欄位順序**（會觸發 reorder migration，常導致發佈失敗或要求清庫）。
+2. **新欄位必須可遷移**：可空語意請用 `.optional()` 或合理預設；其餘請用 `.default(...)`，讓舊列不需手動補資料即可遷移。
+3. **禁止隨意**：刪欄位、改欄位型別、改主鍵／unique 語意，除非使用者明確接受資料遷移成本並已說明備份方案。
+
+## 發佈與前端對齊
+
+1. 變更模組後順序：**`npm run spacetime:generate`** → **`npm run spacetime:publish`**（或專案內對應的 local publish）→ **`npm run build`**；可用 **`npm run deploy:cloud`** 一次跑完（等同上述）。
+2. **僅在一般 `spacetime:publish` 失敗時**：向使用者說明錯誤原因（例如需手動遷移、預設註解不符、欄位順序等），**由使用者明確同意後**才可建議或執行 **`npm run spacetime:publish:break`**（`--delete-data=on-conflict` 會**銷毀該資料庫模組與全部資料**）。
+3. **禁止**：在使用者未以自然語言確認「同意清空 `idea-jd2zx`（或目標庫）全部資料」的情況下，執行、建議預設採用、或將 `publish:break` 寫進文件／腳本註解為「例行步驟」。
+
+## 與本專案腳本對應
+
+- 一般線上發佈：`npm run spacetime:publish`
+- **高風險**（清庫）：`npm run spacetime:publish:break` — 視為破壞性操作，須顯式確認。
