@@ -35,7 +35,10 @@ function normalizeBinaryGender(value: string | null | undefined): "male" | "fema
 
 function minAllowedBirthDate(): Date {
   const today = new Date();
-  return new Date(today.getFullYear() - 16, today.getMonth(), today.getDate());
+  // 取昨天為預設，避免時區邊界造成年齡不足 16 歲
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  return new Date(today.getFullYear() - 16, yesterday.getMonth(), yesterday.getDate());
 }
 
 type UseAccountFlowHandlersParams = {
@@ -101,6 +104,7 @@ type UseAccountFlowHandlersParams = {
     birthDate: Timestamp;
     profileNote: string;
   }) => Promise<unknown>;
+  setAgeYears: (args: { birthDate: Timestamp }) => Promise<unknown>;
   setProfileSaving: (v: boolean) => void;
   introEditDraft: string;
   setIntroEditSaving: (v: boolean) => void;
@@ -116,6 +120,7 @@ type UseAccountFlowHandlersParams = {
   setAgeGateError: (v: string) => void;
   calculatedAge: number;
   setAgeGateSaving: (v: boolean) => void;
+  setAgeGatePending: (v: boolean) => void;
   reportTargetType: "capsule" | "square_post" | "chat_thread" | "chat_account";
   setReportTargetType: (
     v: "capsule" | "square_post" | "chat_thread" | "chat_account",
@@ -714,27 +719,50 @@ export function useAccountFlowHandlers(params: UseAccountFlowHandlersParams) {
   };
 
   const submitAgeGate = async () => {
+    console.log("[submitAgeGate] START", {
+      birthYear: params.birthYear,
+      birthMonth: params.birthMonth,
+      birthDay: params.birthDay,
+      ageGateGender: params.ageGateGender,
+      myProfile: !!params.myProfile,
+    });
     params.setAgeGateSaving(true);
     params.setAgeGateError("");
     try {
-      // 直接讀取當下最新值，避免 useEffect 非同步初始化造成的問題
       const y = params.birthYear;
       const m = params.birthMonth;
       const d = params.birthDay;
-      const utcDate = new Date(Date.UTC(y, m - 1, d));
+      if (!y || !m || !d) {
+        throw new Error(`birthDay 參數錯誤: ${y}/${m}/${d}`);
+      }
+      // 使用本地日期而非 UTC，避免時區導致生日偏移一天
+      const localDate = new Date(y, m - 1, d);
+      if (isNaN(localDate.getTime())) {
+        throw new Error(`無效的日期: ${y}/${m}/${d}`);
+      }
+      const ts = Timestamp.fromDate(localDate);
       const gender = normalizeBinaryGender(params.ageGateGender);
+      console.log("[submitAgeGate] calling updateAccountProfile", { y, m, d, gender });
       await params.updateAccountProfile({
         displayName: params.myProfile?.displayName || "",
         gender,
-        birthDate: Timestamp.fromDate(utcDate),
+        birthDate: ts,
         profileNote: params.myProfile?.profileNote || "",
       });
+      // 也同時呼叫專門設定生日的 reducer 確保資料寫入
+      await params.setAgeYears({ birthDate: ts });
+      console.log("[submitAgeGate] updateAccountProfile succeeded, checking profile...", {
+        birthDate: params.myProfile?.birthDate,
+        gender: params.myProfile?.gender,
+      });
+      params.setAgeGatePending(false);
     } catch (err: any) {
       const msg = err.message || String(err);
-      console.error("[submitAgeGate]", msg);
+      console.error("[submitAgeGate] ERROR:", msg, err);
       params.setAgeGateError(msg || "提交失败");
     } finally {
       params.setAgeGateSaving(false);
+      console.log("[submitAgeGate] done");
     }
   };
 

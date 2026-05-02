@@ -1240,9 +1240,31 @@ export default function SpacetimeMailboxApp({
     [myActiveSanctions],
   );
 
+  // age gate 提交成功後立即關閉 modal，不等訂閱更新
+  const [ageGatePending, setAgeGatePending] = useState(true);
+
+  useEffect(() => {
+    if (!myProfile) return;
+    console.log("[ageGate] myProfile loaded", {
+      hasBirthDate: !!myProfile.birthDate,
+      gender: myProfile.gender,
+      age: myProfile.birthDate ? calculateAgeFromDate(myProfile.birthDate.toDate()) : null,
+    });
+    // 資料已完整 → 不需要 age gate
+    if (myProfile.birthDate && myProfile.gender && myProfile.gender !== "" && myProfile.gender !== "unspecified") {
+      const age = calculateAgeFromDate(myProfile.birthDate.toDate());
+      if (age >= 16 && age <= 126) {
+        setAgeGatePending(false);
+        return;
+      }
+    }
+    setAgeGatePending(true);
+  }, [myProfile?.birthDate, myProfile?.gender]);
+
   const needsAgeGate =
     view === "dashboard" &&
     !!myProfile &&
+    ageGatePending &&
     (!myProfile.birthDate || // 如果沒有生日資料
       calculateAgeFromDate(myProfile.birthDate.toDate()) < 16 || // 或者年齡小於 16
       myProfile.gender === "" ||
@@ -1900,6 +1922,7 @@ export default function SpacetimeMailboxApp({
     birthDay,
     ageGateGender,
     updateAccountProfile,
+    setAgeYears,
     setProfileSaving,
     introEditDraft,
     setIntroEditSaving,
@@ -1912,6 +1935,7 @@ export default function SpacetimeMailboxApp({
     setAgeGateError,
     calculatedAge,
     setAgeGateSaving,
+    setAgeGatePending,
     reportTargetType,
     setReportTargetType,
     reportTargetId,

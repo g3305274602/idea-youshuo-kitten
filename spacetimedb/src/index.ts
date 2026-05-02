@@ -1894,11 +1894,14 @@ export const update_account_profile = spacetimedb.reducer(
     if (!pf) throw new SenderError("尚未登入");
 
     ctx.db.accountProfile.email.update({
-      ...pf,
+      email: pf.email,
+      accountId: pf.accountId,
+      ownerIdentity: pf.ownerIdentity,
       displayName,
       gender,
-      birthDate, // 直接存入生日
+      birthDate,
       profileNote,
+      avatarKey: pf.avatarKey,
     });
   },
 );
@@ -2228,15 +2231,20 @@ export const admin_delete_avatar_catalog_item = spacetimedb.reducer(
 
 /** 登入後強制補齊生日（不可跳過） */
 export const set_age_years = spacetimedb.reducer(
-  { birthDate: t.timestamp() }, // 1. 這裡要改為 t.timestamp()
+  { birthDate: t.timestamp() },
   (ctx, { birthDate }) => {
     const pf = ctx.db.accountProfile.ownerIdentity.find(ctx.sender);
     if (!pf) throw new SenderError("尚未登入");
 
-    // 2. 直接更新資料，將傳入的 Timestamp 存入 birthDate 欄位
     ctx.db.accountProfile.email.update({
-      ...pf,
-      birthDate: birthDate,
+      email: pf.email,
+      accountId: pf.accountId,
+      ownerIdentity: pf.ownerIdentity,
+      displayName: pf.displayName,
+      gender: pf.gender,
+      birthDate,
+      profileNote: pf.profileNote,
+      avatarKey: pf.avatarKey,
     });
   },
 );

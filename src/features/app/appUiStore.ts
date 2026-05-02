@@ -327,8 +327,16 @@ export const useAppUiStore = create<AppUiStore>()((set) => ({
     inbox: { sealed: true, opened: true },
     outbox: { sealed: true, opened: true },
   },
-  birthMonth: new Date().getMonth() + 1,
-  birthDay: new Date().getDate(),
+  birthMonth: (() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    return d.getMonth() + 1;
+  })(),
+  birthDay: (() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 1); // 取昨天避免時區邊界問題
+    return d.getDate();
+  })(),
   birthYear: new Date().getFullYear() - 16,
   setView: (value) => set((s) => ({ view: resolveState(value, s.view) })),
   setIsBooting: (value) =>
