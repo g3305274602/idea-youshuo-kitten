@@ -309,9 +309,22 @@ export function useAccountFlowHandlers(params: UseAccountFlowHandlersParams) {
           20_000,
         );
       } else {
+        // 註冊：先嘗試驗證 OTP（尚未自動驗證時立即觸發）
         if (registerOtpVerifiedEmail !== currentEmail) {
-          params.setError("請先完成信箱驗證");
-          return;
+          if (registerOtpCode.trim().length !== 6) {
+            params.setError("請輸入 6 位數驗證碼");
+            return;
+          }
+          try {
+            await verifyRegisterEmailOtp(registerOtpCode);
+          } catch {
+            return; // verifyRegisterEmailOtp 已設定錯誤訊息
+          }
+          // 驗證完後再次檢查
+          if (registerOtpVerifiedEmail !== currentEmail) {
+            params.setError("驗證碼驗證失敗，請重試");
+            return;
+          }
         }
         await withAuthTimeout(
           params.registerAccountWithEmailOtp({
@@ -481,7 +494,7 @@ export function useAccountFlowHandlers(params: UseAccountFlowHandlersParams) {
     if (code === registerOtpRejectedCode) return;
     const t = window.setTimeout(() => {
       void verifyRegisterEmailOtp(code);
-    }, 650);
+    }, 300);
     return () => window.clearTimeout(t);
   }, [
     registerOtpCode,
@@ -506,7 +519,7 @@ export function useAccountFlowHandlers(params: UseAccountFlowHandlersParams) {
     if (code === forgotOtpRejectedCode) return;
     const t = window.setTimeout(() => {
       void verifyForgotPasswordOtp(code);
-    }, 650);
+    }, 300);
     return () => window.clearTimeout(t);
   }, [
     forgotOtpCode,

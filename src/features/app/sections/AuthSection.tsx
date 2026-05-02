@@ -320,7 +320,7 @@ export function AuthSection({
             type="submit"
             disabled={
               loading ||
-              (view === "register" && !registerOtpVerified) ||
+              (view === "register" && registerOtpCode.trim().length !== 6) ||
               (view === "login" && forgotMode)
             }
             className="w-full py-[14px] mt-6 bg-white text-apple-black hover:bg-white/90 rounded-[980px] font-sans font-semibold text-[17px] tracking-tight transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
