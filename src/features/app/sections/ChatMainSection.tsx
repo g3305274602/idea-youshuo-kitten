@@ -31,7 +31,6 @@ type ChatMainSectionProps = {
   onOpenPublishModal: () => void;
   onOpenReportModal: (targetType: "chat_account", targetId: string) => void;
   onOpenChatPeerProfile: () => void;
-  /** 解鎖後進入對方空間 */
   onOpenChatPeerSpace?: () => void;
   onResizeChatInput: (value: string) => void;
   onSendChatMessage: () => void;
@@ -61,7 +60,10 @@ export function ChatMainSection({
   onSendChatMessage,
   chatInputRef,
 }: ChatMainSectionProps) {
+  // 🔑 所有 Hook 必須放在組件的最頂部
   const chatScrollRef = useRef<HTMLDivElement>(null);
+  const [isSending, setIsSending] = useState(false); // 👈 移到這裡
+
   const threadKey = selectedChatThread?.key ?? "";
   const lastMessageId =
     selectedChatMessages.length > 0
@@ -69,13 +71,27 @@ export function ChatMainSection({
       : "";
 
   useLayoutEffect(() => {
-    // Keep hooks order stable: effect is always declared, but no-op without thread.
     if (!selectedChatThread) return;
     const el = chatScrollRef.current;
     if (!el) return;
     el.scrollTop = el.scrollHeight;
   }, [selectedChatThread, threadKey, selectedChatMessages.length, lastMessageId]);
 
+  // 2. 封裝發送邏輯
+  const handleSendMessage = async () => {
+    if (isSending || !chatDraft.trim()) return;
+    
+    setIsSending(true);
+    try {
+      await onSendChatMessage(); 
+    } catch (err) {
+      console.error("發送失敗", err);
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  // 🔑 早發回傳 (Early Return) 必須放在所有 Hook 宣告之後
   if (!selectedChatThread) {
     return (
       <div className="mx-auto flex min-h-[46vh] max-w-sm items-center justify-center px-4 py-16 text-center">
@@ -95,22 +111,7 @@ export function ChatMainSection({
 
   const unlockRemaining = Math.max(0, 10 - selectedChatProgress);
   const unlockPct = Math.min(100, (selectedChatProgress / 10) * 100);
-  // 1. 在元件內加入 State
-  const [isSending, setIsSending] = useState(false);
 
-  // 2. 封裝發送邏輯
-  const handleSendMessage = async () => {
-    if (isSending || !chatDraft.trim()) return;
-    
-    setIsSending(true);
-    try {
-      await onSendChatMessage(); // 原本傳進來的 Props
-    } catch (err) {
-      console.error("發送失敗", err);
-    } finally {
-      setIsSending(false);
-    }
-  };
   return (
     <div className="ys-chat-shell">
       <div className="ys-chat-header">
@@ -188,7 +189,6 @@ export function ChatMainSection({
               <button
                 type="button"
                 onClick={() => {
-                  // 先嘗試從 Profile 拿，如果 Profile 還沒載入，嘗試從 Thread 拿對方的 AccountId
                   const targetId = selectedChatPeerProfile?.accountId || selectedChatThread?.counterpartAccountId || "";
                   if (targetId) {
                     onOpenReportModal("chat_account", targetId);
@@ -259,14 +259,10 @@ export function ChatMainSection({
           {isSourceCapsuleMine ? (
             <div className="ys-chat-bubble-self">
               <div className="mb-1 flex flex-wrap items-center justify-end gap-1.5">
-                {/* <p className="text-[10px] font-black text-stone-800/85">
-                  我的膠囊主文
-                </p> */}
                 <span
                   className={cn(
                     "inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold",
-                    capsuleTypeMeta(selectedChatThread.sourceCapsuleType)
-                      .chipClass,
+                    capsuleTypeMeta(selectedChatThread.sourceCapsuleType).chipClass,
                   )}
                 >
                   #{capsuleTypeMeta(selectedChatThread.sourceCapsuleType).label}
@@ -287,8 +283,7 @@ export function ChatMainSection({
                 <span
                   className={cn(
                     "inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold",
-                    capsuleTypeMeta(selectedChatThread.sourceCapsuleType)
-                      .chipClass,
+                    capsuleTypeMeta(selectedChatThread.sourceCapsuleType).chipClass,
                   )}
                 >
                   #{capsuleTypeMeta(selectedChatThread.sourceCapsuleType).label}
@@ -299,17 +294,9 @@ export function ChatMainSection({
           )}
 
           {selectedChatMessages.map((m) => {
-            const isMine = isChatMessageFromSelfByAccount(
-              m.authorAccountId,
-              myAccountId,
-            );
+            const isMine = isChatMessageFromSelfByAccount(m.authorAccountId, myAccountId);
             return (
-              <div
-                key={m.id}
-                className={cn(
-                  isMine ? "ys-chat-bubble-self" : "ys-chat-bubble-peer",
-                )}
-              >
+              <div key={m.id} className={cn(isMine ? "ys-chat-bubble-self" : "ys-chat-bubble-peer")}>
                 <p className="whitespace-pre-wrap font-bold">{m.body}</p>
                 <p className={cn("mt-1 text-[10px] font-medium tabular-nums", isMine ? "text-stone-700/80" : "ys-night-text-dim")}>
                   {m.createdAt.toDate().toLocaleString("zh-TW", {
@@ -336,10 +323,10 @@ export function ChatMainSection({
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
-                  handleSendMessage(); // 🔑 使用新函數
+                  handleSendMessage(); 
                 }
               }}
-              disabled={isSending} // 🔑 發送中禁用輸入
+              disabled={isSending} 
               ref={chatInputRef as React.Ref<HTMLTextAreaElement>}
               value={chatDraft}
               onChange={(e) => onResizeChatInput(e.target.value)}
@@ -350,7 +337,7 @@ export function ChatMainSection({
             />
             <button
               type="button"
-              onClick={handleSendMessage} // 🔑 使用新函數
+              onClick={handleSendMessage} 
               disabled={isSending}
               className={cn("shrink-0 rounded-xl px-4 py-2 text-[13px] ys-btn-primary", isSending && "opacity-50 cursor-not-allowed")}
             >
