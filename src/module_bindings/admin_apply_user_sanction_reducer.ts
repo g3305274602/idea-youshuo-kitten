@@ -11,7 +11,7 @@ import {
 } from "spacetimedb";
 
 export default {
-  targetIdentity: __t.identity(),
+  targetAccountId: __t.string(),
   sanctionType: __t.string(),
   reasonCode: __t.string(),
   detailText: __t.string(),

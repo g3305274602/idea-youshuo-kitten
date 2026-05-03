@@ -502,6 +502,9 @@ const tablesSchema = __schema({
       { accessor: 'id', name: 'user_sanction_id_idx_btree', algorithm: 'btree', columns: [
         'id',
       ] },
+      { accessor: 'targetAccountId', name: 'user_sanction_target_account_id_idx_btree', algorithm: 'btree', columns: [
+        'targetAccountId',
+      ] },
       { accessor: 'targetIdentity', name: 'user_sanction_target_identity_idx_btree', algorithm: 'btree', columns: [
         'targetIdentity',
       ] },

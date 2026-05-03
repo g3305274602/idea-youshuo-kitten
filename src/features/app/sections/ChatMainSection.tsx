@@ -1,5 +1,5 @@
 import { AlertTriangle, Heart, Home, LayoutGrid, MessageCircle, User } from "lucide-react";
-import { useLayoutEffect, useRef } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import type React from "react";
 import { cn } from "../../../lib/utils";
 import secretfe1 from "../../../assets/icons/feature/secretfe1.png";
@@ -95,7 +95,22 @@ export function ChatMainSection({
 
   const unlockRemaining = Math.max(0, 10 - selectedChatProgress);
   const unlockPct = Math.min(100, (selectedChatProgress / 10) * 100);
+  // 1. 在元件內加入 State
+  const [isSending, setIsSending] = useState(false);
 
+  // 2. 封裝發送邏輯
+  const handleSendMessage = async () => {
+    if (isSending || !chatDraft.trim()) return;
+    
+    setIsSending(true);
+    try {
+      await onSendChatMessage(); // 原本傳進來的 Props
+    } catch (err) {
+      console.error("發送失敗", err);
+    } finally {
+      setIsSending(false);
+    }
+  };
   return (
     <div className="ys-chat-shell">
       <div className="ys-chat-header">
@@ -172,12 +187,13 @@ export function ChatMainSection({
               ) : null}
               <button
                 type="button"
-                onClick={() =>
-                  onOpenReportModal(
-                    "chat_account",
-                    selectedChatThread.counterpartIdentityHex,
-                  )
-                }
+                onClick={() => {
+                  // 先嘗試從 Profile 拿，如果 Profile 還沒載入，嘗試從 Thread 拿對方的 AccountId
+                  const targetId = selectedChatPeerProfile?.accountId || selectedChatThread?.counterpartAccountId || "";
+                  if (targetId) {
+                    onOpenReportModal("chat_account", targetId);
+                  }
+                }}
                 title="檢舉帳號"
                 aria-label="檢舉帳號"
                 className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/8 bg-transparent p-1.5 text-white/50 transition-colors hover:border-red-400/35 hover:bg-red-950/25 hover:text-red-300 active:scale-95"
@@ -317,6 +333,13 @@ export function ChatMainSection({
         <div className="mt-2 border-t border-white/10 pt-2">
           <div className="flex items-end gap-2">
             <textarea
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSendMessage(); // 🔑 使用新函數
+                }
+              }}
+              disabled={isSending} // 🔑 發送中禁用輸入
               ref={chatInputRef as React.Ref<HTMLTextAreaElement>}
               value={chatDraft}
               onChange={(e) => onResizeChatInput(e.target.value)}
@@ -327,16 +350,11 @@ export function ChatMainSection({
             />
             <button
               type="button"
-              onClick={onSendChatMessage}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  onSendChatMessage();
-                }
-              }}
-              className="shrink-0 rounded-xl px-4 py-2 text-[13px] ys-btn-primary"
+              onClick={handleSendMessage} // 🔑 使用新函數
+              disabled={isSending}
+              className={cn("shrink-0 rounded-xl px-4 py-2 text-[13px] ys-btn-primary", isSending && "opacity-50 cursor-not-allowed")}
             >
-              送出
+              {isSending ? "傳送中..." : "送出"}
             </button>
           </div>
         </div>

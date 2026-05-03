@@ -395,11 +395,13 @@ const adminRole = table(
 );
 
 /** 管理後台審計紀錄（誰、何時、做了什麼） */
+// Table 定義增加 adminAccountId
 const adminAuditLog = table(
   { name: "admin_audit_log", public: true },
   {
     id: t.string().primaryKey(),
     adminIdentity: t.identity(),
+    adminAccountId: t.string().index("btree"), // 🔑 新增
     actionType: t.string(),
     targetType: t.string(),
     targetId: t.string(),
@@ -407,6 +409,24 @@ const adminAuditLog = table(
     createdAt: t.timestamp(),
   },
 );
+
+// Helper 更新：自動抓取發起者的 AccountId
+function writeAdminAudit(
+  ctx: { db: any; sender: Identity; timestamp: Timestamp; random: Random },
+  actionType: string, targetType: string, targetId: string, detail: string
+) {
+  const pf = ctx.db.accountProfile.ownerIdentity.find(ctx.sender);
+  ctx.db.adminAuditLog.insert({
+    id: newMessageId(ctx.random),
+    adminIdentity: ctx.sender,
+    adminAccountId: pf?.accountId || "system", // 🔑 紀錄穩定 ID
+    actionType,
+    targetType,
+    targetId,
+    detail: detail.trim(),
+    createdAt: ctx.timestamp,
+  });
+}
 
 /** 頭像目錄（由後台維護；前端以 basePath + fileName 組 URL） */
 const avatarCatalogItem = table(
@@ -566,11 +586,13 @@ const moderationQueue = table(
 );
 
 /** 對帳號的處分（禁言/封禁等） */
+/** 對帳號的處分（禁言/封禁等） */
 const userSanction = table(
   { name: "user_sanction", public: true },
   {
     id: t.string().primaryKey(),
     targetIdentity: t.identity().index("btree"),
+    targetAccountId: t.string().default("").index("btree"), // 🔑 新增：改綁定穩定 AccountId
     sanctionType: t.string(),
     reasonCode: t.string(),
     detailText: t.string().default(""),
@@ -1245,37 +1267,37 @@ function creditPoints(
   });
 }
 
-function computeEngagementActiveCountForAccount(
-  ctx: { db: any },
-  accountId: string,
-  ownerIdentity: Identity,
-): bigint {
-  const postIds = new Set<string>();
-  for (const post of ctx.db.squarePost.iter()) {
-    if (post.publisherAccountId === accountId) postIds.add(post.sourceMessageId);
-  }
-
+// 修正後的計算函數
+function computeEngagementActiveCountForAccount(ctx: { db: any }, accountId: string, ownerIdentity: Identity): bigint {
   let count = 0n;
-  for (const reaction of ctx.db.squareReaction.iter()) {
-    if (reaction.kind !== "up") continue;
-    if (!postIds.has(reaction.postSourceMessageId)) continue;
-    if (reaction.reactorIdentity.isEqual(ownerIdentity)) continue;
-    count += 1n;
-  }
-  for (const fav of ctx.db.squareFavorite.iter()) {
-    if (!postIds.has(fav.postSourceMessageId)) continue;
-    if (fav.collectorIdentity.isEqual(ownerIdentity)) continue;
-    count += 1n;
+
+  // 1. 只撈取該帳號的貼文 ID (利用索引)
+  const myPostIds = new Set<string>();
+  for (const post of ctx.db.squarePost.publisherAccountId.filter(accountId)) {
+    myPostIds.add(post.sourceMessageId);
   }
 
-  const myCapsuleIds = new Set<string>();
-  for (const cap of ctx.db.capsuleMessage.authorAccountId.filter(accountId)) {
-    myCapsuleIds.add(cap.id);
+  // 2. 針對每一則貼文，只過濾該貼文的反應 (利用索引)
+  for (const postId of myPostIds) {
+    for (const reaction of ctx.db.squareReaction.postSourceMessageId.filter(postId)) {
+      if (reaction.kind === "up" && !reaction.reactorIdentity.isEqual(ownerIdentity)) {
+        count += 1n;
+      }
+    }
+    for (const fav of ctx.db.squareFavorite.postSourceMessageId.filter(postId)) {
+      if (!fav.collectorIdentity.isEqual(ownerIdentity)) {
+        count += 1n;
+      }
+    }
   }
-  for (const fav of ctx.db.capsuleFavorite.iter()) {
-    if (!myCapsuleIds.has(fav.capsuleId)) continue;
-    if (fav.collectorIdentity.isEqual(ownerIdentity)) continue;
-    count += 1n;
+
+  // 3. 膠囊收藏同理
+  for (const cap of ctx.db.capsuleMessage.authorAccountId.filter(accountId)) {
+    for (const fav of ctx.db.capsuleFavorite.capsuleId.filter(cap.id)) {
+      if (!fav.collectorIdentity.isEqual(ownerIdentity)) {
+        count += 1n;
+      }
+    }
   }
   return count;
 }
@@ -1602,24 +1624,6 @@ function findOrphanSuperAdmins(ctx: { db: any }): any[] {
     if (!pf) rows.push(row);
   }
   return rows;
-}
-
-function writeAdminAudit(
-  ctx: { db: any; sender: Identity; timestamp: Timestamp; random: Random },
-  actionType: string,
-  targetType: string,
-  targetId: string,
-  detail: string,
-) {
-  ctx.db.adminAuditLog.insert({
-    id: newMessageId(ctx.random),
-    adminIdentity: ctx.sender,
-    actionType,
-    targetType,
-    targetId,
-    detail: detail.trim(),
-    createdAt: ctx.timestamp,
-  });
 }
 
 function writeModerationAction(
@@ -2482,7 +2486,35 @@ export const login_account = spacetimedb.reducer(
         `BAN:${endStr}:${s.detailText || s.reasonCode || "違反社群規範"}`,
       );
     }
+// 3. 安全檢查：封禁狀態 (保留這段，確保違規者進不來)
+    // 🔑 修正：同時檢查 Identity 與 AccountId，避免換身分後逃脫封禁
+    const activeSanctions = new Map();
+    for (const s of ctx.db.userSanction.targetIdentity.filter(currentStoredIdentity)) {
+      activeSanctions.set(s.id, s);
+    }
+    if (profile.accountId) {
+      for (const s of ctx.db.userSanction.targetAccountId.filter(profile.accountId)) {
+        activeSanctions.set(s.id, s);
+      }
+    }
 
+    for (const s of activeSanctions.values()) {
+      if (s.status !== "active" || s.sanctionType !== "ban") continue;
+      if (
+        s.endAt &&
+        s.endAt.microsSinceUnixEpoch < ctx.timestamp.microsSinceUnixEpoch
+      )
+        continue;
+
+      const endStr = s.endAt
+        ? new Date(Number(s.endAt.microsSinceUnixEpoch / 1000n))
+            .toISOString()
+            .slice(0, 10)
+        : "永久";
+      throw new SenderError(
+        `BAN:${endStr}:${s.detailText || s.reasonCode || "違反社群規範"}`,
+      );
+    }
     // 4. 身分遷移邏輯 (如果換了新鑰匙，且沒衝突，則更新管理權限)
      // --- 身分遷移邏輯：僅處理「主權類」數據 ---
     if (!currentStoredIdentity.isEqual(newIdentity)) {
@@ -2973,18 +3005,16 @@ export const create_report_ticket = spacetimedb.reducer(
         sourceMessageId: tid,
       });
     } else if (tt === "chat_account") {
-      let targetIdentity: Identity;
-      try {
-        targetIdentity = Identity.fromString(tid);
-      } catch {
-        throw new SenderError("帳號識別格式錯誤");
-      }
-      const profile = ctx.db.accountProfile.ownerIdentity.find(targetIdentity);
-      if (!profile) throw new SenderError("找不到被舉報帳號");
-      snapshotText = `${profile.displayName} (${profile.email})`;
+      // 🔑 修正：tid 現在應傳入穩定的 accountId，不再使用會變動的 Identity
+      if (!tid) throw new SenderError("缺少被舉報者帳號 ID");
+      const profile = ctx.db.accountProfile.accountId.find(tid);
+      snapshotText = profile
+        ? `${profile.displayName} (${profile.email})`
+        : `AccountId: ${tid.slice(0, 16)}`;
       snapshotJson = JSON.stringify({
-        identity: profile.ownerIdentity.toHexString(),
-        birthDate: profile.birthDate,
+        accountId: tid, // 存入穩定 ID
+        identity: profile ? profile.ownerIdentity.toHexString() : null,
+        birthDate: profile?.birthDate?.microsSinceUnixEpoch?.toString() ?? null,
       });
     }
 
@@ -3132,28 +3162,31 @@ export const admin_delete_square_post = spacetimedb.reducer(
 
 export const admin_apply_user_sanction = spacetimedb.reducer(
   {
-    targetIdentity: t.identity(),
+    targetAccountId: t.string(), // 🔑 修正：改收 targetAccountId
     sanctionType: t.string(),
     reasonCode: t.string(),
     detailText: t.string(),
     endAt: t.timestamp().optional(),
   },
-  (ctx, { targetIdentity, sanctionType, reasonCode, detailText, endAt }) => {
+  (ctx, { targetAccountId, sanctionType, reasonCode, detailText, endAt }) => {
     requireAdmin(ctx);
+    const aid = targetAccountId.trim();
+    if (!aid) throw new SenderError("缺少目標帳號 ID");
+
     const st = sanctionType.trim().toLowerCase();
     if (!["mute", "ban", "warn", "limit"].includes(st)) {
       throw new SenderError("處分類型錯誤");
     }
+
+    const profile = ctx.db.accountProfile.accountId.find(aid);
+    if (!profile) throw new SenderError("找不到該帳號");
+
     if (st === "ban") {
-      const targetAdmin = [...ctx.db.adminRole.adminIdentity.filter(targetIdentity)][0];
+      const targetAdmin = ctx.db.adminRole.accountId.find(aid); // 🔑 修正：直接用 accountId 查權限
       if (
         targetAdmin &&
         targetAdmin.isActive &&
-        ADMIN_ROLES.has(
-          String(targetAdmin.role ?? "")
-            .trim()
-            .toLowerCase(),
-        )
+        ADMIN_ROLES.has(String(targetAdmin.role ?? "").trim().toLowerCase())
       ) {
         throw new SenderError("管理員不可直接停權，請先降級為一般用戶");
       }
@@ -3161,7 +3194,8 @@ export const admin_apply_user_sanction = spacetimedb.reducer(
     const id = newMessageId(ctx.random);
     ctx.db.userSanction.insert({
       id,
-      targetIdentity,
+      targetIdentity: profile.ownerIdentity, // 保留當下 identity 作為備查快照
+      targetAccountId: aid,                  // 🔑 綁定穩定帳號 ID
       sanctionType: st,
       reasonCode: reasonCode.trim(),
       detailText: detailText.trim(),
@@ -3172,20 +3206,8 @@ export const admin_apply_user_sanction = spacetimedb.reducer(
       updatedAt: ctx.timestamp,
       operatorIdentity: ctx.sender,
     });
-    writeModerationAction(
-      ctx,
-      "apply_sanction",
-      "chat_account",
-      targetIdentity.toHexString(),
-      `${st}:${reasonCode}`,
-    );
-    writeAdminAudit(
-      ctx,
-      "apply_sanction",
-      "chat_account",
-      targetIdentity.toHexString(),
-      `${st}:${reasonCode}`,
-    );
+    writeModerationAction(ctx, "apply_sanction", "chat_account", aid, `${st}:${reasonCode}`);
+    writeAdminAudit(ctx, "apply_sanction", "chat_account", aid, `${st}:${reasonCode}`);
   },
 );
 
@@ -3237,8 +3259,14 @@ export const create_appeal_ticket = spacetimedb.reducer(
     if (!pf) throw new SenderError("尚未登入");
     const sanction = ctx.db.userSanction.id.find(sanctionId);
     if (!sanction) throw new SenderError("找不到處分單");
-    if (!sanction.targetIdentity.isEqual(ctx.sender))
-      throw new SenderError("無權限");
+    
+    // 🔑 修正：處分單認證支援穩定的 targetAccountId，即使 Identity 變了也能申訴
+    const isTarget = 
+      sanction.targetIdentity.isEqual(ctx.sender) || 
+      (sanction.targetAccountId && sanction.targetAccountId === pf.accountId);
+
+    if (!isTarget) throw new SenderError("無權限");
+
     const text = detailText.trim();
     if (text.length < REPORT_DETAIL_MIN || text.length > REPORT_DETAIL_MAX) {
       throw new SenderError(
@@ -3400,6 +3428,7 @@ export const send_capsule_message = spacetimedb.reducer(
   ) => {
     const pf = ctx.db.accountProfile.ownerIdentity.find(ctx.sender);
     if (!pf) throw new SenderError("尚未登入");
+    if (!pf.birthDate) throw new SenderError("NEED_AGE_GATE"); // 🔑 只要沒設生日，強制前端跳出 AgeGate
     const body = content.trim();
     if (!body) throw new SenderError("請填寫內容");
     if (body.length > MAX_MESSAGE_CONTENT_LEN)
@@ -3793,12 +3822,21 @@ export const publish_to_square = spacetimedb.reducer(
       throw new SenderError("積分不足（發布廣場需 10 積分）");
     }
     const kind = normalizeSourceKind(sourceKind);
-    const source = getSquareSourceRow(ctx, sourceMessageId, kind);
+    let source = getSquareSourceRow(ctx, sourceMessageId, kind);
+    if (!source) {
+      // 聊天記錄公開時可能未正確傳入 sourceKind，自動嘗試另一種來源
+      const altKind = kind === "capsule" ? "direct" : "capsule";
+      source = getSquareSourceRow(ctx, sourceMessageId, altKind);
+    }
     if (!source) throw new SenderError("找不到訊息");
     if (!isSquareSourceParticipant(pf, source, ctx.sender)) {
-      throw new SenderError(
-        kind === "capsule" ? "僅發文者可上廣場" : "僅寄件人或收件人可上廣場",
-      );
+      // 聊天記錄中使用者可能不是原始信件的寄/收件人，但已參與私訊交流
+      const chatMsgs = [...ctx.db.capsulePrivateMessage.sourceMessageId.filter(sourceMessageId)];
+      if (chatMsgs.length === 0) {
+        throw new SenderError(
+          source.kind === "capsule" ? "僅發文者可上廣場" : "僅寄件人或收件人可上廣場",
+        );
+      }
     }
     if (
       source.scheduledAt.microsSinceUnixEpoch >
@@ -3974,6 +4012,7 @@ export const add_square_comment = spacetimedb.reducer(
   (ctx, { sourceMessageId, body, parentCommentId }) => {
     const pf = ctx.db.accountProfile.ownerIdentity.find(ctx.sender);
     if (!pf) throw new SenderError("尚未登入");
+    if (!pf.birthDate) throw new SenderError("NEED_AGE_GATE");
     const post = ctx.db.squarePost.sourceMessageId.find(sourceMessageId);
     if (!post) throw new SenderError("此貼不在廣場");
     if (!post.repliesPublic) throw new SenderError("此貼不開放廣場留言");

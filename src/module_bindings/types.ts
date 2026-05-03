@@ -375,6 +375,7 @@ export type SquareReaction = __Infer<typeof SquareReaction>;
 export const UserSanction = __t.object("UserSanction", {
   id: __t.string(),
   targetIdentity: __t.identity(),
+  targetAccountId: __t.string(),
   sanctionType: __t.string(),
   reasonCode: __t.string(),
   detailText: __t.string(),

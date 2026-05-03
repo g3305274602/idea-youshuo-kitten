@@ -1,4 +1,4 @@
-import { ChevronRight, Heart, Home, Inbox, LayoutGrid, MessageCircle, Send } from "lucide-react";
+import { ChevronRight, Heart, Home, Inbox, LayoutGrid, MessageCircle, Send,AlertTriangle } from "lucide-react";
 import { cn } from "../../../lib/utils";
 import type { AppTab } from "../types";
 
@@ -11,6 +11,7 @@ const DESKTOP_HUB_TABS: readonly AppTab[] = [
   "chat",
   "space",
   "favorites",
+  "my_reports",
 ];
 
 export function showMineHubDesktopSubNav(tab: AppTab): boolean {
@@ -72,6 +73,15 @@ const menuItemDefs = [
     getSubtitle: () => "偷偷收著的小紙條",
     iconClass: "ys-mine-menu-icon--pink",
     icon: Heart,
+  },
+  {
+    key: "my_reports" as const,
+    title: "我的舉報",
+    // 這裡可以根據傳入的數量顯示副標題
+    getSubtitle: (count?: number) =>
+      count && count > 0 ? `共 ${count} 則 · 審核進度` : "查看舉報審核結果",
+    iconClass: "ys-mine-menu-icon--rose", // 建議用天空藍或是紅色系
+    icon: AlertTriangle, // 建議使用 AlertTriangle 或 MessagesSquare，記得從 lucide-react 導入
   },
 ] as const;
 

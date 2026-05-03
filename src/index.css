@@ -572,6 +572,11 @@
   .ys-mine-menu-icon--pink {
     @apply bg-[#F06292];
   }
+  .ys-mine-menu-icon--rose {
+    background-color: rgba(244, 63, 94, 0.15); /* 背景用 15% 透明的 rose-500 */
+    border-color: rgba(244, 63, 94, 0.35);     /* 邊框用 35% 透明的 rose-500 */
+    color: #f43f5e;                             /* 文字/圖標顏色用 rose-500 */
+  }
 
   .ys-mine-menu-texts {
     @apply min-w-0 flex-1;

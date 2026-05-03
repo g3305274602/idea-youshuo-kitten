@@ -719,50 +719,33 @@ export function useAccountFlowHandlers(params: UseAccountFlowHandlersParams) {
   };
 
   const submitAgeGate = async () => {
-    console.log("[submitAgeGate] START", {
-      birthYear: params.birthYear,
-      birthMonth: params.birthMonth,
-      birthDay: params.birthDay,
-      ageGateGender: params.ageGateGender,
-      myProfile: !!params.myProfile,
-    });
     params.setAgeGateSaving(true);
     params.setAgeGateError("");
     try {
       const y = params.birthYear;
       const m = params.birthMonth;
       const d = params.birthDay;
-      if (!y || !m || !d) {
-        throw new Error(`birthDay 參數錯誤: ${y}/${m}/${d}`);
-      }
-      // 使用本地日期而非 UTC，避免時區導致生日偏移一天
-      const localDate = new Date(y, m - 1, d);
-      if (isNaN(localDate.getTime())) {
-        throw new Error(`無效的日期: ${y}/${m}/${d}`);
-      }
-      const ts = Timestamp.fromDate(localDate);
+
+      // 🔑 最優解：使用 Date.UTC 消除時區偏移
+      const utcDate = new Date(Date.UTC(y, m - 1, d)); 
+      if (isNaN(utcDate.getTime())) throw new Error("無效的日期");
+
+      const ts = Timestamp.fromDate(utcDate);
       const gender = normalizeBinaryGender(params.ageGateGender);
-      console.log("[submitAgeGate] calling updateAccountProfile", { y, m, d, gender });
+
       await params.updateAccountProfile({
         displayName: params.myProfile?.displayName || "",
         gender,
         birthDate: ts,
         profileNote: params.myProfile?.profileNote || "",
       });
-      // 也同時呼叫專門設定生日的 reducer 確保資料寫入
+      
       await params.setAgeYears({ birthDate: ts });
-      console.log("[submitAgeGate] updateAccountProfile succeeded, checking profile...", {
-        birthDate: params.myProfile?.birthDate,
-        gender: params.myProfile?.gender,
-      });
       params.setAgeGatePending(false);
     } catch (err: any) {
-      const msg = err.message || String(err);
-      console.error("[submitAgeGate] ERROR:", msg, err);
-      params.setAgeGateError(msg || "提交失败");
+      params.setAgeGateError(err.message || "提交失敗");
     } finally {
       params.setAgeGateSaving(false);
-      console.log("[submitAgeGate] done");
     }
   };
 
@@ -790,7 +773,7 @@ export function useAccountFlowHandlers(params: UseAccountFlowHandlersParams) {
     try {
       await params.createReportTicket({
         targetType: params.reportTargetType,
-        targetId: params.reportTargetId,
+        targetId: params.reportTargetId, // ✅ 這裡修正！使用從參數傳進來的真實 ID
         reasonCode: params.reportReasonCode.trim(),
         detailText: detail,
         evidenceJson: "",

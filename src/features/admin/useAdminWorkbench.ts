@@ -33,7 +33,7 @@ function localDayKeyFromMicros(micros: bigint): string {
 }
 
 function rollingLocalDayKeys(n: number): string[] {
-  const keys: string[] = [];
+  const keys: string[] =[];
   const base = new Date();
   base.setHours(0, 0, 0, 0);
   for (let i = n - 1; i >= 0; i--) {
@@ -63,7 +63,7 @@ export function useAdminWorkbenchTables({
   myProfile,
   isMyReportTab,
 }: UseAdminWorkbenchTablesParams) {
-  const [adminRoleRows, adminRoleRowsLoading] = useTable(tables.adminRole);
+  const[adminRoleRows, adminRoleRowsLoading] = useTable(tables.adminRole);
   const rawIsAdmin = !!(
     myAccountId &&
     adminRoleRows.find((r) => r.accountId === myAccountId && r.isActive)
@@ -81,9 +81,9 @@ export function useAdminWorkbenchTables({
       : tables.adminAuditLog.where((r) => r.id.eq("__stop__")),
   );
   const [reportTicketRows] = useTable(
-    rawIsAdmin && (isAdminTabActive || isMyReportTab)
-      ? tables.reportTicket
-      : tables.reportTicket.where((r) => r.id.eq("__stop__")),
+    rawIsAdmin && isAdminTabActive
+    ? tables.reportTicket
+    : tables.reportTicket.where((r) => r.reporterIdentity.eq(identity)) 
   );
   const [reportSnapshotRows] = useTable(
     rawIsAdmin && isAdminTabActive
@@ -297,7 +297,7 @@ export function useAdminWorkbenchDerived({
       profilesWithoutCreatedAt,
       windowDays: SUPER_ADMIN_TREND_WINDOW,
     };
-  }, [
+  },[
     allProfiles,
     accountProfileCreatedAtRows,
     capsuleMessageRows,
@@ -360,7 +360,7 @@ export function useAdminWorkbenchDerived({
       adminRoleReview,
       adminRoleOther,
     };
-  }, [
+  },[
     allProfiles,
     capsuleMessageRows,
     squarePostRows,
@@ -376,8 +376,7 @@ export function useAdminWorkbenchDerived({
     () =>
       selectedAdminReportId
         ? (adminReportsSorted.find((r) => r.id === selectedAdminReportId) ?? null)
-        : null,
-    [adminReportsSorted, selectedAdminReportId],
+        : null,[adminReportsSorted, selectedAdminReportId],
   );
   const selectedAdminSnapshot = useMemo(
     () =>
@@ -421,17 +420,18 @@ export function useAdminWorkbenchDerived({
       .slice(0, 40);
   }, [allProfiles, adminAccountSearch, activeAdminRows]);
 
-  const activeSanctionsForTarget = useMemo(
-    () =>
-      adminTargetIdentityHex
-        ? userSanctionRows.filter(
-            (s) =>
-              s.targetIdentity.toHexString() === adminTargetIdentityHex &&
-              s.status === "active",
-          )
-        : [],
-    [adminTargetIdentityHex, userSanctionRows],
-  );
+  // ✅ 雙向綁定優化：同時檢查 accountId 與 Identity，確保封鎖狀態顯示正確
+  const activeSanctionsForTarget = useMemo(() => {
+    const targetAccountId = adminTargetIdentityHex ? profileByIdentityHex.get(adminTargetIdentityHex)?.accountId : null;
+    return userSanctionRows.filter(
+      (s) =>
+        s.status === "active" &&
+        (
+          (targetAccountId && s.targetAccountId === targetAccountId) ||
+          s.targetIdentity.toHexString() === adminTargetIdentityHex
+        )
+    );
+  }, [adminTargetIdentityHex, profileByIdentityHex, userSanctionRows]);
 
   const profileByEmail = useMemo(() => {
     const m = new Map<string, AccountProfile>();
@@ -494,6 +494,7 @@ type UseAdminWorkbenchActionsParams = {
   hasAnyAdmin: boolean;
   canClaimOrphanSuperAdmin: boolean;
   selectedAdminReport: ReportTicket | null;
+  selectedAdminTargetProfile: AccountProfile | null; // ✅ 補上傳入參數
   adminReportStatus: string;
   adminReportPriority: number;
   adminResolutionNote: string;
@@ -533,7 +534,7 @@ type UseAdminWorkbenchActionsParams = {
     assignedAdminIdentity: Identity;
   }) => Promise<unknown>;
   adminApplyUserSanction: (args: {
-    targetIdentity: Identity;
+    targetAccountId: string; // ✅ TypeScript 型別更新為 targetAccountId
     sanctionType: string;
     reasonCode: string;
     detailText: string;
@@ -572,6 +573,7 @@ export function useAdminWorkbenchActions({
   hasAnyAdmin,
   canClaimOrphanSuperAdmin,
   selectedAdminReport,
+  selectedAdminTargetProfile,
   adminReportStatus,
   adminReportPriority,
   adminResolutionNote,
@@ -667,21 +669,24 @@ export function useAdminWorkbenchActions({
     }
   };
 
+  // ✅ 修復：舉報單套用處分，精準抓出目標的 accountId
   const submitSanctionForSelectedReport = async () => {
     if (!selectedAdminReport) return;
     const r = selectedAdminReport;
-    const targetAccountHex =
+    const targetAccountId =
       r.targetType === "chat_account"
-        ? r.targetId
+        ? r.targetId // 後端修復後，chat_account 存的 targetId 就是 accountId
         : r.targetType === "capsule"
-          ? (capsuleMessageRows.find((c) => c.id === r.targetId)?.authorIdentity.toHexString() ?? null)
+          ? (capsuleMessageRows.find((c) => c.id === r.targetId)?.authorAccountId ?? null)
           : r.targetType === "square_post"
-            ? (squarePostRows.find((p) => p.sourceMessageId === r.targetId)?.publisherIdentity.toHexString() ?? null)
+            ? (squarePostRows.find((p) => p.sourceMessageId === r.targetId)?.publisherAccountId ?? null)
             : null;
-    if (!targetAccountHex) {
-      setAdminActionError("無法識別被舉報帳號，無法套用處分");
+
+    if (!targetAccountId) {
+      setAdminActionError("無法識別被舉報帳號的穩定 ID，無法套用處分");
       return;
     }
+    
     setAdminActionLoading(true);
     setAdminActionError("");
     try {
@@ -690,13 +695,15 @@ export function useAdminWorkbenchActions({
         const ms = BigInt(sanctionBanDays) * 86400n * 1_000_000n;
         endAt = new Timestamp(BigInt(Date.now()) * 1000n + ms);
       }
+      
       await adminApplyUserSanction({
-        targetIdentity: Identity.fromString(targetAccountHex),
+        targetAccountId, // ✅ 傳入穩定的 AccountId
         sanctionType: sanctionTypeDraft,
         reasonCode: sanctionReasonDraft.trim() || "report_violation",
         detailText: sanctionDetailDraft.trim() || "由舉報單觸發",
         endAt,
       });
+
       await adminUpdateReportTicket({
         reportId: selectedAdminReport.id,
         status: "resolved",
@@ -805,16 +812,17 @@ export function useAdminWorkbenchActions({
     }
   };
 
+  // ✅ 修復：一鍵停權，利用 selectedAdminTargetProfile 拿到穩定的 accountId
   const quickBanTargetAccount = async () => {
-    if (!adminTargetIdentityHex.trim()) {
-      setAdminActionError("請先選擇帳號");
+    if (!selectedAdminTargetProfile?.accountId) {
+      setAdminActionError("請先選擇目標帳號");
       return;
     }
     setAdminActionLoading(true);
     setAdminActionError("");
     try {
       await adminApplyUserSanction({
-        targetIdentity: Identity.fromString(adminTargetIdentityHex),
+        targetAccountId: selectedAdminTargetProfile.accountId, // ✅ 傳入 accountId
         sanctionType: "ban",
         reasonCode: "admin_quick_ban",
         detailText: "管理後台一鍵停權",
@@ -829,7 +837,7 @@ export function useAdminWorkbenchActions({
   };
 
   const quickUnbanTargetAccount = async () => {
-    if (!adminTargetIdentityHex.trim()) {
+    if (!selectedAdminTargetProfile?.accountId) {
       setAdminActionError("請先選擇帳號");
       return;
     }
@@ -1017,7 +1025,7 @@ type UseAdminWorkbenchRuntimeParams = {
     assignedAdminIdentity: Identity;
   }) => Promise<unknown>;
   adminApplyUserSanction: (args: {
-    targetIdentity: Identity;
+    targetAccountId: string; // ✅ TypeScript 型別更新
     sanctionType: string;
     reasonCode: string;
     detailText: string;
@@ -1087,12 +1095,13 @@ export function useAdminWorkbenchRuntime(params: UseAdminWorkbenchRuntimeParams)
     avatarSeriesOrderRows: tables.avatarSeriesOrderRows as readonly { seriesKey: string; sortOrder: number }[],
   });
 
-  const actions = useAdminWorkbenchActions({
+const actions = useAdminWorkbenchActions({
     identity: params.identity,
     myAccountId: params.myAccountId,
     hasAnyAdmin: derived.hasAnyAdmin,
     canClaimOrphanSuperAdmin: derived.canClaimOrphanSuperAdmin,
     selectedAdminReport: derived.selectedAdminReport,
+    selectedAdminTargetProfile: derived.selectedAdminTargetProfile, // ✅ 補上這個！把撈到的對手資料傳進去給「一鍵停權」使用
     adminReportStatus: params.adminReportStatus,
     adminReportPriority: params.adminReportPriority,
     adminResolutionNote: params.adminResolutionNote,
