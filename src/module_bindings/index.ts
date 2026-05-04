@@ -243,6 +243,9 @@ const tablesSchema = __schema({
   adminAuditLog: __table({
     name: 'admin_audit_log',
     indexes: [
+      { accessor: 'adminAccountId', name: 'admin_audit_log_admin_account_id_idx_btree', algorithm: 'btree', columns: [
+        'adminAccountId',
+      ] },
       { accessor: 'id', name: 'admin_audit_log_id_idx_btree', algorithm: 'btree', columns: [
         'id',
       ] },

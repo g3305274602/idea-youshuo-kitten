@@ -401,7 +401,7 @@ const adminAuditLog = table(
   {
     id: t.string().primaryKey(),
     adminIdentity: t.identity(),
-    adminAccountId: t.string().index("btree"), // 🔑 新增
+    adminAccountId: t.string().default("").index("btree"), // 🔑 新增
     actionType: t.string(),
     targetType: t.string(),
     targetId: t.string(),

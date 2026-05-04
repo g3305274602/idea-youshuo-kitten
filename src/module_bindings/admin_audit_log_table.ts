@@ -13,6 +13,7 @@ import {
 export default __t.row({
   id: __t.string().primaryKey(),
   adminIdentity: __t.identity().name("admin_identity"),
+  adminAccountId: __t.string().name("admin_account_id"),
   actionType: __t.string().name("action_type"),
   targetType: __t.string().name("target_type"),
   targetId: __t.string().name("target_id"),

@@ -96,6 +96,7 @@ export type AccountSecret = __Infer<typeof AccountSecret>;
 export const AdminAuditLog = __t.object("AdminAuditLog", {
   id: __t.string(),
   adminIdentity: __t.identity(),
+  adminAccountId: __t.string(),
   actionType: __t.string(),
   targetType: __t.string(),
   targetId: __t.string(),
