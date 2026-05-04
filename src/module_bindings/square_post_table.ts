@@ -29,4 +29,5 @@ export default __t.row({
   includeCapsulePrivateInSnapshot: __t.bool().name("include_capsule_private_in_snapshot"),
   sourceKind: __t.string().name("source_kind"),
   sourceId: __t.string().name("source_id"),
+  description: __t.string(),
 });

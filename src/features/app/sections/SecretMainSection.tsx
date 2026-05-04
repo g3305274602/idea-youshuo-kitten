@@ -4,6 +4,7 @@ import {
   ThumbsDown,
   ThumbsUp,
   Trash2,
+  Edit3
 } from "lucide-react";
 
 import { cn } from "../../../lib/utils";
@@ -47,6 +48,7 @@ type SecretMainSectionProps = {
   onSetSquareCommentDraft: (value: string) => void;
   onAddSquareComment: (sourceMessageId: string) => void;
   extension?: Record<string, unknown>;
+  onEditCapsule?: (capsuleId: string, currentContent: string) => void; 
 };
 
 export function SecretMainSection({
@@ -199,22 +201,20 @@ export function SecretMainSection({
           </button>
         )}
         {selectedSquarePost.publisherAccountId === myAccountId && (
-          <button
-            type="button"
-            onClick={() => {
-              if (
-                window.confirm(
-                  "確定要將此內容從廣場撤下嗎？（他人已收藏的快照不會消失）",
-                )
-              ) {
-                onUnpublishSquare(selectedSquarePost.sourceMessageId);
-                onSetSquareSelectedPostId(null);
-              }
-            }}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-red-300/50 bg-red-900/25 px-3 py-2 text-[13px] font-black text-red-200 transition-all"
-          >
-            <Trash2 className="h-4 w-4" /> 撤下廣場
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                if (window.confirm("確定要從廣場撤下嗎？這會刪除廣場上的快照，但不會影響你空間裡的原始膠囊。")) {
+                  onUnpublishSquare(selectedSquarePost.sourceMessageId);
+                  onSetSquareSelectedPostId(null);
+                }
+              }}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-red-300/50 bg-red-900/25 px-3 py-2 text-[13px] font-black text-red-200 transition-all hover:bg-red-900/40"
+            >
+              <Trash2 className="h-4 w-4" /> 撤下廣場
+            </button>
+          </div>
         )}
         <button
           type="button"

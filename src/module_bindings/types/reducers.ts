@@ -36,6 +36,8 @@ import DevCleanupSeedCapsuleSquarePostsReducer from "../dev_cleanup_seed_capsule
 import DevSeedDemoUsersReducer from "../dev_seed_demo_users_reducer";
 import DevSeedSecretCapsulePostsReducer from "../dev_seed_secret_capsule_posts_reducer";
 import DrawCapsuleOnceReducer from "../draw_capsule_once_reducer";
+import EditDirectMessageContentReducer from "../edit_direct_message_content_reducer";
+import EditPrivateReplyContentReducer from "../edit_private_reply_content_reducer";
 import FavoriteCapsuleReducer from "../favorite_capsule_reducer";
 import FavoriteSquarePostReducer from "../favorite_square_post_reducer";
 import LoginAccountReducer from "../login_account_reducer";
@@ -59,6 +61,7 @@ import UnlockAvatarItemReducer from "../unlock_avatar_item_reducer";
 import UnpublishFromSquareReducer from "../unpublish_from_square_reducer";
 import UpdateAccountProfileReducer from "../update_account_profile_reducer";
 import UpdateScheduledMessageReducer from "../update_scheduled_message_reducer";
+import UpdateSquarePostConfigReducer from "../update_square_post_config_reducer";
 import VerifyEmailOtpReducer from "../verify_email_otp_reducer";
 
 export type AddCapsulePrivateMessageParams = __Infer<typeof AddCapsulePrivateMessageReducer>;
@@ -91,6 +94,8 @@ export type DevCleanupSeedCapsuleSquarePostsParams = __Infer<typeof DevCleanupSe
 export type DevSeedDemoUsersParams = __Infer<typeof DevSeedDemoUsersReducer>;
 export type DevSeedSecretCapsulePostsParams = __Infer<typeof DevSeedSecretCapsulePostsReducer>;
 export type DrawCapsuleOnceParams = __Infer<typeof DrawCapsuleOnceReducer>;
+export type EditDirectMessageContentParams = __Infer<typeof EditDirectMessageContentReducer>;
+export type EditPrivateReplyContentParams = __Infer<typeof EditPrivateReplyContentReducer>;
 export type FavoriteCapsuleParams = __Infer<typeof FavoriteCapsuleReducer>;
 export type FavoriteSquarePostParams = __Infer<typeof FavoriteSquarePostReducer>;
 export type LoginAccountParams = __Infer<typeof LoginAccountReducer>;
@@ -114,5 +119,6 @@ export type UnlockAvatarItemParams = __Infer<typeof UnlockAvatarItemReducer>;
 export type UnpublishFromSquareParams = __Infer<typeof UnpublishFromSquareReducer>;
 export type UpdateAccountProfileParams = __Infer<typeof UpdateAccountProfileReducer>;
 export type UpdateScheduledMessageParams = __Infer<typeof UpdateScheduledMessageReducer>;
+export type UpdateSquarePostConfigParams = __Infer<typeof UpdateSquarePostConfigReducer>;
 export type VerifyEmailOtpParams = __Infer<typeof VerifyEmailOtpReducer>;
 

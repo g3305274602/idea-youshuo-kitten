@@ -361,6 +361,7 @@ export const SquarePost = __t.object("SquarePost", {
   includeCapsulePrivateInSnapshot: __t.bool(),
   sourceKind: __t.string(),
   sourceId: __t.string(),
+  description: __t.string(),
 });
 export type SquarePost = __Infer<typeof SquarePost>;
 

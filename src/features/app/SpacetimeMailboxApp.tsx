@@ -123,7 +123,6 @@ import {
   useAdminWorkbenchRuntime,
   useAdminWorkbenchState,
 } from "../admin/useAdminWorkbench";
-
 const TITLE_TIERS = [
   { need: 1_000_000, lv: 100, label: "造物主", en: "CREATOR", tone: "creator" },
   { need: 200_000, lv: 80, label: "宇宙", en: "UNIVERSE", tone: "universe" },
@@ -261,6 +260,7 @@ export default function SpacetimeMailboxApp({
 }: {
   identity: Identity;
 }) {
+  const [publishDescription, setPublishDescription] = useState("");
   /** 上次分頁還原已跑完前，禁止寫 sessionStorage，避免預設 tab 覆蓋 admin。 */
   const lastActiveTabRestoreCompletedRef = useRef(false);
   /** 還原內呼叫 setActiveTab 後，略過下一次持久化（同 tick 仍見舊 activeTab）。 */
@@ -268,14 +268,14 @@ export default function SpacetimeMailboxApp({
   /** 管理頁還原：訂閱剛套用時列可能尚空，短重試避免誤判無權限。 */
   const [adminNavRestoreTick, setAdminNavRestoreTick] = useState(0);
   const adminNavRestoreAttemptsRef = useRef(0);
-
   useEffect(() => {
     // 改為每 10 秒更新一次，足以應付倒數計時顯示
     const id = window.setInterval(() => setNowTick(Date.now()), 10000);
     return () => window.clearInterval(id);
   }, []);
-
+  
   const registerAccount = useReducer(reducers.registerAccount);
+  const updateSquarePostConfig = useReducer(reducers.updateSquarePostConfig);
   const registerAccountWithEmailOtp = useReducer(
     reducers.registerAccountWithEmailOtp,
   );
@@ -1145,7 +1145,10 @@ export default function SpacetimeMailboxApp({
       createdLocal.getUTCDate(),
     );
     const diff = Math.floor((today.getTime() - start.getTime()) / 86_400_000) + 1;
-    if (diff < 1 || diff > 3) return "expired";
+
+    // 🔑 核心修改：如果天數超過 3 天，直接回傳 "hidden"，這樣 UI 就不會渲染按鈕
+    if (diff < 1 || diff > 3) return "hidden"; 
+
     const claimed = (dailyRewardClaimRows as any[]).some(
       (r) => Number(r.dayIndex) === diff,
     );
@@ -1887,6 +1890,8 @@ export default function SpacetimeMailboxApp({
     confirmPassword,
     registerDisplayName,
     registerGender,
+    publishDescription,
+    onSetPublishDescription: setPublishDescription,
     setError,
     setLoading,
     setView: (v) => setView(v),
@@ -3001,6 +3006,8 @@ export default function SpacetimeMailboxApp({
     publishIncludeCapsulePrivate,
     publishShowSender,
     publishShowRecipient,
+    publishDescription, 
+    onSetPublishDescription: setPublishDescription, 
     publishToSquare,
     setPublishModalOpenWithStack,
     unpublishFromSquare,
@@ -3402,6 +3409,13 @@ export default function SpacetimeMailboxApp({
     onResizeChatInput: resizeChatInput,
     onSendChatMessage: () => void handleSendChatMessage(),
     chatInputRef,
+    onEditReply:(replyId: string, currentBody: string) => {
+    const newContent = window.prompt("修正這則訊息：", currentBody);
+    if (newContent && newContent !== currentBody) {
+      // 這裡呼叫你後端的 edit_private_reply_content (如果有加的話)
+      (reducers as any).editPrivateReplyContent({ replyId, newBody: newContent });
+    }
+  }
   };
 
   const handleSelectAvatar = async (avatarKey: string) => {
@@ -3579,12 +3593,14 @@ export default function SpacetimeMailboxApp({
     onSetReportDetail: setReportDetail,
     onSubmitReport: () => void submitReport(),
   };
-
   const publishModalProps = {
+    mode:"publish" as const,
     isPublishModalVisible,
     canRenderPublishModal: !!(currentMessage || selectedChatThread),
     isDirectMode: !!(currentMessage && currentMessage.recipientEmail),
     loading,
+    publishDescription: publishDescription, 
+    onSetPublishDescription: setPublishDescription,
     publishIncludeThread,
     publishIncludeCapsulePrivate,
     publishRepliesPublic,
@@ -3597,6 +3613,7 @@ export default function SpacetimeMailboxApp({
     onSetPublishRepliesPublic: setPublishRepliesPublic,
     onSetPublishShowSender: setPublishShowSender,
     onSetPublishShowRecipient: setPublishShowRecipient,
+
   };
 
   const mineSquareSecretWallCommon = {
@@ -3611,7 +3628,6 @@ export default function SpacetimeMailboxApp({
     maxListItems: 12,
     onOpenSpace: openSpace,
   };
-
   return (
     <>
     <div
@@ -3988,7 +4004,7 @@ export default function SpacetimeMailboxApp({
         >
           <div
             className={cn(
-              " min-h-0 flex-1 flex-col overflow-y-auto apple-scroll px-2 md:px-8 md:py-2"
+              "min-h-0 flex-1 flex-col overflow-y-auto apple-scroll px-2 md:px-8 md:py-2"
             )}
           >
             {activeTab === "mine" ? (
@@ -4051,6 +4067,15 @@ export default function SpacetimeMailboxApp({
                   setActiveTab("secret");
                   setSquareSelectedPostId(sourceMessageId);
                 }}
+                onUpdateSquareConfig={async (args) => {
+                  // 這裡呼叫後端的 reducer
+                  try {
+                    await updateSquarePostConfig(args);
+                  } catch (err) {
+                    console.error("更新失敗", err);
+                    throw err; // 讓子組件知道失敗了，不要關閉 Modal
+                  }
+                }}
               />
             ) : activeTab === "admin" || activeTab === "admin_ops" ? (
               <AdminWorkbench viewProps={adminViewProps} slot="content" />
@@ -4061,7 +4086,7 @@ export default function SpacetimeMailboxApp({
                 </p>
               </div>
             ) : activeTab === "chat" ? (
-              <ChatMainSection {...chatMainProps} />
+              <ChatMainSection {...chatMainProps}  />
             ) : activeTab === "secret" ||
               (activeTab === "mine_square" && selectedSquarePost) ? (
               <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col gap-3 h-full">

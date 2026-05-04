@@ -39,7 +39,7 @@ export function SuperAdminRegistrationLineChart({ data }: { data: SuperAdminTren
   const n = days.length;
   if (n === 0) return null;
   const [hoverDayKey, setHoverDayKey] = useState<string | null>(null);
-  const w = 100;
+  const w = 200;
   const h = 34;
   const padX = 2;
   const padY = 3;
@@ -61,8 +61,8 @@ export function SuperAdminRegistrationLineChart({ data }: { data: SuperAdminTren
     <div className="relative min-w-0 w-full max-w-full">
       <svg
         viewBox={`0 0 ${w} ${h}`}
-        className="h-24 w-full max-w-full min-w-0 text-[#FFD54F]"
-        preserveAspectRatio="none"
+        className="h-24 w-full text-[#FFD54F]"
+        preserveAspectRatio="xMidYMid meet"
         role="img"
         aria-label="每日註冊折線圖"
       >
@@ -78,6 +78,7 @@ export function SuperAdminRegistrationLineChart({ data }: { data: SuperAdminTren
           fill="none"
           stroke="currentColor"
           strokeWidth="0.9"
+          vector-effect="non-scaling-stroke"
           strokeLinejoin="round"
           strokeLinecap="round"
           points={pts}
@@ -92,7 +93,7 @@ export function SuperAdminRegistrationLineChart({ data }: { data: SuperAdminTren
               onMouseEnter={() => setHoverDayKey(d.dayKey)}
               onMouseLeave={() => setHoverDayKey((k) => (k === d.dayKey ? null : k))}
             >
-              {d.registrations > 0 ? <circle cx={x} cy={y} r="1.4" fill="currentColor" /> : null}
+              {d.registrations > 0 ? <circle cx={x} cy={y} r="1.4" fill="currentColor" style={{ vectorEffect: 'non-scaling-stroke' }} /> : null}
               <rect
                 x={Math.max(0, x - 1.1)}
                 y={0}

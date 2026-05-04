@@ -64,6 +64,8 @@ import DevCleanupSeedCapsuleSquarePostsReducer from "./dev_cleanup_seed_capsule_
 import DevSeedDemoUsersReducer from "./dev_seed_demo_users_reducer";
 import DevSeedSecretCapsulePostsReducer from "./dev_seed_secret_capsule_posts_reducer";
 import DrawCapsuleOnceReducer from "./draw_capsule_once_reducer";
+import EditDirectMessageContentReducer from "./edit_direct_message_content_reducer";
+import EditPrivateReplyContentReducer from "./edit_private_reply_content_reducer";
 import FavoriteCapsuleReducer from "./favorite_capsule_reducer";
 import FavoriteSquarePostReducer from "./favorite_square_post_reducer";
 import LoginAccountReducer from "./login_account_reducer";
@@ -87,6 +89,7 @@ import UnlockAvatarItemReducer from "./unlock_avatar_item_reducer";
 import UnpublishFromSquareReducer from "./unpublish_from_square_reducer";
 import UpdateAccountProfileReducer from "./update_account_profile_reducer";
 import UpdateScheduledMessageReducer from "./update_scheduled_message_reducer";
+import UpdateSquarePostConfigReducer from "./update_square_post_config_reducer";
 import VerifyEmailOtpReducer from "./verify_email_otp_reducer";
 
 // Import all procedure arg schemas
@@ -564,6 +567,8 @@ const reducersSchema = __reducers(
   __reducerSchema("dev_seed_demo_users", DevSeedDemoUsersReducer),
   __reducerSchema("dev_seed_secret_capsule_posts", DevSeedSecretCapsulePostsReducer),
   __reducerSchema("draw_capsule_once", DrawCapsuleOnceReducer),
+  __reducerSchema("edit_direct_message_content", EditDirectMessageContentReducer),
+  __reducerSchema("edit_private_reply_content", EditPrivateReplyContentReducer),
   __reducerSchema("favorite_capsule", FavoriteCapsuleReducer),
   __reducerSchema("favorite_square_post", FavoriteSquarePostReducer),
   __reducerSchema("login_account", LoginAccountReducer),
@@ -587,6 +592,7 @@ const reducersSchema = __reducers(
   __reducerSchema("unpublish_from_square", UnpublishFromSquareReducer),
   __reducerSchema("update_account_profile", UpdateAccountProfileReducer),
   __reducerSchema("update_scheduled_message", UpdateScheduledMessageReducer),
+  __reducerSchema("update_square_post_config", UpdateSquarePostConfigReducer),
   __reducerSchema("verify_email_otp", VerifyEmailOtpReducer),
 );
 

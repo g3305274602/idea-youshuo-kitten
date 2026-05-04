@@ -21,10 +21,13 @@ type UseMessagingActionsParams = {
   publishIncludeCapsulePrivate: boolean;
   publishShowSender: boolean;
   publishShowRecipient: boolean;
+  publishDescription: string; // 🔑 補上
+  onSetPublishDescription: (v: string) => void; // 🔑 補上
   publishToSquare: (args: {
     sourceMessageId: string;
     sourceKind: undefined;
     repliesPublic: boolean;
+    description: string;
     includeThreadInSnapshot: boolean;
     includeCapsulePrivateInSnapshot: boolean;
     showSenderOnSquare: boolean;
@@ -94,28 +97,35 @@ export function useMessagingActions(params: UseMessagingActionsParams) {
   };
 
   const submitPublishToSquare = async () => {
-    if (!params.selectedMessageId) return;
-    params.setLoading(true);
-    params.setSquareActionError("");
-    try {
-      await params.publishToSquare({
-        sourceMessageId: params.selectedMessageId,
-        sourceKind: undefined,
-        repliesPublic: params.publishRepliesPublic,
-        includeThreadInSnapshot: params.publishIncludeThread,
-        includeCapsulePrivateInSnapshot: params.publishIncludeCapsulePrivate,
-        showSenderOnSquare: params.publishShowSender,
-        showRecipientOnSquare: params.publishShowRecipient,
-      });
-      params.setPublishModalOpenWithStack(false);
-      params.onPointsToast(-10, "發布到廣場");
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      if (handleSessionInvalid(msg)) return;
-      params.setSquareActionError(msg || "貼到牆上失敗");
-    } finally {
-      params.setLoading(false);
-    }
+      if (!params.selectedMessageId) return;
+      params.setLoading(true);
+      params.setSquareActionError("");
+      try {
+        // 🔑 核心修改：傳入 description
+        await params.publishToSquare({
+          sourceMessageId: params.selectedMessageId,
+          sourceKind: undefined, // 後端會自動識別或你也可以傳入特定的類型
+          description: params.publishDescription.trim(), // 🔑 新增：對應「空間導讀」
+          repliesPublic: params.publishRepliesPublic,
+          includeThreadInSnapshot: params.publishIncludeThread,
+          includeCapsulePrivateInSnapshot: params.publishIncludeCapsulePrivate,
+          showSenderOnSquare: params.publishShowSender,
+          showRecipientOnSquare: params.publishShowRecipient,
+        });
+
+        // 成功後關閉彈窗
+        params.setPublishModalOpenWithStack(false);
+        
+        // 提示扣點（你可以根據你的需求清空 description）
+        params.onPointsToast(-10, "發布到廣場");
+        
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        if (handleSessionInvalid(msg)) return;
+        params.setSquareActionError(msg || "貼到牆上失敗");
+      } finally {
+        params.setLoading(false);
+      }
   };
 
   const handleUnpublishSquare = async (sourceMessageId: string) => {

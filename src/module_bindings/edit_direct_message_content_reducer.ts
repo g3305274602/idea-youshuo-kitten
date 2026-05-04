@@ -11,12 +11,6 @@ import {
 } from "spacetimedb";
 
 export default {
-  sourceMessageId: __t.string(),
-  sourceKind: __t.option(__t.string()),
-  description: __t.string(),
-  repliesPublic: __t.bool(),
-  includeThreadInSnapshot: __t.bool(),
-  includeCapsulePrivateInSnapshot: __t.bool(),
-  showSenderOnSquare: __t.bool(),
-  showRecipientOnSquare: __t.bool(),
+  messageId: __t.string(),
+  newContent: __t.string(),
 };

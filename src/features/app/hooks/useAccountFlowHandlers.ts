@@ -47,6 +47,8 @@ type UseAccountFlowHandlersParams = {
   confirmPassword: string;
   registerDisplayName: string;
   registerGender: string;
+  publishDescription: string; // 🔑 補上
+  onSetPublishDescription: (v: string) => void; // 🔑 補上
   setError: (v: string) => void;
   setLoading: (v: boolean) => void;
   setView: (v: "dashboard") => void;

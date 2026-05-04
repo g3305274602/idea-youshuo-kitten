@@ -1,4 +1,12 @@
-import { AlertTriangle, Heart, Home, LayoutGrid, MessageCircle, User } from "lucide-react";
+import {
+  AlertTriangle,
+  Heart,
+  Home,
+  LayoutGrid,
+  MessageCircle,
+  User,
+  Edit3,
+} from "lucide-react";
 import { useLayoutEffect, useRef, useState } from "react";
 import type React from "react";
 import { cn } from "../../../lib/utils";
@@ -26,7 +34,10 @@ type ChatMainSectionProps = {
   peerAvatarImageUrl?: string;
   chatDraft: string;
   textLimit: number;
-  capsuleTypeMeta: (capsuleType: number) => { chipClass: string; label: string };
+  capsuleTypeMeta: (capsuleType: number) => {
+    chipClass: string;
+    label: string;
+  };
   onSetSelectedMessageId: (id: string) => void;
   onOpenPublishModal: () => void;
   onOpenReportModal: (targetType: "chat_account", targetId: string) => void;
@@ -36,6 +47,7 @@ type ChatMainSectionProps = {
   onSendChatMessage: () => void;
   chatInputRef: React.RefObject<HTMLTextAreaElement | null>;
   extension?: Record<string, unknown>;
+  onEditReply: (replyId: string, currentBody: string) => void; // 🔑 新增
 };
 
 export function ChatMainSection({
@@ -59,10 +71,10 @@ export function ChatMainSection({
   onResizeChatInput,
   onSendChatMessage,
   chatInputRef,
+  onEditReply,
 }: ChatMainSectionProps) {
-  // 🔑 所有 Hook 必須放在組件的最頂部
   const chatScrollRef = useRef<HTMLDivElement>(null);
-  const [isSending, setIsSending] = useState(false); // 👈 移到這裡
+  const [isSending, setIsSending] = useState(false); // 🔑 發送狀態鎖
 
   const threadKey = selectedChatThread?.key ?? "";
   const lastMessageId =
@@ -75,15 +87,20 @@ export function ChatMainSection({
     const el = chatScrollRef.current;
     if (!el) return;
     el.scrollTop = el.scrollHeight;
-  }, [selectedChatThread, threadKey, selectedChatMessages.length, lastMessageId]);
+  }, [
+    selectedChatThread,
+    threadKey,
+    selectedChatMessages.length,
+    lastMessageId,
+  ]);
 
-  // 2. 封裝發送邏輯
+  // 🔑 封裝發送邏輯，防止重複發送
   const handleSendMessage = async () => {
     if (isSending || !chatDraft.trim()) return;
-    
+
     setIsSending(true);
     try {
-      await onSendChatMessage(); 
+      await onSendChatMessage();
     } catch (err) {
       console.error("發送失敗", err);
     } finally {
@@ -91,13 +108,17 @@ export function ChatMainSection({
     }
   };
 
-  // 🔑 早發回傳 (Early Return) 必須放在所有 Hook 宣告之後
   if (!selectedChatThread) {
     return (
       <div className="mx-auto flex min-h-[46vh] max-w-sm items-center justify-center px-4 py-16 text-center">
         <div>
-          <MessageCircle className="mx-auto mb-3 h-12 w-12 text-white/15" aria-hidden />
-          <p className="text-[15px] font-medium text-[#8E8E93]">先從左側選一條聊聊紀錄</p>
+          <MessageCircle
+            className="mx-auto mb-3 h-12 w-12 text-white/15"
+            aria-hidden
+          />
+          <p className="text-[15px] font-medium text-[#8E8E93]">
+            先從左側選一條聊聊紀錄
+          </p>
         </div>
       </div>
     );
@@ -107,7 +128,9 @@ export function ChatMainSection({
   const peerChatTitle = chatPeerUnlocked
     ? peerRealName || selectedChatThread.counterpartLabel
     : anonPaperNoteLabel(selectedChatThread.counterpartGender);
-  const headerAvatarUrl = chatPeerUnlocked ? peerAvatarImageUrl || "" : secretfe1;
+  const headerAvatarUrl = chatPeerUnlocked
+    ? peerAvatarImageUrl || ""
+    : secretfe1;
 
   const unlockRemaining = Math.max(0, 10 - selectedChatProgress);
   const unlockPct = Math.min(100, (selectedChatProgress / 10) * 100);
@@ -144,7 +167,12 @@ export function ChatMainSection({
                       </span>
                     ) : null}
                   </div>
-                  <p className={cn("mt-1 text-[11px] font-medium leading-snug text-[#8E8E93]", chatPeerUnlocked ? "hidden" : "")}>
+                  <p
+                    className={cn(
+                      "mt-1 text-[11px] font-medium leading-snug text-[#8E8E93]",
+                      chatPeerUnlocked ? "hidden" : "",
+                    )}
+                  >
                     {chatPeerUnlocked
                       ? ""
                       : unlockRemaining > 0
@@ -172,11 +200,7 @@ export function ChatMainSection({
                   type="button"
                   onClick={onOpenChatPeerSpace}
                   disabled={!canOpenChatPeerSpace}
-                  title={
-                    canOpenChatPeerSpace
-                      ? "前往 TA 的空間"
-                      : "對方資料尚未同步，暫時無法開啟空間"
-                  }
+                  title={canOpenChatPeerSpace ? "前往 TA 的空間" : "資料同步中..."}
                   className={cn(
                     "inline-flex items-center gap-1 rounded-full border border-white/12 bg-white/6 px-3 py-1.5 text-[11px] font-semibold text-white/80 transition-colors hover:border-white/18 hover:bg-white/10",
                     !canOpenChatPeerSpace && "cursor-not-allowed opacity-55",
@@ -190,158 +214,127 @@ export function ChatMainSection({
                 type="button"
                 onClick={() => {
                   const targetId = selectedChatPeerProfile?.accountId || selectedChatThread?.counterpartAccountId || "";
-                  if (targetId) {
-                    onOpenReportModal("chat_account", targetId);
-                  }
+                  if (targetId) onOpenReportModal("chat_account", targetId);
                 }}
                 title="檢舉帳號"
-                aria-label="檢舉帳號"
                 className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/8 bg-transparent p-1.5 text-white/50 transition-colors hover:border-red-400/35 hover:bg-red-950/25 hover:text-red-300 active:scale-95"
               >
-                <AlertTriangle className="h-[18px] w-[18px]" strokeWidth={2.5} aria-hidden />
+                <AlertTriangle className="h-[18px] w-[18px]" strokeWidth={2.5} />
               </button>
               {chatPeerUnlocked ? (
                 <button
                   type="button"
                   onClick={onOpenChatPeerProfile}
                   disabled={!selectedChatPeerProfile}
-                  title="查看對方資訊"
                   className={cn(
-                    "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-[#1A1B22] text-white/80 transition-colors hover:bg-[#1A1B22]",
+                    "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-[#1A1B22] text-white/80 transition-colors",
                     !selectedChatPeerProfile && "cursor-not-allowed opacity-55",
                   )}
                 >
-                  <User className="h-[18px] w-[18px]" strokeWidth={2.3} aria-hidden />
+                  <User className="h-[18px] w-[18px]" strokeWidth={2.3} />
                 </button>
               ) : null}
             </div>
           </div>
 
-          {!chatPeerUnlocked ? (
+          {!chatPeerUnlocked && (
             <div className="flex items-center gap-2.5">
-              <div
-                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-[#1A1B22]"
-                title={`解鎖進度 ${selectedChatProgress}/10 · 再 ${unlockRemaining} 則可查看對方資料`}
-              >
-                <span className="relative inline-block h-[22px] w-[22px] text-rose-400" aria-hidden>
+              <div className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-[#1A1B22]">
+                <span className="relative inline-block h-[22px] w-[22px] text-rose-400">
                   <Heart className="h-[22px] w-[22px] text-white/40" strokeWidth={2} />
-                  <span
-                    className="absolute inset-0 overflow-hidden rounded-sm"
-                    style={{
-                      clipPath: `inset(${100 - unlockPct}% 0 0 0)`,
-                    }}
-                  >
+                  <span className="absolute inset-0 overflow-hidden" style={{ clipPath: `inset(${100 - unlockPct}% 0 0 0)` }}>
                     <Heart className="h-[22px] w-[22px] fill-current text-rose-400" strokeWidth={0} />
                   </span>
                 </span>
               </div>
               <div className="min-w-0 flex-1">
                 <div className="h-1.5 w-full overflow-hidden rounded-full bg-[#121319] ring-1 ring-white/10">
-                  <div
-                    className="h-full rounded-full bg-gradient-to-r from-rose-500/90 via-rose-400/85 to-amber-400/80 transition-[width] duration-300 ease-out"
-                    style={{ width: `${unlockPct}%` }}
-                  />
+                  <div className="h-full rounded-full bg-gradient-to-r from-rose-500/90 via-rose-400/85 to-amber-400/80 transition-[width] duration-300" style={{ width: `${unlockPct}%` }} />
                 </div>
               </div>
-              <span className="shrink-0 text-[11px] font-bold tabular-nums text-[#8E8E93]">
-                {selectedChatProgress}/10
-              </span>
+              <span className="shrink-0 text-[11px] font-bold tabular-nums text-[#8E8E93]">{selectedChatProgress}/10</span>
             </div>
-          ) : null}
+          )}
         </div>
       </div>
 
       <div className="ys-chat-body">
-        <div
-          ref={chatScrollRef}
-          className="min-h-0 flex-1 space-y-2 overflow-y-auto apple-scroll pr-1"
-        >
-          {isSourceCapsuleMine ? (
-            <div className="ys-chat-bubble-self">
-              <div className="mb-1 flex flex-wrap items-center justify-end gap-1.5">
-                <span
-                  className={cn(
-                    "inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold",
-                    capsuleTypeMeta(selectedChatThread.sourceCapsuleType).chipClass,
-                  )}
-                >
-                  #{capsuleTypeMeta(selectedChatThread.sourceCapsuleType).label}
-                </span>
-              </div>
-              <p className="whitespace-pre-wrap text-right font-bold">
-                {selectedChatThread.sourcePreview}
-              </p>
+        <div ref={chatScrollRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto apple-scroll pr-1">
+          {/* 主文氣泡 */}
+          <div className={cn(isSourceCapsuleMine ? "ys-chat-bubble-self" : "ys-chat-bubble-peer")}>
+            <div className={cn("mb-1 flex items-center gap-1.5", isSourceCapsuleMine && "justify-end")}>
+              {!isSourceCapsuleMine && <p className="text-[10px] font-black text-[#8E8E93]">{chatPeerUnlocked ? selectedChatThread.counterpartLabel : anonPaperNoteLabel(selectedChatThread.counterpartGender)}</p>}
+              <span className={cn("inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold", capsuleTypeMeta(selectedChatThread.sourceCapsuleType).chipClass)}>
+                #{capsuleTypeMeta(selectedChatThread.sourceCapsuleType).label}
+              </span>
             </div>
-          ) : (
-            <div className="ys-chat-bubble-peer">
-              <div className="mb-1 flex items-center gap-1.5">
-                <p className="text-[10px] font-black text-[#8E8E93]">
-                  {chatPeerUnlocked
-                    ? selectedChatThread.counterpartLabel
-                    : anonPaperNoteLabel(selectedChatThread.counterpartGender)}
-                </p>
-                <span
-                  className={cn(
-                    "inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold",
-                    capsuleTypeMeta(selectedChatThread.sourceCapsuleType).chipClass,
-                  )}
-                >
-                  #{capsuleTypeMeta(selectedChatThread.sourceCapsuleType).label}
-                </span>
-              </div>
-              <p className="whitespace-pre-wrap font-bold">{selectedChatThread.sourcePreview}</p>
-            </div>
-          )}
+            <p className={cn("whitespace-pre-wrap font-bold", isSourceCapsuleMine && "text-right")}>{selectedChatThread.sourcePreview}</p>
+          </div>
 
+          {/* 訊息列表 */}
           {selectedChatMessages.map((m) => {
             const isMine = isChatMessageFromSelfByAccount(m.authorAccountId, myAccountId);
+            // 🔑 3 分鐘內可編輯
+            const isEditable = isMine && (Date.now() - m.createdAt.toDate().getTime() < 3 * 60 * 1000);
+
             return (
-              <div key={m.id} className={cn(isMine ? "ys-chat-bubble-self" : "ys-chat-bubble-peer")}>
-                <p className="whitespace-pre-wrap font-bold">{m.body}</p>
-                <p className={cn("mt-1 text-[10px] font-medium tabular-nums", isMine ? "text-stone-700/80" : "ys-night-text-dim")}>
-                  {m.createdAt.toDate().toLocaleString("zh-TW", {
-                    month: "numeric",
-                    day: "numeric",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
-                </p>
+              <div key={m.id} className="group relative">
+                <div className={cn(isMine ? "ys-chat-bubble-self" : "ys-chat-bubble-peer")}>
+                  <p className="whitespace-pre-wrap font-bold">{m.body}</p>
+                  <p className={cn("mt-1 text-[10px] font-medium tabular-nums", isMine ? "text-stone-700/80" : "ys-night-text-dim")}>
+                    {m.createdAt.toDate().toLocaleString("zh-TW", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                  </p>
+
+                  {isEditable && (
+                    <button
+                      onClick={() => onEditReply(m.id, m.body)}
+                      className={cn(
+                        "absolute top-1/2 -translate-y-1/2 p-1.5 opacity-0 group-hover:opacity-100 transition-all hover:text-violet-400 active:scale-90",
+                        isMine ? "-left-8" : "-right-8"
+                      )}
+                      title="編輯訊息"
+                    >
+                      <Edit3 className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
               </div>
             );
           })}
 
-          {selectedChatMessages.length === 0 ? (
-            <p className="py-8 text-center text-[12px] font-semibold text-white/50">
-              目前還沒有對話，先發第一句吧。
-            </p>
-          ) : null}
+          {selectedChatMessages.length === 0 && (
+            <p className="py-8 text-center text-[12px] font-semibold text-white/50">目前還沒有對話，先發第一句吧。</p>
+          )}
         </div>
 
         <div className="mt-2 border-t border-white/10 pt-2">
           <div className="flex items-end gap-2">
             <textarea
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSendMessage(); 
-                }
-              }}
-              disabled={isSending} 
               ref={chatInputRef as React.Ref<HTMLTextAreaElement>}
               value={chatDraft}
               onChange={(e) => onResizeChatInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSendMessage();
+                }
+              }}
+              disabled={isSending}
               maxLength={textLimit}
               rows={1}
-              placeholder="輸入聊天內容…"
-              className="h-[42px] max-h-[84px] min-h-[42px] flex-1 resize-none rounded-xl px-3 py-2 text-[14px] leading-5 overflow-y-auto ys-night-input ys-hide-scrollbar"
+              placeholder={isSending ? "發送中..." : "輸入聊天內容…"}
+              className="h-[42px] max-h-[84px] min-h-[42px] flex-1 resize-none rounded-xl px-3 py-2 text-[14px] leading-5 ys-night-input ys-hide-scrollbar"
             />
             <button
               type="button"
-              onClick={handleSendMessage} 
+              onClick={handleSendMessage}
               disabled={isSending}
-              className={cn("shrink-0 rounded-xl px-4 py-2 text-[13px] ys-btn-primary", isSending && "opacity-50 cursor-not-allowed")}
+              className={cn(
+                "shrink-0 rounded-xl px-4 py-2 text-[13px] ys-btn-primary transition-all active:scale-95",
+                isSending && "opacity-50 cursor-not-allowed"
+              )}
             >
-              {isSending ? "傳送中..." : "送出"}
+              {isSending ? "..." : "送出"}
             </button>
           </div>
         </div>

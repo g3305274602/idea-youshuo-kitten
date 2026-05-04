@@ -267,6 +267,7 @@ const squarePost = table(
     includeCapsulePrivateInSnapshot: t.bool().default(false),
     sourceKind: t.string().default("direct"),
     sourceId: t.string().default("__legacy__"),
+    description: t.string().default("")
   },
 );
 
@@ -1041,6 +1042,7 @@ function insertSquarePostForMessage(
     scheduledAt: Timestamp;
     exchangeLog: string;
   },
+  description: string
 ) {
   if (ctx.db.squarePost.sourceMessageId.find(sourceMessageId)) {
     throw new SenderError("此信已在廣場");
@@ -1075,6 +1077,7 @@ function insertSquarePostForMessage(
     snapshotPublisherName: pf?.displayName || "路人",
     snapshotPublisherGender: pf?.gender || "unspecified", // 存入
     snapshotPublisherBirthDate: pf?.birthDate, // 存入
+    description: description.trim(), // 🔑 存入
   });
 }
 const MAX_DISPLAY_NAME_LEN = 32;
@@ -3391,6 +3394,7 @@ export const send_direct_message = spacetimedb.reducer(
           scheduledAt: finalScheduledAt,
           exchangeLog: "",
         },
+        ""
       );
     }
   },
@@ -3634,6 +3638,7 @@ export const send_scheduled_message = spacetimedb.reducer(
     });
 
     if (publishToSquare) {
+      // 🔑 修正點：補上第 11 個參數 ""
       insertSquarePostForMessage(
         ctx,
         newId,
@@ -3651,6 +3656,7 @@ export const send_scheduled_message = spacetimedb.reducer(
           scheduledAt,
           exchangeLog: "",
         },
+        "" // 🔑 這裡補上空字串作為初始 description
       );
     }
   },
@@ -3764,6 +3770,7 @@ export const update_scheduled_message = spacetimedb.reducer(
           scheduledAt: next.scheduledAt,
           exchangeLog: next.exchangeLog ?? "",
         },
+        ""
       );
     }
   },
@@ -3797,6 +3804,7 @@ export const publish_to_square = spacetimedb.reducer(
   {
     sourceMessageId: t.string(),
     sourceKind: t.string().optional(),
+    description: t.string(), // 🔑 修正 1：在參數 Schema 裡加入 description
     repliesPublic: t.bool(),
     includeThreadInSnapshot: t.bool(),
     includeCapsulePrivateInSnapshot: t.bool(),
@@ -3808,6 +3816,7 @@ export const publish_to_square = spacetimedb.reducer(
     {
       sourceMessageId,
       sourceKind,
+      description, // 🔑 修正 2：從輸入物件中解構出 description
       repliesPublic,
       includeThreadInSnapshot,
       includeCapsulePrivateInSnapshot,
@@ -3824,13 +3833,11 @@ export const publish_to_square = spacetimedb.reducer(
     const kind = normalizeSourceKind(sourceKind);
     let source = getSquareSourceRow(ctx, sourceMessageId, kind);
     if (!source) {
-      // 聊天記錄公開時可能未正確傳入 sourceKind，自動嘗試另一種來源
       const altKind = kind === "capsule" ? "direct" : "capsule";
       source = getSquareSourceRow(ctx, sourceMessageId, altKind);
     }
     if (!source) throw new SenderError("找不到訊息");
     if (!isSquareSourceParticipant(pf, source, ctx.sender)) {
-      // 聊天記錄中使用者可能不是原始信件的寄/收件人，但已參與私訊交流
       const chatMsgs = [...ctx.db.capsulePrivateMessage.sourceMessageId.filter(sourceMessageId)];
       if (chatMsgs.length === 0) {
         throw new SenderError(
@@ -3846,6 +3853,8 @@ export const publish_to_square = spacetimedb.reducer(
         "須待信件開啟後才能由此上廣場；寄件人可在撰寫／編輯排程時勾選「同步發布至廣場」",
       );
     }
+
+    // 🔑 修正 3：現在這裡是 11 個參數，最後一個傳入剛剛解構出來的 description
     insertSquarePostForMessage(
       ctx,
       sourceMessageId,
@@ -3863,7 +3872,9 @@ export const publish_to_square = spacetimedb.reducer(
         scheduledAt: source.scheduledAt,
         exchangeLog: source.exchangeLog,
       },
+      description // 傳入使用者的圍觀介紹語
     );
+
     const nextBalance = wallet.balance - SQUARE_PUBLISH_COST;
     ctx.db.accountPointsWallet.accountId.update({
       ...wallet,
@@ -4325,6 +4336,97 @@ export const unfavorite_capsule = spacetimedb.reducer(
     throw new SenderError("未收藏");
   },
 );
+
+/** 
+ * 編輯私信文字 (scheduled_message)
+ */
+export const edit_direct_message_content = spacetimedb.reducer(
+  { messageId: t.string(), newContent: t.string() },
+  (ctx, { messageId, newContent }) => {
+    const pf = ctx.db.accountProfile.ownerIdentity.find(ctx.sender);
+    const row = ctx.db.scheduledMessage.id.find(messageId);
+    
+    if (!row || !row.senderIdentity.isEqual(ctx.sender)) {
+      throw new SenderError("只有寄件人可以修改私信內容");
+    }
+
+    const body = newContent.trim();
+    if (!body || body.length > 300) throw new SenderError("內容長度不符");
+
+    // 1. 更新私信內容
+    ctx.db.scheduledMessage.id.update({ ...row, content: body });
+
+    // 2. 如果這則私信已經上廣場了，同步更新廣場快照
+    const post = ctx.db.squarePost.sourceMessageId.find(messageId);
+    if (post) {
+      // 調用你代碼中已有的快照合成函數
+      const newSnapshot = composeSquarePostSnapshot(
+        ctx, 
+        messageId, 
+        { ...row, content: body }, 
+        post.includeThreadInSnapshot, 
+        post.includeCapsulePrivateInSnapshot
+      );
+      ctx.db.squarePost.sourceMessageId.update({
+        ...post,
+        snapshotContent: newSnapshot
+      });
+    }
+  }
+);
+
+/** 
+ * 編輯對話/私訊文字 (capsule_private_message)
+ */
+export const edit_private_reply_content = spacetimedb.reducer(
+  { replyId: t.string(), newBody: t.string() },
+  (ctx, { replyId, newBody }) => {
+    const pf = ctx.db.accountProfile.ownerIdentity.find(ctx.sender);
+    const row = ctx.db.capsulePrivateMessage.id.find(replyId);
+    
+    if (!row || !row.authorIdentity.isEqual(ctx.sender)) {
+      throw new SenderError("只有發言者可以修改此對話");
+    }
+
+    const body = newBody.trim();
+    if (!body || body.length > 300) throw new SenderError("內容不可為空且不能超過300字");
+
+    // 1. 更新對話內容
+    ctx.db.capsulePrivateMessage.id.update({ ...row, body: body });
+
+    // 2. 如果該對話所在的信件/膠囊已上廣場，且廣場快照包含了私訊對話，則刷新快照
+    refreshSquareSnapshotIfNeeded(ctx, row.sourceMessageId);
+  }
+);
+
+export const update_square_post_config = spacetimedb.reducer(
+  {
+    sourceMessageId: t.string(),
+    description: t.string(),         // 介紹語
+    repliesPublic: t.bool(),        // 公開留言
+    showSenderOnSquare: t.bool(),   // 顯示發件人
+    showRecipientOnSquare: t.bool(),// 顯示收件人
+  },
+  (ctx, { sourceMessageId, description, repliesPublic, showSenderOnSquare, showRecipientOnSquare }) => {
+    const post = ctx.db.squarePost.sourceMessageId.find(sourceMessageId);
+    if (!post) throw new SenderError("找不到貼文");
+    
+    // 權限檢查：只有發布者可以改
+    if (!post.publisherIdentity.isEqual(ctx.sender)) {
+      throw new SenderError("無權限修改設定");
+    }
+
+    // 更新設定
+    ctx.db.squarePost.sourceMessageId.update({
+      ...post,
+      description: description.trim().slice(0, 100), // 限制介紹語長度
+      repliesPublic,
+      showSenderOnSquare,
+      showRecipientOnSquare,
+    });
+  }
+);
+
 export const capsule_private_for_me = spacetimedb.view(
   { name: "capsule_private_for_me", public: true },
   t.array(capsulePrivateMessage.rowType),

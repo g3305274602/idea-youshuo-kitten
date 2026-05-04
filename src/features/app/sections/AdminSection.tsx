@@ -1272,7 +1272,7 @@ export function AdminContent(props: AdminContentProps) {
                   onAvatarOpenCreateModal();
                   setAvatarCreateOpen(true);
                 }}
-                className="rounded-xl border-2 border-rose-400 bg-rose-500 px-3 py-1.5 text-[12px] font-bold text-white"
+                className="rounded-xl border-2 border-rose-400 bg-rose-500 px-3 py-1.5 text-[12px] font-bold text-white whitespace-nowrap disabled:opacity-60"
               >
                 + 新增頭像
               </button>
@@ -1985,7 +1985,7 @@ export function AdminContent(props: AdminContentProps) {
 
   if (activeTab === "admin_ops") {
     return (
-      <div className="apple-scroll max-h-full min-w-0 w-full max-w-7xl space-y-3 overflow-y-auto overflow-x-hidden px-2 py-2 md:space-y-4 md:px-4">
+      <div className="apple-scroll max-h-full min-w-0 mx-auto w-full max-w-7xl space-y-3 overflow-y-auto overflow-x-hidden px-2 py-2 md:space-y-4 md:px-4">
         <div className="min-w-0 overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-slate-950 via-slate-900 to-emerald-950 p-3 text-white shadow-xl md:p-5">
           <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
             <div className="min-w-0">
@@ -2350,7 +2350,7 @@ export function AdminContent(props: AdminContentProps) {
   }
 
   return (
-    <div className="max-w-3xl w-full mx-auto space-y-3">
+    <div className="max-w-4xl w-full mx-auto space-y-3">
       <div className="cd-card-raised rounded-2xl p-4 space-y-3">
         <div className="flex items-center justify-between gap-2">
           <p className="text-[13px] font-black text-white">管理帳號</p>
